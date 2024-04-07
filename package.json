@@ -1,0 +1,21 @@
+{
+  "name": "png_to_tiled",
+  "version": "1.0.0",
+  "description": "PNG to Tiled dungeon converter for Starbound",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js --help",
+    "start:dev": "nodemon index.js --help",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Kilkenni",
+  "license": "GPL-3.0",
+  "dependencies": {
+    "get-pixels": "^3.3.3",
+    "uuid": "^9.0.1",
+    "yargs": "^17.7.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}

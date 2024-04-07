@@ -1,0 +1,12 @@
+#Junk
+.DS_Store
+.vscode/
+.idea/
+/temp
+
+# dependencies
+/node_modules
+
+# working folder
+/input-output/*
+!/input-output/template.json
