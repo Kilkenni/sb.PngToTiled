@@ -28,9 +28,13 @@ b) Tile > Tile GID from Tileset. Tilesets available in packed/tilesets/packed
 4. Possibly process associated PNGs (original SB format splits layers into separate files, Tiled keeps map info in layers inside a single file). Note the flip flags!
 
 ## Useful links
+
 [Tiled JSON file documentation](https://doc.mapeditor.org/en/latest/reference/json-map-format)
+
 [Tiled: Global IDs and tile flipping flags](https://doc.mapeditor.org/en/latest/reference/global-tile-ids/)
+
 [Node zlib docs](https://nodejs.org/api/zlib.html#class-zlibinflate)
+
 [JavaScript bitwise operations](https://www.w3schools.com/js/js_bitwise.asp)
 
 I do not provide Starbound assets or unpacker.
@@ -38,6 +42,7 @@ I do not provide Starbound assets or unpacker.
 ## Credits
 
 uses [get-pixels](https://www.npmjs.com/package/get-pixels) by [Mikola Lysenko](https://github.com/mikolalysenko)
+
 bitwise operators help by [Tinedel](https://github.com/tinedel)
 
 "There is no greater power in the universe than the need for freedom"
