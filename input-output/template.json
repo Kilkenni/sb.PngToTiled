@@ -1,8 +1,11 @@
 { "backgroundcolor":"#000000",
+ "compressionlevel":-1,
  "height":60,
+ "infinite":false,
  "layers":[
 
  ],
+ "nextlayerid":1,
  "nextobjectid":1,
  "orientation":"orthogonal",
  "properties":
@@ -15,6 +18,7 @@
 
  ],
  "tilewidth":8,
+ "type":"map",
  "version":1,
  "width":60
 }
