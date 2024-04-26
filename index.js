@@ -181,6 +181,34 @@ async function calcTilesets() {
   return tilesetsArray;
 }
 
+//will Array.sort() speed up things?
+//Do we need to account for duplicate items? Better do not add them in the first place!
+//returns percents of matches from 1st array
+function matchTileKeywords(tileKeywordsArray, testTileKeywordsArray) {
+  let matched = 0;
+  for (const keyword of tileKeywordsArray) {
+    if (testTileKeywordsArray.includes(keyword)) {
+      matched++;
+    }
+  }
+  const matchPercent = (matched * 100) / tileKeywordsArray.length;
+  return Math.round(matchPercent);
+}
+
+//searches match for an old tile in an array of new tiles based on matching comment (old) with shortdescription (new)
+function findTileMatch(oldTile, newTilesObjectArray) {
+  let oldTileKeywords;
+  if (oldTile?.comment) {
+    oldTileKeywords = [
+      ...new Set(oldTile.comment.toLowerCase().split(/[,!?.:;]*[\s]+/)),
+    ]; //use Set to remove duplicate values
+    //add splitting by CamelCase as well - for rules, not comments
+  }
+
+  for (const testTile in newTilesObjectArray) {
+  }
+}
+
 async function readOldTileset() {
   const ioDir = await dungeonsApi.readDir();
   // console.table(ioDir);
