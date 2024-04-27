@@ -3,6 +3,7 @@ const getPixels = require("get-pixels");
 const zlib = require("zlib");
 const nodeFileSys = require("fs").promises;
 const nodePathModule = require("path");
+const { domainToASCII } = require("url");
 
 //Tiled JSON format reference: https://doc.mapeditor.org/en/stable/reference/json-map-format/
 
@@ -27,7 +28,7 @@ async function getDirContents(_) {
 
 async function getDungeons(_) {
   const ioDir = await dungeonsApi.readDir();
-  // console.table(ioDir);
+  console.table(ioDir);
   let dungeonPath = "";
   try {
     for (const file of ioDir) {
@@ -129,8 +130,6 @@ function resolveTilesets() {
 }
 
 async function calcTilesets() {
-  function CommentToSearch() {}
-
   const path = resolveTilesets();
   const TILESETS = [
     ///blocks
@@ -156,27 +155,130 @@ async function calcTilesets() {
     startGID = startGID + currentTileset.tilecount; //increase GID by size of current tileset
     tilesetsArray.push(tilesetDesc);
 
-    const oldTileMap = await readOldTileset();
-    //old tile structure:
-    /*
-    {
-      "value": [ R, G, B, A],
-      "comment": "some comment"
-      ...
-    }
-    */
-    const tilesetsMatch = oldTileMap.map((tile) => {
-      const newTile = tile;
+    // const tilesetsMatch = oldTileMap.map((tile) => {
+    //   const newTile = tile;
 
-      return newTile;
-    });
+    //   return newTile;
+    // });
 
     // if (currentTileset.tileproperties) {
     //   for (const tile of currentTileset) {
     //   }
     // }
   }
-  console.log(tilesetsArray);
+
+  const oldTileMap = await readOldTileset();
+  const oldTiles = {
+    foreground: [],
+    background: [],
+    special: [],
+    wires: [],
+    stagehands: [],
+    npcs: [],
+    undefined: [],
+  };
+  for (const oldTile of oldTileMap) {
+    //old tile structure:
+    /*
+  {
+    "value": [ R, G, B, A],
+    "comment": "some comment"
+    ?"brush":[
+    [special|"clear"],
+    [?background],
+    [?foreground]
+    ]
+    ...
+  }
+  */
+    if (!oldTile.brush) {
+      oldTiles.special.push(oldTile); //if there is no brush at all, probably a Special tile
+    } else {
+      if (oldTile.brush.length === 1) {
+        if (oldTile.brush[0].length === 1) {
+          if (oldTile.brush[0][0] === "clear") {
+            oldTiles.special.push(oldTile); //brush contains 1 "clear" element > special tile
+          } else {
+            oldTiles.foreground.push(oldTile);
+          }
+        } else {
+          switch (oldTile.brush[0][0]) {
+            case "surface":
+              oldTiles.foreground.push(oldTile);
+              break;
+            case "wire":
+              oldTiles.wires.push(oldTile);
+              break;
+            case "stagehand":
+              oldTiles.stagehands.push(oldTile);
+              break;
+            case "npc":
+              oldTiles.npcs.push(oldTile);
+              break;
+            default:
+              console.log(
+                `Error, tile brush of size 1 contains ${oldTile.brush} which cannot be identified`
+              );
+          }
+        }
+      } else if (oldTile.brush.length === 2) {
+        if (oldTile.brush[0].length === 1) {
+          if (oldTile.brush[0][0] === "clear") {
+            if (oldTile.brush[1][0] === "back") {
+              oldTiles.background.push(oldTile); //brush contains 2 elements, 1-st is "clear" element > background tile
+            } else {
+              oldTiles.undefined.push(oldTile);
+            }
+          } else
+            console.log(
+              `Error, tile brush of size 2; 1-st element is not "clear", contains ${oldTile.brush}`
+            );
+        } else {
+          console.log(
+            `Error, tile brush of size 2, strange 1-st element: ${oldTile.brush}`
+          );
+        }
+      } else if (oldTile.brush.length === 3) {
+        if (oldTile.brush[0][0] != "clear") {
+          console.log(
+            `Error, tile brush of size ${oldTile.brush.length} contains ${oldTile.brush}, first slot is not "clear"`
+          );
+          continue; //NEXT TILE
+        }
+        for (const brush of oldTile.brush) {
+          switch (brush[0]) {
+            case "clear":
+              break;
+            case "back":
+              oldTiles.background.push(oldTile);
+              break;
+            case "front":
+              oldTiles.foreground.push(oldTile);
+              break;
+            default:
+              console.log(
+                `Error, tile brush of size ${oldTile.brush.length} contains ${oldTile.brush} - CANNOT BE SORTED`
+              );
+          }
+        }
+        if (oldTile.brush[1][0] === "back") {
+        }
+      } else {
+        console.log(
+          `Error, tile brush of size ${oldTile.brush.length} contains ${oldTile.brush}`
+        );
+      }
+    }
+  }
+
+  for (const tiletype in oldTiles) {
+    console.log(
+      `Found ${tiletype} matches, total tiles: ${oldTiles[tiletype].length}`
+    );
+    // console.log(oldTiles[tiletype]);
+  }
+  console.log(oldTiles.undefined);
+  // console.log(tilesetsArray);
 
   return tilesetsArray;
 }
@@ -216,7 +318,8 @@ async function readOldTileset() {
   for (const file of ioDir) {
     if (file.isFile())
       if (getExtension(file.name) === "dungeon") {
-        dungeonPath = file.path + "/" + file.name;
+        // console.log(file.path);
+        dungeonPath = dungeonsApi.ioDirPath + "/" + file.name;
         // console.log(dungeonPath);
         break;
       }
