@@ -1,9 +1,9 @@
 const dungeonsApi = require("./dungeonsFS.js");
+const oldTilesesetParser = require("./oldTilesetParser.js");
 const getPixels = require("get-pixels");
 const zlib = require("zlib");
 const nodeFileSys = require("fs").promises;
 const nodePathModule = require("path");
-const { domainToASCII } = require("url");
 
 //Tiled JSON format reference: https://doc.mapeditor.org/en/stable/reference/json-map-format/
 
@@ -20,15 +20,19 @@ function getFilename(fileName) {
   return fileName.substring(0, fileName.lastIndexOf("."));
 }
 
-async function getDirContents(_) {
+async function getDirContents(log = false) {
   const ioDir = await dungeonsApi.readDir();
-  console.table(ioDir);
+  if(log) {
+    console.table(ioDir);
+  }
   return 1;
 }
 
-async function getDungeons(_) {
+async function getDungeons(log = false) {
   const ioDir = await dungeonsApi.readDir();
-  console.table(ioDir);
+  if(log) {
+    console.table(ioDir);
+  }
   let dungeonPath = "";
   try {
     for (const file of ioDir) {
@@ -129,7 +133,7 @@ function resolveTilesets() {
   return pathToTileset;
 }
 
-async function calcTilesets() {
+async function calcTilesets(log = false) {
   const path = resolveTilesets();
   const TILESETS = [
     ///blocks
@@ -168,116 +172,34 @@ async function calcTilesets() {
   }
 
   const oldTileMap = await readOldTileset();
-  const oldTiles = {
-    foreground: [],
-    background: [],
-    special: [],
-    wires: [],
-    stagehands: [],
-    npcs: [],
-    undefined: [],
-  };
-  for (const oldTile of oldTileMap) {
-    //old tile structure:
-    /*
-  {
-    "value": [ R, G, B, A],
-    "comment": "some comment"
-    ?"brush":[
-    [special|"clear"],
-    [?background],
-    [?foreground]
-    ]
-    ...
-  }
-  */
-    if (!oldTile.brush) {
-      oldTiles.special.push(oldTile); //if there is no brush at all, probably a Special tile
-    } else {
-      if (oldTile.brush.length === 1) {
-        if (oldTile.brush[0].length === 1) {
-          if (oldTile.brush[0][0] === "clear") {
-            oldTiles.special.push(oldTile); //brush contains 1 "clear" element > special tile
-          } else {
-            oldTiles.foreground.push(oldTile);
-          }
-        } else {
-          switch (oldTile.brush[0][0]) {
-            case "surface":
-              oldTiles.foreground.push(oldTile);
-              break;
-            case "wire":
-              oldTiles.wires.push(oldTile);
-              break;
-            case "stagehand":
-              oldTiles.stagehands.push(oldTile);
-              break;
-            case "npc":
-              oldTiles.npcs.push(oldTile);
-              break;
-            default:
-              console.log(
-                `Error, tile brush of size 1 contains ${oldTile.brush} which cannot be identified`
-              );
-          }
-        }
-      } else if (oldTile.brush.length === 2) {
-        if (oldTile.brush[0].length === 1) {
-          if (oldTile.brush[0][0] === "clear") {
-            if (oldTile.brush[1][0] === "back") {
-              oldTiles.background.push(oldTile); //brush contains 2 elements, 1-st is "clear" element > background tile
-            } else {
-              oldTiles.undefined.push(oldTile);
-            }
-          } else
-            console.log(
-              `Error, tile brush of size 2; 1-st element is not "clear", contains ${oldTile.brush}`
-            );
-        } else {
-          console.log(
-            `Error, tile brush of size 2, strange 1-st element: ${oldTile.brush}`
-          );
-        }
-      } else if (oldTile.brush.length === 3) {
-        if (oldTile.brush[0][0] != "clear") {
-          console.log(
-            `Error, tile brush of size ${oldTile.brush.length} contains ${oldTile.brush}, first slot is not "clear"`
-          );
-          continue; //NEXT TILE
-        }
-        for (const brush of oldTile.brush) {
-          switch (brush[0]) {
-            case "clear":
-              break;
-            case "back":
-              oldTiles.background.push(oldTile);
-              break;
-            case "front":
-              oldTiles.foreground.push(oldTile);
-              break;
-            default:
-              console.log(
-                `Error, tile brush of size ${oldTile.brush.length} contains ${oldTile.brush} - CANNOT BE SORTED`
-              );
-          }
-        }
-        if (oldTile.brush[1][0] === "back") {
-        }
-      } else {
+  // const oldTiles = {
+  //   tiletype: [],
+  //   ...
+  // };
+
+  const oldTiles = oldTilesesetParser.getSortedTileset(oldTileMap);
+
+  console.log(`Total tile count: ${oldTileMap.length}`)
+  for (const tiletype in oldTiles) {
+    if(log && tiletype != "undefined") {
+      console.log(
+        `Checking ${tiletype}, matched tiles: ${oldTiles[tiletype].length}`
+      );
+    }
+    else if (tiletype === "undefined") {
+      if(oldTiles[tiletype].length > 0) {
         console.log(
-          `Error, tile brush of size ${oldTile.brush.length} contains ${oldTile.brush}`
+          `FOUND ${tiletype} tiles, matched tiles: ${oldTiles[tiletype].length}`
         );
+        console.log(oldTiles.undefined);
       }
+      else {
+        console.log("All tiles sorted!");
+      }
+      
     }
   }
-
-  for (const tiletype in oldTiles) {
-    console.log(
-      `Found ${tiletype} matches, total tiles: ${oldTiles[tiletype].length}`
-    );
-    // console.log(oldTiles[tiletype]);
-  }
-  console.log(oldTiles.undefined);
+  
   // console.log(tilesetsArray);
 
   return tilesetsArray;
@@ -509,10 +431,10 @@ res[3] = (combined >>> 24) & byteMask;
 function invokeAction({ action }) {
   switch (action) {
     case "dir":
-      getDirContents();
+      getDirContents(true);
       break;
     case "dungeons":
-      getDungeons();
+      getDungeons(true);
       break;
     case "convdungeons":
       convertDungeon();
