@@ -2,9 +2,116 @@ const nodeFileSys = require("fs").promises;
 const nodePathModule = require("path");
 const { v4: uuidv4 } = require("uuid");
 
+//https://0xacab.org/bidasci/starbound-v1.4.4-source-code/-/blob/no-masters/tiled/properties.txt?ref_type=heads
+
+
+interface TilesetJson { 
+  tilecount: number,
+};
+
+interface TilesetMatJson extends TilesetJson {
+  name: "materials"|"supports",
+  tileproperties:{
+    [key: string] : ({
+      "//description"? : string,
+      "//name"? : string,
+      "//shortdescription"? : string,
+      material: string
+    } | {
+      "//name": string,
+      invalid: "true",
+    }),
+  },
+}
+
+interface TilesetLiquidJson extends TilesetJson {
+  name: "liquids",
+  tileproperties:{
+    [key: string] : {
+      "//name" : string,
+      "//shortdescription"? : string,
+      source?: "true",
+    } & ( {liquid: string} | {invalid: "true"} ),
+  },
+}
+
+interface TilesetMiscJson extends TilesetJson {
+  name: "miscellaneous",
+  tileproperties: {
+    [key:string] : {
+      "//description" : string,
+      "//shortdescription" : string,
+    } & ( ({
+      clear?: "true" | "false",
+      allowOverdrawing? : "true",
+      surface? : string,
+      layer?: "back",
+    } & ( {worldGenMustContainAir?: ""} | 
+      {worldGenMustContainSolid?: ""} | 
+      {worldGenMustContainLiquid?: ""} | { worldGenMustNotContainLiquid?: ""} )
+      ) | 
+    {
+      connector: string
+    } | {
+      material: string
+    } | {
+      dungeonid: string
+    } | {
+      playerstart: ""
+    } | {
+      biomeitems: ""
+    } | {
+      biometree: ""
+    })
+  }
+}
+
+type Brush = ["clear"] |
+["surface"|"surfacebackground", any?, any?] | //material, tilled? 
+["liquid", string] |
+["front"|"back", string, string?] |
+["biometree"|"biomeitems"|"playerstart"|"wire"|"stagehand"|"npc"|"object", any?];
+
+type RgbaValue = [number, number, number, number];
+
+type Tile = {
+  value: RgbaValue, // [R, G, B, A]
+  comment?: string,
+  brush?: Brush[],
+  rules?: ["allowOverdrawing"] | any[],
+  connector?: boolean,
+};
+
+//old tile structure:
+    /*
+  {
+    "value": [ R, G, B, A],
+    "comment": "some comment"
+    ?"brush":[
+    [special|"clear"],
+    [?background],
+    [?foreground]
+    ]
+    ...
+  }
+*/
+
+type OldTilesetSorted = {
+  foreground: Tile[],
+  background: Tile[],
+  specialforeground: Tile[],
+  specialbackground: Tile[],
+  special: Tile[],
+  wires: Tile[],
+  stagehands: Tile[],
+  npcs: Tile[],
+  objects: Tile[],
+  undefined: Tile[],
+}
+
 function getSortedTileset(arrayOfOldTiles) {
-  const oldTiles = {
-    foreground: [],
+  const oldTiles :OldTilesetSorted = {
+    foreground: [] ,
     background: [],
     specialforeground: [],
     specialbackground: [],
@@ -17,19 +124,7 @@ function getSortedTileset(arrayOfOldTiles) {
   };
 
   for (const tile of arrayOfOldTiles) {
-    //old tile structure:
-    /*
-  {
-    "value": [ R, G, B, A],
-    "comment": "some comment"
-    ?"brush":[
-    [special|"clear"],
-    [?background],
-    [?foreground]
-    ]
-    ...
-  }
-  */
+    
     if (tile.brush === undefined) {
       oldTiles.special.push(tile); //if there is no brush at all, probably a Special tile
     } else {
@@ -88,6 +183,8 @@ function getSortedTileset(arrayOfOldTiles) {
 
       
       /*
+      //COMPLE OUTDATED CHECK - REMOVE
+
       if (oldTile.brush.length === 1) {
         if (oldTile.brush[0].length === 1) {
           if (oldTile.brush[0][0] === "clear") {
@@ -167,6 +264,49 @@ function getSortedTileset(arrayOfOldTiles) {
   }
 
   return oldTiles;
+}
+
+//compares explicitly defined tilelayer-related tiles, like foreground/background, liquid etc
+
+function matchTilelayer(oldTilesCategoryArray: Tile[], newTilesetJSON: TilesetMatJson) {
+  const matchMap = oldTilesCategoryArray.map((tile) => {
+    const {value, comment, brush, rules} : Tile = tile;
+    if(brush === undefined) {
+      throw new Error(`Tile brush is ${brush}`);
+    }
+    for(const brushLayer of brush) {
+      const [brushType, brushMaterial] : Brush = brushLayer;
+      switch (brushType) {
+        case "front":
+          for(const materialIndex in newTilesetJSON.tileproperties) {
+            const material = newTilesetJSON.tileproperties[materialIndex]["material"];
+            if(material === brushMaterial) {
+              return { oldTileName: brushMaterial, newTileIndex: materialIndex}
+            }
+          }
+          break;
+        default:
+          //do nothing
+      }
+    }
+    const tileMatch = {};
+    /*
+    front tile:
+    -brush: []
+    --type: "clear", "liquid", "front, "back"
+    --material (for any but "clear" - can be mat or support)
+    --tilled (optional)
+    -comment: "string"
+    -value: [RGBA]
+    -rules (optional)
+    --allowOverdrawing (optional)
+    */
+
+    return tile;
+  });
+  
+
+
 }
 
 module.exports = {

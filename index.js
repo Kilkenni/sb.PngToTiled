@@ -1,5 +1,5 @@
 const dungeonsApi = require("./dungeonsFS.js");
-const oldTilesesetParser = require("./oldTilesetParser.js");
+const oldTilesesetParser = require("./tilesetMatch.js");
 const getPixels = require("get-pixels");
 const zlib = require("zlib");
 const nodeFileSys = require("fs").promises;
@@ -133,7 +133,8 @@ function resolveTilesets() {
   return pathToTileset;
 }
 
-async function calcTilesets(log = false) {
+//calculates new tileset shapes (GIDs and stuff)
+async function calcNewTilesetShapes(log = false) {
   const path = resolveTilesets();
   const TILESETS = [
     ///blocks
@@ -171,7 +172,15 @@ async function calcTilesets(log = false) {
     // }
   }
 
-  const oldTileMap = await readOldTileset();
+  if(log) {
+    console.log(tilesetsArray);
+  }
+
+  return tilesetsArray;
+}
+
+async function sortOldTileset(log = false) {
+  const oldTileMap = await extractOldTileset(true);
   // const oldTiles = {
   //   tiletype: [],
   //   ...
@@ -199,10 +208,10 @@ async function calcTilesets(log = false) {
       
     }
   }
-  
-  // console.log(tilesetsArray);
 
-  return tilesetsArray;
+  const oldTilesSorted = oldTiles;
+  
+  return oldTilesSorted;
 }
 
 //will Array.sort() speed up things?
@@ -233,7 +242,7 @@ function findTileMatch(oldTile, newTilesObjectArray) {
   }
 }
 
-async function readOldTileset() {
+async function extractOldTileset(log = false) {
   const ioDir = await dungeonsApi.readDir();
   // console.table(ioDir);
   let dungeonPath = "";
@@ -243,7 +252,7 @@ async function readOldTileset() {
         // console.log(file.path);
         dungeonPath = dungeonsApi.ioDirPath + "/" + file.name;
         // console.log(dungeonPath);
-        break;
+        break; //break on first dungeon found!
       }
   }
   let dungeons;
@@ -265,7 +274,47 @@ async function readOldTileset() {
     return undefined;
   }
 
+  if(log) {
+    dungeonsApi.writeTileMap(`${getFilename(dungeonPath) + ".TILES"}`, tileMap); //debug file
+    console.log(`${getFilename(dungeonPath) + ".TILES"} saved to I/O dir`);
+  }
   return tileMap;
+}
+
+async function extractOldTiles(log = false) {
+  const tileMap = await extractOldTileset(true);
+
+  let mapPath = "";
+  try {
+    // console.table(tileMap);
+    dungeonsApi.writeTileMap(`${getFilename(dungeonPath) + ".TILES"}`, tileMap);
+    for (const file of ioDir) {
+      if (file.isFile())
+        if (getExtension(file.name) === "png") {
+          mapPath = `${file.path}/${getFilename(file.name)}.json`;
+          console.log(
+            `Detected ${file.name}, writing ${getFilename(file.name)}.json...`
+          );
+          let map = {};
+          getPixels(`${file.path}/${file.name}`, (error, pixels) => {
+            if (error) {
+              console.error(error);
+              console.log("Bad PNG image path");
+              return;
+            }
+            //PNG conversion here
+            map = mapPixelsToJson(pixels, tileMap);
+            const tilesets = calcnewTilesets();
+            //NEEDS AWAIT
+            // dungeonsApi.writeConvertedMapJson(mapPath, map);
+          });
+        }
+    }
+  } catch (error) {
+    console.error(error);
+    return undefined;
+  }
+  return 4;
 }
 
 //TODO: PNG conversion here
@@ -280,6 +329,8 @@ function mapPixelsToJson(pixelsArray, tileMap) {
   console.log(map);
   return map;
 }
+
+
 
 async function convertPixelToData() {
   const ioDir = await dungeonsApi.readDir();
@@ -332,7 +383,7 @@ async function convertPixelToData() {
             }
             //PNG conversion here
             map = mapPixelsToJson(pixels, tileMap);
-            const tilesets = calcTilesets();
+            const tilesets = calcNewTilesetShapes();
             //NEEDS AWAIT
             // dungeonsApi.writeConvertedMapJson(mapPath, map);
           });
@@ -438,15 +489,21 @@ function invokeAction({ action }) {
       break;
     case "convdungeons":
       convertDungeon();
-      break;
-    case "convpng":
-      convertPixelToData();
-      break;
+      break; 
     case "zlib":
       zlibTest();
       break;
-    case "calctilesets":
-      calcTilesets();
+    case "extractoldtileset":
+      extractOldTileset(true);
+      break;
+    case "calctilesetshapes":
+      calcNewTilesetShapes(true);
+      break;
+    case "sortoldtileset":
+      sortOldTileset(true);
+      break;
+    case "convpng":
+      convertPixelToData();
       break;
     default:
       console.warn("\x1B[31m Unknown action type!");

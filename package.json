@@ -16,6 +16,7 @@
     "yargs": "^17.7.2"
   },
   "devDependencies": {
+    "@types/node": "^20.12.7",
     "nodemon": "^3.1.0"
   }
 }
