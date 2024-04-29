@@ -16,6 +16,33 @@ const TILESETJSON_NAME = {
   misc: "miscellaneous",
 }
 
+const MISCJSON_MAP = [
+  "Air", //0
+  "Magic Pink Brush", //1
+  "Invisible wall (boundary)", //2
+  "Player Start", //3
+  "worldGenMustContainAir", //4
+  "worldGenMustContainSolid", //5
+  "Biome Item", //6
+  "Biome Tree", //7
+  "Default Surface Tile 0", //8
+  "Default Surface Tile 1", //9
+  "Default Surface Tile 2", //10
+  "Air (overwritable)", //11
+  "Red Connector", //12
+  "Yellow Connector", //13
+  "Green Connector", //14
+  "Blue Connector", //15
+  "worldGenMustContainAir (background)", //16
+  "worldGenMustContainSolid (background)", //17
+  "Invisible wall (climbable)", //18
+  "Underwater invisible wall (boundary)", //19
+  "Zero G", //20
+  "Zero G (protected)", //21
+  "worldGenMustContainLiquid (ocean)", //22
+  "worldGenMustNotContainLiquid (ocean)" //23
+]; //index = tile #
+
 interface TilesetMatJson extends TilesetJson {
   name: "materials"|"supports",
   tileproperties:{
