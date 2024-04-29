@@ -12,17 +12,23 @@ const argv = require("yargs").help().argv;
 let dungeonDefinition = {};
 let rawPNG = undefined;
 
+//get extention from path (without .)
 function getExtension(fileName) {
   return fileName.substring(fileName.lastIndexOf(".") + 1);
 }
 
+//trunc extension and .
 function getFilename(fileName) {
   return fileName.substring(0, fileName.lastIndexOf("."));
 }
 
+function getFilenameFromPath(filePath) {
+  return nodePathModule.parse(filePath).name;
+}
+
 async function getDirContents(log = false) {
   const ioDir = await dungeonsApi.readDir();
-  if(log) {
+  if (log) {
     console.table(ioDir);
   }
   return 1;
@@ -30,7 +36,7 @@ async function getDirContents(log = false) {
 
 async function getDungeons(log = false) {
   const ioDir = await dungeonsApi.readDir();
-  if(log) {
+  if (log) {
     console.table(ioDir);
   }
   let dungeonPath = "";
@@ -172,7 +178,7 @@ async function calcNewTilesetShapes(log = false) {
     // }
   }
 
-  if(log) {
+  if (log) {
     console.log(tilesetsArray);
   }
 
@@ -188,58 +194,53 @@ async function sortOldTileset(log = false) {
 
   const oldTiles = oldTilesesetParser.getSortedTileset(oldTileMap);
 
-  console.log(`Total tile count: ${oldTileMap.length}`)
+  console.log(`Total tile count: ${oldTileMap.length}`);
   for (const tiletype in oldTiles) {
-    if(log && tiletype != "undefined") {
+    if (log && tiletype != "undefined") {
       console.log(
         `Checking ${tiletype}, matched tiles: ${oldTiles[tiletype].length}`
       );
-    }
-    else if (tiletype === "undefined") {
-      if(oldTiles[tiletype].length > 0) {
+    } else if (tiletype === "undefined") {
+      if (oldTiles[tiletype].length > 0) {
         console.log(
           `FOUND ${tiletype} tiles, matched tiles: ${oldTiles[tiletype].length}`
         );
         console.log(oldTiles.undefined);
-      }
-      else {
+      } else {
         console.log("All tiles sorted!");
       }
-      
     }
   }
 
   const oldTilesSorted = oldTiles;
-  
+
   return oldTilesSorted;
 }
 
-//will Array.sort() speed up things?
-//Do we need to account for duplicate items? Better do not add them in the first place!
-//returns percents of matches from 1st array
-function matchTileKeywords(tileKeywordsArray, testTileKeywordsArray) {
-  let matched = 0;
-  for (const keyword of tileKeywordsArray) {
-    if (testTileKeywordsArray.includes(keyword)) {
-      matched++;
-    }
-  }
-  const matchPercent = (matched * 100) / tileKeywordsArray.length;
-  return Math.round(matchPercent);
-}
+async function matchTileset_test(log = false) {
+  const oldTilesetSorted = await sortOldTileset();
 
-//searches match for an old tile in an array of new tiles based on matching comment (old) with shortdescription (new)
-function findTileMatch(oldTile, newTilesObjectArray) {
-  let oldTileKeywords;
-  if (oldTile?.comment) {
-    oldTileKeywords = [
-      ...new Set(oldTile.comment.toLowerCase().split(/[,!?.:;]*[\s]+/)),
-    ]; //use Set to remove duplicate values
-    //add splitting by CamelCase as well - for rules, not comments
-  }
+  const tilesetsDesc = await calcNewTilesetShapes();
 
-  for (const testTile in newTilesObjectArray) {
-  }
+  const tilesetFile = "/tilesets/packed/supports.json";
+
+  const MaterialJson = await dungeonsApi.getTileset(
+    `${dungeonsApi.ioDirPath}${tilesetFile}`
+  );
+
+  const firstgid = tilesetsDesc.find(
+    (element) =>
+      getFilenameFromPath(element.source) === getFilenameFromPath(tilesetFile)
+  ).firstgid;
+
+  const frontMatchMap = oldTilesesetParser.matchTilelayer(
+    oldTilesetSorted.foreground,
+    MaterialJson,
+    "front",
+    firstgid
+  );
+
+  return frontMatchMap;
 }
 
 async function extractOldTileset(log = false) {
@@ -274,7 +275,7 @@ async function extractOldTileset(log = false) {
     return undefined;
   }
 
-  if(log) {
+  if (log) {
     dungeonsApi.writeTileMap(`${getFilename(dungeonPath) + ".TILES"}`, tileMap); //debug file
     console.log(`${getFilename(dungeonPath) + ".TILES"} saved to I/O dir`);
   }
@@ -329,8 +330,6 @@ function mapPixelsToJson(pixelsArray, tileMap) {
   console.log(map);
   return map;
 }
-
-
 
 async function convertPixelToData() {
   const ioDir = await dungeonsApi.readDir();
@@ -481,7 +480,7 @@ res[3] = (combined >>> 24) & byteMask;
 
 function invokeAction({ action }) {
   switch (action) {
-    case "dir":
+    case "dir_test":
       getDirContents(true);
       break;
     case "dungeons":
@@ -489,8 +488,8 @@ function invokeAction({ action }) {
       break;
     case "convdungeons":
       convertDungeon();
-      break; 
-    case "zlib":
+      break;
+    case "zlib_test":
       zlibTest();
       break;
     case "extractoldtileset":
@@ -499,8 +498,11 @@ function invokeAction({ action }) {
     case "calctilesetshapes":
       calcNewTilesetShapes(true);
       break;
-    case "sortoldtileset":
+    case "sortoldtileset_test":
       sortOldTileset(true);
+      break;
+    case "matchtileset_test":
+      matchTileset_test(true);
       break;
     case "convpng":
       convertPixelToData();

@@ -110,11 +110,33 @@ async function writeTileMap(path, JsonData) {
   return true;
 }
 
+async function getTileset(tilesetPath) {
+  try {
+    if (!tilesetPath || typeof tilesetPath != "string") {
+      return undefined; //basic path validation check
+    }
+    const tilesetRaw = await nodeFileSys.readFile(tilesetPath, {
+      encoding: "utf-8",
+    });
+    const tileset = JSON.parse(
+      tilesetRaw.replace(
+        /\\"|"(?:\\"|[^"])*"|(\/\/.*|\/\*[\s\S]*?\*\/)/g,
+        (m, g) => (g ? "" : m)
+      )
+    ); //magic RegEx string to remove comments from JSON
+    return tileset;
+  } catch (error) {
+    console.error(error);
+    return undefined;
+  }
+}
+
 module.exports = {
   readDir,
   getDungeons,
   writeConvertedDungeons,
   writeConvertedMapJson,
   writeTileMap,
+  getTileset,
   ioDirPath,
 };

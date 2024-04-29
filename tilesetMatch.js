@@ -2,6 +2,37 @@ var nodeFileSys = require("fs").promises;
 var nodePathModule = require("path");
 var uuidv4 = require("uuid").v4;
 ;
+/*
+
+/will Array.sort() speed up things?
+//Do we need to account for duplicate items? Better do not add them in the first place!
+//returns percents of matches from 1st array
+function matchTileKeywords(tileKeywordsArray, testTileKeywordsArray) {
+  let matched = 0;
+  for (const keyword of tileKeywordsArray) {
+    if (testTileKeywordsArray.includes(keyword)) {
+      matched++;
+    }
+  }
+  const matchPercent = (matched * 100) / tileKeywordsArray.length;
+  return Math.round(matchPercent);
+}
+
+//searches match for an old tile in an array of new tiles based on matching comment (old) with shortdescription (new)
+function findTileMatch(oldTile, newTilesObjectArray) {
+  let oldTileKeywords;
+  if (oldTile?.comment) {
+    oldTileKeywords = [
+      ...new Set(oldTile.comment.toLowerCase().split(/[,!?.:;]*[\s]+/)),
+    ]; //use Set to remove duplicate values
+    //add splitting by CamelCase as well - for rules, not comments
+  }
+
+  for (const testTile in newTilesObjectArray) {
+  }
+}
+
+*/
 function getSortedTileset(arrayOfOldTiles) {
     var oldTiles = {
         foreground: [],
@@ -153,11 +184,15 @@ function getSortedTileset(arrayOfOldTiles) {
     return oldTiles;
 }
 //compares explicitly defined tilelayer-related tiles, like foreground/background, liquid etc
-function matchTilelayer(oldTilesCategoryArray, newTilesetJSON) {
+function matchTilelayer(oldTilesCategoryArray, newTilesetJSON, layerName, firstgid) {
+    if (firstgid < 1) {
+        return undefined;
+    }
     var matchMap = oldTilesCategoryArray.map(function (tile) {
-        var value = tile.value, comment = tile.comment, brush = tile.brush, rules = tile.rules;
+        var /*value, comment,*/ brush = tile.brush, rules = tile.rules;
         if (brush === undefined) {
-            throw new Error("Tile brush is ".concat(brush));
+            return;
+            //throw new Error(`Tile brush is ${brush}`); //TODO Special Misc tiles
         }
         for (var _i = 0, brush_1 = brush; _i < brush_1.length; _i++) {
             var brushLayer = brush_1[_i];
@@ -167,30 +202,51 @@ function matchTilelayer(oldTilesCategoryArray, newTilesetJSON) {
                     for (var materialIndex in newTilesetJSON.tileproperties) {
                         var material = newTilesetJSON.tileproperties[materialIndex]["material"];
                         if (material === brushMaterial) {
-                            return { oldTileName: brushMaterial, newTileIndex: materialIndex };
+                            return { tileName: brushMaterial, tileGid: (parseInt(materialIndex) + firstgid) };
                         }
                     }
                     break;
                 default:
-                //do nothing
+                //No matches on this brush layer, do nothing
             }
         }
-        var tileMatch = {};
-        /*
-        front tile:
-        -brush: []
-        --type: "clear", "liquid", "front, "back"
-        --material (for any but "clear" - can be mat or support)
-        --tilled (optional)
-        -comment: "string"
-        -value: [RGBA]
-        -rules (optional)
-        --allowOverdrawing (optional)
-        */
-        return tile;
+        return; //if no matches are found - next tile
     });
+    /*
+    front tile:
+    -brush: []
+    --type: "clear", "liquid", "front, "back"
+    --material (for any but "clear" - can be mat or support)
+    --tilled (optional)
+    -comment: "string"
+    -value: [RGBA]
+    -rules (optional)
+    --allowOverdrawing (optional)
+    */
+    return matchMap;
+}
+//merge two match maps with non-intersecting values and return new map
+function mergeMatchMaps(matchMap1, matchMap2) {
+    if (matchMap1.length != matchMap2.length) {
+        throw new Error("MAP SIZE MISMATCH: Merging matchMap1 of size ".concat(matchMap1.length, " with matchMap2 of size ").concat(matchMap2.length));
+    }
+    var sumMap = [];
+    matchMap1.forEach(function (element, index) {
+        if (element != undefined && matchMap2[index] != undefined) {
+            throw new Error("CANNOT MERGE: both matches are defined at index ".concat(index));
+        }
+        if (element != undefined) {
+            sumMap[index] = element;
+        }
+        else {
+            sumMap[index] = matchMap2[index];
+        }
+    });
+    return sumMap;
 }
 module.exports = {
     getSortedTileset: getSortedTileset,
+    matchTilelayer: matchTilelayer,
+    mergeMatchMaps: mergeMatchMaps,
 };
 //# sourceMappingURL=tilesetMatch.js.map

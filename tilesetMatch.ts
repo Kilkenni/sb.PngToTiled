@@ -107,9 +107,46 @@ type OldTilesetSorted = {
   npcs: Tile[],
   objects: Tile[],
   undefined: Tile[],
+};
+
+type TileMatchMap = {
+  tileName: string,
+  tileGid: number
+}[];
+
+/*
+
+/will Array.sort() speed up things?
+//Do we need to account for duplicate items? Better do not add them in the first place!
+//returns percents of matches from 1st array
+function matchTileKeywords(tileKeywordsArray, testTileKeywordsArray) {
+  let matched = 0;
+  for (const keyword of tileKeywordsArray) {
+    if (testTileKeywordsArray.includes(keyword)) {
+      matched++;
+    }
+  }
+  const matchPercent = (matched * 100) / tileKeywordsArray.length;
+  return Math.round(matchPercent);
 }
 
-function getSortedTileset(arrayOfOldTiles) {
+//searches match for an old tile in an array of new tiles based on matching comment (old) with shortdescription (new)
+function findTileMatch(oldTile, newTilesObjectArray) {
+  let oldTileKeywords;
+  if (oldTile?.comment) {
+    oldTileKeywords = [
+      ...new Set(oldTile.comment.toLowerCase().split(/[,!?.:;]*[\s]+/)),
+    ]; //use Set to remove duplicate values
+    //add splitting by CamelCase as well - for rules, not comments
+  }
+
+  for (const testTile in newTilesObjectArray) {
+  }
+} 
+
+*/
+
+function getSortedTileset(arrayOfOldTiles) :OldTilesetSorted {
   const oldTiles :OldTilesetSorted = {
     foreground: [] ,
     background: [],
@@ -268,28 +305,33 @@ function getSortedTileset(arrayOfOldTiles) {
 
 //compares explicitly defined tilelayer-related tiles, like foreground/background, liquid etc
 
-function matchTilelayer(oldTilesCategoryArray: Tile[], newTilesetJSON: TilesetMatJson) {
+function matchTilelayer(oldTilesCategoryArray: Tile[], newTilesetJSON: TilesetMatJson, layerName: "front" | "back", firstgid: number) : TileMatchMap {
+  if (firstgid < 1) {
+    return undefined;
+  }
   const matchMap = oldTilesCategoryArray.map((tile) => {
-    const {value, comment, brush, rules} : Tile = tile;
-    if(brush === undefined) {
-      throw new Error(`Tile brush is ${brush}`);
+    const { /*value, comment,*/ brush, rules }: Tile = tile;
+    if (brush === undefined) {
+      return;
+      //throw new Error(`Tile brush is ${brush}`); //TODO Special Misc tiles
     }
-    for(const brushLayer of brush) {
-      const [brushType, brushMaterial] : Brush = brushLayer;
+    for (const brushLayer of brush) {
+      const [brushType, brushMaterial]: Brush = brushLayer;
       switch (brushType) {
         case "front":
-          for(const materialIndex in newTilesetJSON.tileproperties) {
+          for (const materialIndex in newTilesetJSON.tileproperties) {
             const material = newTilesetJSON.tileproperties[materialIndex]["material"];
-            if(material === brushMaterial) {
-              return { oldTileName: brushMaterial, newTileIndex: materialIndex}
+            if (material === brushMaterial) {
+              return { tileName: brushMaterial, tileGid: (parseInt(materialIndex) + firstgid )};
             }
           }
           break;
         default:
-          //do nothing
+          //No matches on this brush layer, do nothing
       }
     }
-    const tileMatch = {};
+    return; //if no matches are found - next tile
+  });
     /*
     front tile:
     -brush: []
@@ -302,14 +344,33 @@ function matchTilelayer(oldTilesCategoryArray: Tile[], newTilesetJSON: TilesetMa
     --allowOverdrawing (optional)
     */
 
-    return tile;
-  });
-  
+    return matchMap;
+}
 
+//merge two match maps with non-intersecting values and return new map
+function mergeMatchMaps(matchMap1: TileMatchMap, matchMap2: TileMatchMap): TileMatchMap {
+  if (matchMap1.length != matchMap2.length) {
+    throw new Error(`MAP SIZE MISMATCH: Merging matchMap1 of size ${matchMap1.length} with matchMap2 of size ${matchMap2.length}`);
+  }
+  const sumMap: TileMatchMap = []; 
+  matchMap1.forEach((element, index) => {
+    if (element != undefined && matchMap2[index] != undefined) {
+      throw new Error(`CANNOT MERGE: both matches are defined at index ${index}`);
+    }
+    if (element != undefined) {
+      sumMap[index] = element;
+    }
+    else {
+      sumMap[index] = matchMap2[index];
+    }
+  })
 
+  return sumMap;
 }
 
 module.exports = {
   getSortedTileset,
+  matchTilelayer,
+  mergeMatchMaps,
   };
   
