@@ -45,4 +45,6 @@ uses [get-pixels](https://www.npmjs.com/package/get-pixels) by [Mikola Lysenko](
 
 bitwise operators help by [Tinedel](https://github.com/tinedel)
 
+Thanks to mysticmalevolence and all the Starbound community for support.
+
 "There is no greater power in the universe than the need for freedom"

@@ -1,5 +1,5 @@
 const dungeonsApi = require("./dungeonsFS.js");
-const oldTilesesetParser = require("./tilesetMatch.js");
+const tilesetMatcher = require("./tilesetMatch.js");
 const getPixels = require("get-pixels");
 const zlib = require("zlib");
 const nodeFileSys = require("fs").promises;
@@ -192,7 +192,7 @@ async function sortOldTileset(log = false) {
   //   ...
   // };
 
-  const oldTiles = oldTilesesetParser.getSortedTileset(oldTileMap);
+  const oldTiles = tilesetMatcher.getSortedTileset(oldTileMap);
 
   console.log(`Total tile count: ${oldTileMap.length}`);
   for (const tiletype in oldTiles) {
@@ -222,25 +222,37 @@ async function matchTileset_test(log = false) {
 
   const tilesetsDesc = await calcNewTilesetShapes();
 
-  const tilesetFile = "/tilesets/packed/supports.json";
+  const tilesetsDir = "/tilesets/packed/"  ;
 
-  const MaterialJson = await dungeonsApi.getTileset(
-    `${dungeonsApi.ioDirPath}${tilesetFile}`
-  );
+  const tilesetFileNames = [
+    "supports",
+    "materials",
+    "liquids",
+  ]
 
-  const firstgid = tilesetsDesc.find(
-    (element) =>
-      getFilenameFromPath(element.source) === getFilenameFromPath(tilesetFile)
-  ).firstgid;
+  let matchMap = [];
 
-  const frontMatchMap = oldTilesesetParser.matchTilelayer(
-    oldTilesetSorted.foreground,
-    MaterialJson,
-    "front",
-    firstgid
-  );
+  for(const tilesetFile of tilesetFileNames) {
+    const tilesetFilepath = `${dungeonsApi.ioDirPath}${tilesetsDir}${tilesetFile}.json`
 
-  return frontMatchMap;
+    const tilesetJson = await dungeonsApi.getTileset(tilesetFilepath);
+
+    const firstgid = tilesetsDesc.find(
+      (element) =>
+        getFilenameFromPath(element.source) === getFilenameFromPath(tilesetFilepath)
+    ).firstgid;
+
+    const partialMatchMap = tilesetMatcher.matchTilelayer(
+      oldTilesetSorted.background,
+      tilesetJson,
+      "back",
+      firstgid
+    );
+
+    matchMap = tilesetMatcher.mergeMatchMaps(matchMap,partialMatchMap);
+  }
+  
+  return matchMap;
 }
 
 async function extractOldTileset(log = false) {

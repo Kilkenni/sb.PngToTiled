@@ -2,6 +2,12 @@ var nodeFileSys = require("fs").promises;
 var nodePathModule = require("path");
 var uuidv4 = require("uuid").v4;
 ;
+var TILESETJSON_NAME = {
+    materials: "materials",
+    supports: "supports",
+    liquids: "liquids",
+    misc: "miscellaneous",
+};
 /*
 
 /will Array.sort() speed up things?
@@ -101,84 +107,6 @@ function getSortedTileset(arrayOfOldTiles) {
                         oldTiles.undefined.push(tile);
                 }
             }
-            /*
-            //COMPLE OUTDATED CHECK - REMOVE
-      
-            if (oldTile.brush.length === 1) {
-              if (oldTile.brush[0].length === 1) {
-                if (oldTile.brush[0][0] === "clear") {
-                  oldTiles.special.push(oldTile); //brush contains 1 "clear" element > special tile
-                } else {
-                  oldTiles.foreground.push(oldTile);
-                }
-              } else {
-                switch (oldTile.brush[0][0]) {
-                  case "surface":
-                    oldTiles.foreground.push(oldTile);
-                    break;
-                  case "wire":
-                    oldTiles.wires.push(oldTile);
-                    break;
-                  case "stagehand":
-                    oldTiles.stagehands.push(oldTile);
-                    break;
-                  case "npc":
-                    oldTiles.npcs.push(oldTile);
-                    break;
-                  default:
-                    console.log(
-                      `Error, tile brush of size 1 contains ${oldTile.brush} which cannot be identified`
-                    );
-                }
-              }
-            } else if (oldTile.brush.length === 2) {
-              if (oldTile.brush[0].length === 1) {
-                if (oldTile.brush[0][0] === "clear") {
-                  if (oldTile.brush[1][0] === "back") {
-                    oldTiles.background.push(oldTile); //brush contains 2 elements, 1-st is "clear" element > background tile
-                  } else {
-                    oldTiles.undefined.push(oldTile);
-                  }
-                } else
-                  console.log(
-                    `Error, tile brush of size 2; 1-st element is not "clear", contains ${oldTile.brush}`
-                  );
-              } else {
-                console.log(
-                  `Error, tile brush of size 2, strange 1-st element: ${oldTile.brush}`
-                );
-              }
-            } else if (oldTile.brush.length === 3) {
-              if (oldTile.brush[0][0] != "clear") {
-                console.log(
-                  `Error, tile brush of size ${oldTile.brush.length} contains ${oldTile.brush}, first slot is not "clear"`
-                );
-                continue; //NEXT TILE
-              }
-              for (const brush of oldTile.brush) {
-                switch (brush[0]) {
-                  case "clear":
-                    break;
-                  case "back":
-                    oldTiles.background.push(oldTile);
-                    break;
-                  case "front":
-                    oldTiles.foreground.push(oldTile);
-                    break;
-                  default:
-                    console.log(
-                      `Error, tile brush of size ${oldTile.brush.length} contains ${oldTile.brush} - CANNOT BE SORTED`
-                    );
-                }
-              }
-              if (oldTile.brush[1][0] === "back") {
-              }
-            } else {
-              console.log(
-                `Error, tile brush of size ${oldTile.brush.length} contains ${oldTile.brush}`
-              );
-            }
-            */
         }
     }
     return oldTiles;
@@ -190,24 +118,31 @@ function matchTilelayer(oldTilesCategoryArray, newTilesetJSON, layerName, firstg
     }
     var matchMap = oldTilesCategoryArray.map(function (tile) {
         var /*value, comment,*/ brush = tile.brush, rules = tile.rules;
-        if (brush === undefined) {
-            return;
-            //throw new Error(`Tile brush is ${brush}`); //TODO Special Misc tiles
-        }
-        for (var _i = 0, brush_1 = brush; _i < brush_1.length; _i++) {
-            var brushLayer = brush_1[_i];
-            var brushType = brushLayer[0], brushMaterial = brushLayer[1];
-            switch (brushType) {
-                case "front":
+        //if we match materials, platforms or liquids
+        if ([TILESETJSON_NAME.materials, TILESETJSON_NAME.supports, TILESETJSON_NAME.liquids].includes(newTilesetJSON.name)) {
+            if (brush === undefined) {
+                return;
+                //throw new Error(`Tile brush is ${brush}`); //TODO Special Misc tiles
+            }
+            var newBrushType = (newTilesetJSON.name === TILESETJSON_NAME.liquids) ? "liquid" : "material";
+            var oldBrushTypes = [];
+            if (layerName === "front") {
+                oldBrushTypes.push("front", "liquid");
+            }
+            else if (layerName === "back") {
+                oldBrushTypes.push("back");
+            }
+            for (var _i = 0, brush_1 = brush; _i < brush_1.length; _i++) {
+                var brushLayer = brush_1[_i];
+                var brushType = brushLayer[0], brushMaterial = brushLayer[1];
+                if (oldBrushTypes.includes(brushType)) {
                     for (var materialIndex in newTilesetJSON.tileproperties) {
-                        var material = newTilesetJSON.tileproperties[materialIndex]["material"];
+                        var material = newTilesetJSON.tileproperties[materialIndex][newBrushType];
                         if (material === brushMaterial) {
                             return { tileName: brushMaterial, tileGid: (parseInt(materialIndex) + firstgid) };
                         }
                     }
-                    break;
-                default:
-                //No matches on this brush layer, do nothing
+                }
             }
         }
         return; //if no matches are found - next tile
@@ -227,19 +162,19 @@ function matchTilelayer(oldTilesCategoryArray, newTilesetJSON, layerName, firstg
 }
 //merge two match maps with non-intersecting values and return new map
 function mergeMatchMaps(matchMap1, matchMap2) {
-    if (matchMap1.length != matchMap2.length) {
+    if (matchMap1.length > 0 && matchMap1.length != matchMap2.length) {
         throw new Error("MAP SIZE MISMATCH: Merging matchMap1 of size ".concat(matchMap1.length, " with matchMap2 of size ").concat(matchMap2.length));
     }
     var sumMap = [];
-    matchMap1.forEach(function (element, index) {
-        if (element != undefined && matchMap2[index] != undefined) {
+    matchMap2.forEach(function (element, index) {
+        if (element != undefined && matchMap1[index] != undefined) {
             throw new Error("CANNOT MERGE: both matches are defined at index ".concat(index));
         }
         if (element != undefined) {
             sumMap[index] = element;
         }
         else {
-            sumMap[index] = matchMap2[index];
+            sumMap[index] = matchMap1[index];
         }
     });
     return sumMap;
