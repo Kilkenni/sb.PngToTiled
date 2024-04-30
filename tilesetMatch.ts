@@ -17,30 +17,30 @@ const TILESETJSON_NAME = {
 }
 
 const MISCJSON_MAP = [
-  "Air", //0
-  "Magic Pink Brush", //1
-  "Invisible wall (boundary)", //2
-  "Player Start", //3
-  "worldGenMustContainAir", //4
-  "worldGenMustContainSolid", //5
-  "Biome Item", //6
-  "Biome Tree", //7
-  "Default Surface Tile 0", //8
-  "Default Surface Tile 1", //9
-  "Default Surface Tile 2", //10
-  "Air (overwritable)", //11
-  "Red Connector", //12
-  "Yellow Connector", //13
-  "Green Connector", //14
-  "Blue Connector", //15
-  "worldGenMustContainAir (background)", //16
-  "worldGenMustContainSolid (background)", //17
-  "Invisible wall (climbable)", //18
-  "Underwater invisible wall (boundary)", //19
-  "Zero G", //20
-  "Zero G (protected)", //21
-  "worldGenMustContainLiquid (ocean)", //22
-  "worldGenMustNotContainLiquid (ocean)" //23
+  "Air",                               //0 - is it ever used?
+  "Magic Pink Brush",                  //1 - back
+  "Invisible wall (boundary)",         //2 - front (only for quests)
+  "Player Start",                      //3 --> anchors etc
+  "worldGenMustContainAir",            //4 --> anchors etc
+  "worldGenMustContainSolid",          //5 --> anchors etc
+  "Biome Item",                        //6 --> objects
+  "Biome Tree",                        //7 --> objects
+  "Default Surface Tile 0",            //8 - front/back
+  "Default Surface Tile 1",            //9 - front/back
+  "Default Surface Tile 2",            //10 - front/back
+  "Air (overwritable)",                //11 -is it ever used?
+  "Red Connector",                     //12 --> anchors etc
+  "Yellow Connector",                  //13 --> anchors etc
+  "Green Connector",                   //14 --> anchors etc
+  "Blue Connector",                    //15 --> anchors etc
+  "worldGenMustContainAir (background)",   //16 --> anchors etc
+  "worldGenMustContainSolid (background)", //17 --> anchors etc
+  "Invisible wall (climbable)",            //18 - front (only for quests)
+  "Underwater invisible wall (boundary)",  //19 - front (only for quests)
+  "Zero G",                                //20 --> front, but can be ignored? Probably no space maps in old format
+  "Zero G (protected)",                    //21 --> front, but can be ignored? Probably no space maps in old format
+  "worldGenMustContainLiquid (ocean)",     //22 --> anchors etc
+  "worldGenMustNotContainLiquid (ocean)"   //23 --> anchors etc
 ]; //index = tile #
 
 interface TilesetMatJson extends TilesetJson {
@@ -136,6 +136,7 @@ type OldTilesetSorted = {
   specialforeground: Tile[],
   specialbackground: Tile[],
   special: Tile[],
+  anchors: Tile[],
   wires: Tile[],
   stagehands: Tile[],
   npcs: Tile[],
@@ -187,6 +188,7 @@ function getSortedTileset(arrayOfOldTiles) :OldTilesetSorted {
     specialforeground: [],
     specialbackground: [],
     special: [],
+    anchors: [],
     wires: [],
     stagehands: [],
     npcs: [],
@@ -218,10 +220,15 @@ function getSortedTileset(arrayOfOldTiles) :OldTilesetSorted {
             break; //otherwise skip
           case "biometree":
           case "biomeitems":
+            oldTiles.objects.push(tile);
+            break;
           case "playerstart":
-            oldTiles.special.push(tile);
+            oldTiles.anchors.push(tile);
             break;
           case "surface":
+            // if (tile.rules) {
+              
+            // }
             oldTiles.specialforeground.push(tile);
             break;
           case "surfacebackground":
@@ -268,7 +275,7 @@ function matchTilelayer(oldTilesCategoryArray: Tile[], newTilesetJSON: TilesetMa
     if([TILESETJSON_NAME.materials, TILESETJSON_NAME.supports, TILESETJSON_NAME.liquids].includes(newTilesetJSON.name)) {
       if (brush === undefined) {
         return;
-        //throw new Error(`Tile brush is ${brush}`); //TODO Special Misc tiles
+        //throw new Error(`Tile brush is ${brush}`);
       }
       const newBrushType = (newTilesetJSON.name === TILESETJSON_NAME.liquids)?"liquid":"material";
 
@@ -291,6 +298,55 @@ function matchTilelayer(oldTilesCategoryArray: Tile[], newTilesetJSON: TilesetMa
         }
       }
     }
+    else if (newTilesetJSON.name === TILESETJSON_NAME.misc) {
+      //TODO Special Misc tiles
+
+      /*
+      SPECIAL:
+      magic pink brush  = comment: "magic pinkppp, a no-op value"
+      0 = brush:["clear"], comment:"Empty hole"
+      0 = brush:["clear"], comment:"Empty hole overwritable"
+
+      SPECIALBKG
+      ??? = brush:["surfacebackground"]
+      ??? = brush:["surfacebackground",{variant: 0}]
+      ??? = brush:["surfacebackground",{variant: 0}], rules: [["allowOverdrawing"]]
+      ??? = brush:["surfacebackground",{variant: 1}]
+      ??? = brush:["surfacebackground",{variant: 1}], rules: [["allowOverdrawing"]]
+      ??? = brush:["surfacebackground",{variant: 2}]
+      ??? = brush:["surfacebackground",{variant: 2}], rules: [["allowOverdrawing"]]
+
+      SPECIALFRONT
+      move worldGenMustContainSolidBackground to SPECIAL
+      ??? = brush: ["surface"]
+      ??? = brush: ["surface"], rules: [["allowOverdrawing"]]
+      ??? = brush:["surface",{variant: 0}]
+      ??? = brush:["surface",{variant: 0}], rules: [["allowOverdrawing"]]
+      ??? = brush:["surface",{variant: 1}]
+      ??? = brush:["surface",{variant: 1}], rules: [["allowOverdrawing"]]
+      ??? = brush:["surface",{variant: 2}]
+      ??? = brush:["surface",{variant: 2}], rules: [["allowOverdrawing"]]
+      */
+
+      
+    }
+/*
+const MISCJSON_MAP = [
+  "Magic Pink Brush",                  //1 - back
+  "Default Surface Tile 0",            //8 - front/back
+  "Default Surface Tile 1",            //9 - front/back
+  "Default Surface Tile 2",            //10 - front/back
+
+  "Air",                               //0 - is it ever used?
+  "Air (overwritable)",                //11 -is it ever used?
+  "Invisible wall (boundary)",             //2 - front (only for quests)
+  "Invisible wall (climbable)",            //18 - front (only for quests)
+  "Underwater invisible wall (boundary)",  //19 - front (only for quests)
+  "Zero G",                                //20 --> front, but can be ignored? 
+  "Zero G (protected)",                    //21 --> front, but can be ignored? 
+]; //index = tile #
+ */
+
     return; //if no matches are found - next tile
   });
     /*
