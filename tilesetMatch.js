@@ -1,14 +1,22 @@
-var nodeFileSys = require("fs").promises;
-var nodePathModule = require("path");
-var uuidv4 = require("uuid").v4;
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+import { promises as nodeFS } from "fs";
+import * as nodePath from "path";
 ;
-var TILESETJSON_NAME = {
+const TILESETJSON_NAME = {
     materials: "materials",
     supports: "supports",
     liquids: "liquids",
     misc: "miscellaneous",
 };
-var MISCJSON_MAP = [
+const MISCJSON_MAP = [
     "Air", //0 - is it ever used?
     "Magic Pink Brush", //1 - back
     "Invisible wall (boundary)", //2 - front (only for quests)
@@ -34,39 +42,49 @@ var MISCJSON_MAP = [
     "worldGenMustContainLiquid (ocean)", //22 --> anchors etc
     "worldGenMustNotContainLiquid (ocean)" //23 --> anchors etc
 ]; //index = tile #
-/*
-
-/will Array.sort() speed up things?
-//Do we need to account for duplicate items? Better do not add them in the first place!
-//returns percents of matches from 1st array
-function matchTileKeywords(tileKeywordsArray, testTileKeywordsArray) {
-  let matched = 0;
-  for (const keyword of tileKeywordsArray) {
-    if (testTileKeywordsArray.includes(keyword)) {
-      matched++;
-    }
-  }
-  const matchPercent = (matched * 100) / tileKeywordsArray.length;
-  return Math.round(matchPercent);
+const ANCHORS = [
+    "worldGenMustContainSolidBackground",
+    "worldGenMustContainAirBackground",
+    "worldGenMustContainAirForeground"
+];
+//determine paths to tilesets for mapping PNG
+function resolveTilesets() {
+    const matPath = nodePath.resolve("./input-output/tilesets/packed/materials.json");
+    const pathToTileset = matPath.substring(0, matPath.lastIndexOf("/"));
+    return pathToTileset;
 }
-
-//searches match for an old tile in an array of new tiles based on matching comment (old) with shortdescription (new)
-function findTileMatch(oldTile, newTilesObjectArray) {
-  let oldTileKeywords;
-  if (oldTile?.comment) {
-    oldTileKeywords = [
-      ...new Set(oldTile.comment.toLowerCase().split(/[,!?.:;]*[\s]+/)),
-    ]; //use Set to remove duplicate values
-    //add splitting by CamelCase as well - for rules, not comments
-  }
-
-  for (const testTile in newTilesObjectArray) {
-  }
+function calcNewTilesetShapes() {
+    return __awaiter(this, arguments, void 0, function* (log = false) {
+        const path = resolveTilesets();
+        const TILESETS = [
+            ///blocks
+            TILESETJSON_NAME.materials,
+            TILESETJSON_NAME.supports,
+            TILESETJSON_NAME.liquids,
+            TILESETJSON_NAME.misc,
+            //TODO other tilesets for objects
+        ];
+        let startGID = 1;
+        const tilesetsArray = [];
+        for (const tilesetName of TILESETS) {
+            const currentTsPath = `${path}/${tilesetName}.json`;
+            const tilesetShape = {
+                firstgid: startGID,
+                source: `${currentTsPath.replace(/\//g, "\u005C" + "/")}`,
+            };
+            const currentTileset = JSON.parse((yield nodeFS.readFile(currentTsPath)).toString("utf8"));
+            // console.log(currentTileset)
+            startGID = startGID + currentTileset.tilecount; //increase GID by size of current tileset
+            tilesetsArray.push(tilesetShape);
+        }
+        if (log) {
+            console.log(tilesetsArray);
+        }
+        return tilesetsArray;
+    });
 }
-
-*/
 function getSortedTileset(arrayOfOldTiles) {
-    var oldTiles = {
+    const oldTiles = {
         foreground: [],
         background: [],
         specialforeground: [],
@@ -79,21 +97,33 @@ function getSortedTileset(arrayOfOldTiles) {
         objects: [],
         undefined: [],
     };
-    for (var _i = 0, arrayOfOldTiles_1 = arrayOfOldTiles; _i < arrayOfOldTiles_1.length; _i++) {
-        var tile = arrayOfOldTiles_1[_i];
+    for (const tile of arrayOfOldTiles) {
+        if (tile.connector === true) {
+            oldTiles.anchors.push(tile);
+            continue;
+        }
+        if (tile.rules) {
+            const ruleMatch = tile.rules.flat(3).filter((ruleString) => {
+                return ANCHORS.includes(ruleString);
+            });
+            if (ruleMatch.length === 1) {
+                oldTiles.anchors.push(tile);
+                continue;
+            }
+        }
         if (tile.brush === undefined) {
             oldTiles.special.push(tile); //if there is no brush at all, probably a Special tile
+            continue;
         }
         else {
             //first, consistency expectation checks
             if (tile.brush.length > 1) {
                 if (tile.brush[0][0] != "clear") {
-                    console.log("Error, tile brush of size ".concat(tile.brush.length, " contains ").concat(tile.brush, ", first slot is not \"clear\". Skipping tile"));
+                    console.log(`Error, tile brush of size ${tile.brush.length} contains ${tile.brush}, first slot is not "clear". Skipping tile`);
                     continue; //NEXT TILE
                 }
             }
-            for (var _a = 0, _b = tile.brush; _a < _b.length; _a++) {
-                var brush = _b[_a];
+            for (const brush of tile.brush) {
                 switch (brush[0]) {
                     case "clear":
                         if (tile.brush.length === 1) {
@@ -108,8 +138,6 @@ function getSortedTileset(arrayOfOldTiles) {
                         oldTiles.anchors.push(tile);
                         break;
                     case "surface":
-                        // if (tile.rules) {
-                        // }
                         oldTiles.specialforeground.push(tile);
                         break;
                     case "surfacebackground":
@@ -147,63 +175,122 @@ function matchTilelayer(oldTilesCategoryArray, newTilesetJSON, layerName, firstg
     if (firstgid < 1) {
         return undefined;
     }
-    var matchMap = oldTilesCategoryArray.map(function (tile) {
-        var /*value, comment,*/ brush = tile.brush, rules = tile.rules;
+    const matchMap = oldTilesCategoryArray.map((tile) => {
+        const { value, comment, brush, rules } = tile;
         //if we match materials, platforms or liquids
         if ([TILESETJSON_NAME.materials, TILESETJSON_NAME.supports, TILESETJSON_NAME.liquids].includes(newTilesetJSON.name)) {
             if (brush === undefined) {
                 return;
                 //throw new Error(`Tile brush is ${brush}`);
             }
-            var newBrushType = (newTilesetJSON.name === TILESETJSON_NAME.liquids) ? "liquid" : "material";
-            var oldBrushTypes = [];
+            const newBrushType = (newTilesetJSON.name === TILESETJSON_NAME.liquids) ? "liquid" : "material";
+            const oldBrushTypes = [];
             if (layerName === "front") {
                 oldBrushTypes.push("front", "liquid");
             }
             else if (layerName === "back") {
                 oldBrushTypes.push("back");
             }
-            for (var _i = 0, brush_1 = brush; _i < brush_1.length; _i++) {
-                var brushLayer = brush_1[_i];
-                var brushType = brushLayer[0], brushMaterial = brushLayer[1];
+            for (const brushLayer of brush) {
+                const [brushType, brushMaterial] = brushLayer;
                 if (oldBrushTypes.includes(brushType)) {
-                    for (var materialIndex in newTilesetJSON.tileproperties) {
-                        var material = newTilesetJSON.tileproperties[materialIndex][newBrushType];
+                    for (const materialIndex in newTilesetJSON.tileproperties) {
+                        const material = newTilesetJSON.tileproperties[materialIndex][newBrushType];
                         if (material === brushMaterial) {
-                            return { tileName: brushMaterial, tileGid: (parseInt(materialIndex) + firstgid) };
+                            return { tileName: brushMaterial, tileRgba: value, tileGid: (parseInt(materialIndex) + firstgid) };
                         }
                     }
                 }
             }
         }
+        //Misc tileset
         else if (newTilesetJSON.name === TILESETJSON_NAME.misc) {
-            //TODO Special Misc tiles
+            //if we have bkg tile, but search for front layer, or VV - skip
+            if (layerName === "front" && brush.flat(1).includes("surfacebackground") ||
+                layerName === "back" && brush.flat(1).includes("surface")) {
+                return;
+            }
+            //if we have special tile, but search for front layer - skip
+            if (layerName === "front" && (comment.toLowerCase().includes("magic pink") ||
+                brush.length === 1 && brush.flat(1)[0] === "clear")) {
+                return;
+            }
             /*
-            SPECIAL:
-            magic pink brush  = comment: "magic pinkppp, a no-op value"
+            SPECIAL - BKG:
+            1 = comment: "magic pinkppp, a no-op value"
             0 = brush:["clear"], comment:"Empty hole"
-            0 = brush:["clear"], comment:"Empty hole overwritable"
-      
-            SPECIALBKG
-            ??? = brush:["surfacebackground"]
-            ??? = brush:["surfacebackground",{variant: 0}]
-            ??? = brush:["surfacebackground",{variant: 0}], rules: [["allowOverdrawing"]]
-            ??? = brush:["surfacebackground",{variant: 1}]
-            ??? = brush:["surfacebackground",{variant: 1}], rules: [["allowOverdrawing"]]
-            ??? = brush:["surfacebackground",{variant: 2}]
-            ??? = brush:["surfacebackground",{variant: 2}], rules: [["allowOverdrawing"]]
-      
-            SPECIALFRONT
-            move worldGenMustContainSolidBackground to SPECIAL
-            ??? = brush: ["surface"]
-            ??? = brush: ["surface"], rules: [["allowOverdrawing"]]
-            ??? = brush:["surface",{variant: 0}]
-            ??? = brush:["surface",{variant: 0}], rules: [["allowOverdrawing"]]
-            ??? = brush:["surface",{variant: 1}]
-            ??? = brush:["surface",{variant: 1}], rules: [["allowOverdrawing"]]
-            ??? = brush:["surface",{variant: 2}]
-            ??? = brush:["surface",{variant: 2}], rules: [["allowOverdrawing"]]
-            */
+            11 = brush:["clear"], comment:"Empty hole overwritable" */
+            //Magic Pink Brush #1
+            if (comment.toLowerCase().includes("magic pink")) {
+                return { tileName: "magic pink", tileRgba: value, tileGid: 1 + firstgid };
+            }
+            if (brush && brush.length === 1 && brush.flat(1)[0] === "clear") {
+                //Empty hole overwritable #11
+                if (comment.toLowerCase().includes("empty hole") &&
+                    rules.flat(2).includes("allowOverwriting")) {
+                    return { tileName: "empty hole overwritable", tileRgba: value, tileGid: 11 };
+                }
+                //Empty hole #0
+                if (comment.toLowerCase().includes("empty hole")) {
+                    return { tileName: "empty hole overwritable", tileRgba: value, tileGid: 0 };
+                }
+            }
+            if (brush) {
+                for (const brushLayer of brush) {
+                    const [brushType, options] = brushLayer;
+                    if (brushType === "surface") {
+                        /*
+                          SPECIALFRONT
+                          ??? = brush: ["surface"]
+                          ??? = brush: ["surface"], rules: [["allowOverdrawing"]]
+                          8 = brush:["surface",{variant: 0}]
+                          8 = brush:["surface",{variant: 0}], rules: [["allowOverdrawing"]]
+                          9 = brush:["surface",{variant: 1}]
+                          9 = brush:["surface",{variant: 1}], rules: [["allowOverdrawing"]]
+                          10 = brush:["surface",{variant: 2}]
+                          10 = brush:["surface",{variant: 2}], rules: [["allowOverdrawing"]]
+                        */
+                        if (options && options.variant) {
+                            switch (options.variant) {
+                                case 0:
+                                    return { tileName: "surface #0", tileRgba: value, tileGid: 8 };
+                                case 1:
+                                    return { tileName: "surface #1", tileRgba: value, tileGid: 9 };
+                                case 2:
+                                    return { tileName: "surface #2", tileRgba: value, tileGid: 10 };
+                            }
+                        }
+                        else {
+                            return { tileName: "surface", tileRgba: value, tileGid: 8 };
+                        }
+                    }
+                    else if (brushType === "surfacebackground") {
+                        /*
+                        SPECIALBKG
+                        ??? = brush:["surfacebackground"]
+                        8 = brush:["surfacebackground",{variant: 0}]
+                        8 = brush:["surfacebackground",{variant: 0}], rules: [["allowOverdrawing"]]
+                        9 = brush:["surfacebackground",{variant: 1}]
+                        9 = brush:["surfacebackground",{variant: 1}], rules: [["allowOverdrawing"]]
+                        10 = brush:["surfacebackground",{variant: 2}]
+                        10 = brush:["surfacebackground",{variant: 2}], rules: [["allowOverdrawing"]]
+                        */
+                        if (options && options.variant) {
+                            switch (options.variant) {
+                                case 0:
+                                    return { tileName: "surfacebackground #0", tileRgba: value, tileGid: 8 };
+                                case 1:
+                                    return { tileName: "surfacebackground #1", tileRgba: value, tileGid: 9 };
+                                case 2:
+                                    return { tileName: "surfacebackground #2", tileRgba: value, tileGid: 10 };
+                            }
+                        }
+                        else {
+                            return { tileName: "surfacebackground", tileRgba: value, tileGid: 8 };
+                        }
+                    }
+                }
+            }
         }
         /*
         const MISCJSON_MAP = [
@@ -223,28 +310,17 @@ function matchTilelayer(oldTilesCategoryArray, newTilesetJSON, layerName, firstg
          */
         return; //if no matches are found - next tile
     });
-    /*
-    front tile:
-    -brush: []
-    --type: "clear", "liquid", "front, "back"
-    --material (for any but "clear" - can be mat or support)
-    --tilled (optional)
-    -comment: "string"
-    -value: [RGBA]
-    -rules (optional)
-    --allowOverdrawing (optional)
-    */
     return matchMap;
 }
 //merge two match maps with non-intersecting values and return new map
 function mergeMatchMaps(matchMap1, matchMap2) {
     if (matchMap1.length > 0 && matchMap1.length != matchMap2.length) {
-        throw new Error("MAP SIZE MISMATCH: Merging matchMap1 of size ".concat(matchMap1.length, " with matchMap2 of size ").concat(matchMap2.length));
+        throw new Error(`MAP SIZE MISMATCH: Merging matchMap1 of size ${matchMap1.length} with matchMap2 of size ${matchMap2.length}`);
     }
-    var sumMap = [];
-    matchMap2.forEach(function (element, index) {
+    const sumMap = [];
+    matchMap2.forEach((element, index) => {
         if (element != undefined && matchMap1[index] != undefined) {
-            throw new Error("CANNOT MERGE: both matches are defined at index ".concat(index));
+            throw new Error(`CANNOT MERGE: both matches are defined at index ${index}`);
         }
         if (element != undefined) {
             sumMap[index] = element;
@@ -255,9 +331,5 @@ function mergeMatchMaps(matchMap1, matchMap2) {
     });
     return sumMap;
 }
-module.exports = {
-    getSortedTileset: getSortedTileset,
-    matchTilelayer: matchTilelayer,
-    mergeMatchMaps: mergeMatchMaps,
-};
+export { getSortedTileset, calcNewTilesetShapes, matchTilelayer, mergeMatchMaps, TILESETJSON_NAME, };
 //# sourceMappingURL=tilesetMatch.js.map

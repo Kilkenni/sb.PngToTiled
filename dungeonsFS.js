@@ -1,8 +1,12 @@
-const nodeFileSys = require("fs").promises;
-const nodePathModule = require("path");
-const { v4: uuidv4 } = require("uuid");
+import {promises as nodeFileSys} from "fs";
+import * as nodePath from "path";
+import { v4 as uuidv4 } from "uuid";
 
-const ioDirPath = nodePathModule.resolve("./input-output/");
+// const nodeFileSys = require("fs").promises;
+// const nodePathModule = require("path");
+// const { v4: uuidv4 } = require("uuid");
+
+const ioDirPath = nodePath.resolve("./input-output/");
 
 function getExtension(fileName) {
   return fileName.substring(fileName.lastIndexOf(".") + 1);
@@ -44,7 +48,7 @@ async function writeConvertedDungeons(JsonData) {
     try {
       if (getExtension(file.name) === "dungeon") {
         //for every .dungeon file in I/O dir
-        newDungeonPath = file.path + "/" + file.name + ".new";
+        newDungeonPath = ioDirPath + "/" + file.name + ".new";
       }
       if (newDungeonPath) {
         try {
@@ -78,8 +82,8 @@ async function writeConvertedDungeons(JsonData) {
   }
 }
 
-async function writeConvertedMapJson(newPath, JsonData) {
-  const ioDir = await readDir();
+async function writeConvertedMapJson(newPath, SbDungeonChunk) {
+  // const ioDir = await readDir();
   try {
     console.log(`Checking if ${newPath} is available...`);
     const accessed = await nodeFileSys.access(
@@ -93,11 +97,9 @@ async function writeConvertedMapJson(newPath, JsonData) {
   } catch (error) {
     //this error appears if no converted file is found, i.e. if we can safely write
     // console.log(error.message);
-    const template = await getDungeons(`${ioDirPath}/template.json`);
-    let fileToWrite = { ...template, ...JsonData };
     await nodeFileSys.writeFile(
       newPath,
-      JSON.stringify(fileToWrite, null, 2),
+      JSON.stringify(SbDungeonChunk, null, 2),
       "utf-8"
     );
     // console.log(`Writing ${file.name}.new done.`);
@@ -131,7 +133,7 @@ async function getTileset(tilesetPath) {
   }
 }
 
-module.exports = {
+export {
   readDir,
   getDungeons,
   writeConvertedDungeons,

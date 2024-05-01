@@ -1,7 +1,10 @@
 {
     "compilerOptions": {
-      "target": "ES5",
-      "module": "CommonJS",
-      "sourceMap": true
-    }
+      "target": "ES6",
+      "module": "es6",
+      "sourceMap": true,
+      "lib": ["es6"],
+      "moduleDetection": "force",
+      "moduleResolution": "Node"
+    },
   }

@@ -1,13 +1,26 @@
-const dungeonsApi = require("./dungeonsFS.js");
-const tilesetMatcher = require("./tilesetMatch.js");
-const getPixels = require("get-pixels");
-const zlib = require("zlib");
-const nodeFileSys = require("fs").promises;
-const nodePathModule = require("path");
+import * as dungeonsApi from "./dungeonsFS.js";
+// import * as tilesetMatcher from "./tilesetMatch";
+import * as tilesetMatcher from "./tilesetMatch.js";
+import * as dungeonAssembler from "./dungeonChunkAssembler.js"
 
-//Tiled JSON format reference: https://doc.mapeditor.org/en/stable/reference/json-map-format/
+import getPixels from "get-pixels";
 
-const argv = require("yargs").help().argv;
+import {promises as nodeFileSys} from "fs";
+import * as nodePath from "path";
+
+// const tilesetMatcher = require("./tilesetMatch");
+// const getPixels = require("get-pixels");
+// const zlib = require("zlib");
+// const nodeFileSys = require("fs").promises;
+// const nodePathModule = require("path");
+
+// const argv = require("yargs").help().argv;
+
+import yargs from 'yargs';
+import { promisify } from "util";
+// import { hideBin } from 'yargs/helpers';
+
+// const argv = yargs.help().argv;
 
 let dungeonDefinition = {};
 let rawPNG = undefined;
@@ -23,7 +36,7 @@ function getFilename(fileName) {
 }
 
 function getFilenameFromPath(filePath) {
-  return nodePathModule.parse(filePath).name;
+  return nodePath.parse(filePath).name;
 }
 
 async function getDirContents(log = false) {
@@ -130,61 +143,6 @@ async function convertDungeon() {
   return 3;
 }
 
-//determine paths to tilesets for mapping PNG
-function resolveTilesets() {
-  const matPath = nodePathModule.resolve(
-    "./input-output/tilesets/packed/materials.json"
-  );
-  const pathToTileset = matPath.substring(0, matPath.lastIndexOf("/"));
-  return pathToTileset;
-}
-
-//calculates new tileset shapes (GIDs and stuff)
-async function calcNewTilesetShapes(log = false) {
-  const path = resolveTilesets();
-  const TILESETS = [
-    ///blocks
-    "materials",
-    "miscellaneous",
-    "liquids",
-    "supports",
-    //TODO other tilesets for objects
-  ];
-  let startGID = 1;
-  const tilesetsArray = [];
-  for (tilesetName of TILESETS) {
-    const currentTsPath = `${path}/${tilesetName}.json`;
-    // console.log(currentTsPath);
-    const tilesetDesc = {
-      firstgid: startGID,
-      source: `${currentTsPath.replace(/\//g, "\u005C" + "/")}`,
-    };
-    const currentTileset = JSON.parse(
-      await nodeFileSys.readFile(currentTsPath)
-    );
-    // console.log(currentTileset)
-    startGID = startGID + currentTileset.tilecount; //increase GID by size of current tileset
-    tilesetsArray.push(tilesetDesc);
-
-    // const tilesetsMatch = oldTileMap.map((tile) => {
-    //   const newTile = tile;
-
-    //   return newTile;
-    // });
-
-    // if (currentTileset.tileproperties) {
-    //   for (const tile of currentTileset) {
-    //   }
-    // }
-  }
-
-  if (log) {
-    console.log(tilesetsArray);
-  }
-
-  return tilesetsArray;
-}
-
 async function sortOldTileset(log = false) {
   const oldTileMap = await extractOldTileset(true);
   // const oldTiles = {
@@ -220,14 +178,15 @@ async function sortOldTileset(log = false) {
 async function matchTileset_test(log = false) {
   const oldTilesetSorted = await sortOldTileset();
 
-  const tilesetsDesc = await calcNewTilesetShapes();
+  const tilesetsDesc = await tilesetMatcher.calcNewTilesetShapes();
 
   const tilesetsDir = "/tilesets/packed/"  ;
 
   const tilesetFileNames = [
-    "supports",
-    "materials",
-    "liquids",
+    tilesetMatcher.TILESETJSON_NAME.materials,
+    tilesetMatcher.TILESETJSON_NAME.supports,
+    tilesetMatcher.TILESETJSON_NAME.liquids,
+    tilesetMatcher.TILESETJSON_NAME.misc,
   ]
 
   let matchMap = [];
@@ -294,53 +253,90 @@ async function extractOldTileset(log = false) {
   return tileMap;
 }
 
-async function extractOldTiles(log = false) {
-  const tileMap = await extractOldTileset(true);
+async function writeConvertedMap_test(log = false) {
+  const newTilesets = await tilesetMatcher.calcNewTilesetShapes();
+  const convertedChunk = new dungeonAssembler.SbDungeonChunk(newTilesets);
 
-  let mapPath = "";
-  try {
-    // console.table(tileMap);
-    dungeonsApi.writeTileMap(`${getFilename(dungeonPath) + ".TILES"}`, tileMap);
-    for (const file of ioDir) {
-      if (file.isFile())
-        if (getExtension(file.name) === "png") {
-          mapPath = `${file.path}/${getFilename(file.name)}.json`;
-          console.log(
-            `Detected ${file.name}, writing ${getFilename(file.name)}.json...`
-          );
-          let map = {};
-          getPixels(`${file.path}/${file.name}`, (error, pixels) => {
-            if (error) {
-              console.error(error);
-              console.log("Bad PNG image path");
-              return;
-            }
-            //PNG conversion here
-            map = mapPixelsToJson(pixels, tileMap);
-            const tilesets = calcnewTilesets();
-            //NEEDS AWAIT
-            // dungeonsApi.writeConvertedMapJson(mapPath, map);
-          });
+  const ioDir = await dungeonsApi.readDir();
+  for(const file of ioDir) {
+    if (file.isFile()) {
+      if (getExtension(file.name) === "png") {
+        const newPath = `${dungeonsApi.ioDirPath}/${getFilename(file.name)}.json`;
+        console.log(
+          `Detected ${file.name}, writing ${getFilename(file.name)}.json...`
+        );
+        const getPixelsPromise = promisify(getPixels); //getPixels originally doesn't support promises
+        let pixelsArray;
+        try{
+          pixelsArray = await getPixelsPromise(`${file.path}/${file.name}`);
         }
+        catch(error) {
+          console.error(error);
+          return undefined;
+        }
+        if(log) {
+          console.log("  -obtained image shape: ", pixelsArray.shape.slice()); //shape = width, height, channels
+        }
+        //pixelsArray.data is a Uint8Array of (shape.width * shape.height * #channels) elements
+        convertedChunk.setSize(pixelsArray.shape[0], pixelsArray.shape[1])
+
+        /*
+        let map = {};
+        getPixels(`${file.path}/${file.name}`, (error, pixels) => {
+          if (error) {
+            console.error(error);
+            console.log("Bad PNG image path");
+            return;
+          }
+          //PNG conversion here
+          map = mapPixelsToJson(pixels);
+          const tilesets = tilesetMatcher.calcNewTilesetShapes();
+          //NEEDS AWAIT
+          // dungeonsApi.writeConvertedMapJson(mapPath, map);
+        });
+        */
+
+        const success = await dungeonsApi.writeConvertedMapJson(newPath, convertedChunk);
+        if(success) {
+          console.log(`SUCCESS! ${getFilename(file.name)}.json saved.`);
+        }
+
+        return 4; //TEMP - return on first PNG converted
+      }
     }
-  } catch (error) {
-    console.error(error);
-    return undefined;
   }
   return 4;
 }
 
-//TODO: PNG conversion here
-function mapPixelsToJson(pixelsArray, tileMap) {
+async function getPixels_test(){
+  const ioDir = await dungeonsApi.readDir();
+  let filePath;
+  for(const file of ioDir) {
+    if (file.isFile()) {
+      if (getExtension(file.name) === "png") {
+        filePath = `${dungeonsApi.ioDirPath}/${file.name}`;
+        break;
+      }
+    }
+  }
+  const getPixelsPromise = promisify(getPixels); //getPixels originally doesn't support promises
+  let pixelsArray;
+  try{
+    pixelsArray = await getPixelsPromise(filePath);
+  }
+  catch(error) {
+    console.error(error);
+  }
+  
   console.log("  -obtained image shape: ", pixelsArray.shape.slice()); //shape = width, height, channels
+
   //pixelsArray.data is a Uint8Array of (shape.width * shape.height * #channels) elements
-  const map = {
+
+  const shape = {
     width: pixelsArray.shape[0],
     height: pixelsArray.shape[1],
   };
-
-  console.log(map);
-  return map;
+  console.log(shape);
 }
 
 async function convertPixelToData() {
@@ -393,8 +389,8 @@ async function convertPixelToData() {
               return;
             }
             //PNG conversion here
-            map = mapPixelsToJson(pixels, tileMap);
-            const tilesets = calcNewTilesetShapes();
+            // map = mapPixelsToJson(pixels, tileMap);
+            const tilesets = tilesetMatcher.calcNewTilesetShapes();
             //NEEDS AWAIT
             // dungeonsApi.writeConvertedMapJson(mapPath, map);
           });
@@ -407,90 +403,8 @@ async function convertPixelToData() {
   return 4;
 }
 
-function zlibTest() {
-  console.log(`Testing zlib functionality`);
-  const chunk =
-    "eJzt1T9uwjAUx3HfxGoOwWV6iQ4MqBNjlx6BSzAwW108MHGj5gmsGniJXxoHv9i/J30FSPn3kRPijNk7hBBCCCFULKNoXEPWMK4hazwOXnjhhRdelePghRdeeOFNzu6N/9x09585xxXykm0ocsblnP+YxpKcc8zKeXOaS3hpLtaYQ287Mn101977PitY3zASb+7hrnlOU84t8Yb7OfyXxfNt+e81eMkzpda8Q2btXups0x1v+cR9vQYvt02cr9z7ZdrxkjXUgnft63ti2nbXanp+U+8SchxuSd492r2pNYu94Xc83t6n3UszdD9TZ/vsfTSu0Std3zErvHq8P/YvqTdlffSG42v0Sp5fzV7fH9Mb/nw+dwNezzjDPkt5tQYvvLV4c1tb9Go2L+XVaF7Sqs39Kmtp86udc8zS/bjtSjqn+qXbl77+OebS14Ha6xfz8DLr";
-  const chunk64 = Buffer.from(chunk, "base64");
-  console.log(chunk64);
-  // console.log(chunk64.toString("base64"));
-  zlib.inflate(chunk64, (error, buffer) => {
-    console.error(error || "Decompression OK");
-    console.log(buffer);
-    console.log(`First raw GID is ${buffer.readUInt32LE(4)}`);
-    zlib.deflate(buffer, (error, result) => {
-      const recompressed = Buffer.from(result).toString("base64");
-      console.log(recompressed);
-      console.log(
-        `initial and recompressed chunks match? ${chunk === recompressed}`
-      );
-    });
-    const arr = [...buffer];
-    console.log(arr);
-    // console.log(buffer.toString("hex"));
-
-    const FLIPPED_HORIZONTALLY_FLAG = 0x80000000;
-    const FLIPPED_VERTICALLY_FLAG = 0x40000000;
-    const FLIPPED_DIAGONALLY_FLAG = 0x20000000;
-    const ROTATED_HEXAGONAL_120_FLAG = 0x10000000;
-    let tile_index = 0;
-    //Tiled writes non-compressed GIDs in little-endian 32-bit unsigned ints, i.e. each4 bytes in a buffer is a GID
-    //however, highest 4 bits are used as flipping flags (no pun intended)
-    //details: https://doc.mapeditor.org/en/latest/reference/global-tile-ids/#tile-flipping
-    //bit 32 - horizontal flip, bit 31 - vertical, bit 30 - diagonal (rotation). Bit 29 is for hexagonal maps, which Starbound file is not, so it can be ignored - but we still need to clear it, just in case
-    const FLAG_HORIZ_FLIP = 8 << 28; //1000 shifted left 32-4=28 positions.
-    const FLAG_VERT_FLIP = 4 << 28; //0100 shifted left
-    const FLAG_DIAG_FLIP = 2 << 28; //0010 shifted left
-    const FLAG_HEX_120_ROTATE = 1 << 28; //0001 shifted left
-    //1+2+4+8 = 15, i.e. 1111 in binary, the case with all flags set to true
-    const flagsMask =
-      FLAG_HORIZ_FLIP | FLAG_VERT_FLIP | FLAG_DIAG_FLIP | FLAG_HEX_120_ROTATE; //Sum all flags using bitwise OR to get a mask. When applied to a UInt32 it should reset all bits but flags to 0
-    //in other words, since flags are 4 high bits, it's 111100...0000
-    const gidMask = ~flagsMask; //reverse (~) mask is 000011..1111, it will reset flags and give us "pure" GID
-    const rawGidFirst = buffer.readUInt32LE(0);
-    console.log(rawGidFirst);
-    const pureFlags = rawGidFirst & flagsMask;
-    const pureGid = rawGidFirst & gidMask;
-    //what we have from decompression
-    console.log(`Flags are ${pureFlags >>> 28}, pure GID is ${pureGid}`);
-    //what we should have from correct decompression
-    console.log(
-      `Flags are ${(2147483847 & flagsMask) >>> 28}, pure GID is ${
-        2147483847 & gidMask
-      }`
-    );
-    //DAFUQ
-
-    /*
-    let flags = 15 // 1111 binary - all set
-  let gid = 7892 // whatever
-  let flagsShifted = flags << 28 // flags need to end up on the left side of the combined number. Whole length is 32, flags length is 4 so we need to shift left 32 - 4 =28
-  let gidMask = ~ (15 << 28) // all set flags shifted (<<) and negated (~) will give us 0000111...111 
-  let flagsMask = (15 << 28)
-  let combined = ( flags & flagsMask) | (gid & gidMask)
-
-  Розпаковка на js
-
-let gid = combined & gidMask
-let flags = combined >>> 28
-
-int -> little endian byte array
-
-let res = [0,0,0,0]
-let byteMask = 255
-res[0] = combined & byteMask
-
-res[1] = (combined >>> 8) & byteMask;
-res[2] = (combined >>> 16) & byteMask;
-res[3] = (combined >>> 24) & byteMask;
-*/
-
-    // Here you should check that the data has the right size
-    // (map_width * map_height * 4)
-  });
-}
-
-function invokeAction({ action }) {
+function invokeAction(argv) {
+  const {action} = argv;
   switch (action) {
     case "dir_test":
       getDirContents(true);
@@ -502,13 +416,13 @@ function invokeAction({ action }) {
       convertDungeon();
       break;
     case "zlib_test":
-      zlibTest();
+      dungeonAssembler.zlibTest();
       break;
     case "extractoldtileset":
       extractOldTileset(true);
       break;
-    case "calctilesetshapes":
-      calcNewTilesetShapes(true);
+    case "calctilesetshapes_test":
+      tilesetMatcher.calcNewTilesetShapes(true);
       break;
     case "sortoldtileset_test":
       sortOldTileset(true);
@@ -516,12 +430,21 @@ function invokeAction({ action }) {
     case "matchtileset_test":
       matchTileset_test(true);
       break;
+    case "getpixels_test":
+      getPixels_test();
+      break;
+    case "writeconverted_test":
+      writeConvertedMap_test(true);
+      break;
     case "convpng":
       convertPixelToData();
       break;
     default:
-      console.warn("\x1B[31m Unknown action type!");
+      console.warn(`\x1B[31m Unknown action type: ${action}!`);
+      console.log(argv)
   }
 }
 
-invokeAction(argv);
+const args = yargs(process.argv.slice(2)).argv;
+// console.log(args);
+invokeAction(args);

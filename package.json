@@ -2,6 +2,7 @@
   "name": "png_to_tiled",
   "version": "1.0.0",
   "description": "PNG to Tiled dungeon converter for Starbound",
+  "type": "module",
   "main": "index.js",
   "scripts": {
     "start": "node index.js --help",
