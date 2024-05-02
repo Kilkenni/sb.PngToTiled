@@ -189,7 +189,7 @@ async function calcNewTilesetShapes(log:boolean = false):Promise<TilesetShape[]>
 
     const tilesetShape:TilesetShape = {
       firstgid: startGID,
-      source: `${currentTsPath.replace(/\//g, "\u005C" + "/")}`,
+      source: currentTsPath// `${currentTsPath.replace(/\//g, "\/")}`, //RegEx is useless since JSON.stringify either loses backslash or doubles it
     };
     const currentTileset:TilesetJson = JSON.parse(
       (await nodeFS.readFile(currentTsPath)).toString("utf8")

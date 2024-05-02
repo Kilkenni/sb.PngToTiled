@@ -70,7 +70,7 @@ function calcNewTilesetShapes() {
             const currentTsPath = `${path}/${tilesetName}.json`;
             const tilesetShape = {
                 firstgid: startGID,
-                source: `${currentTsPath.replace(/\//g, "\u005C" + "/")}`,
+                source: currentTsPath // `${currentTsPath.replace(/\//g, "\/")}`, //RegEx is useless since JSON.stringify either loses backslash or doubles it
             };
             const currentTileset = JSON.parse((yield nodeFS.readFile(currentTsPath)).toString("utf8"));
             // console.log(currentTileset)

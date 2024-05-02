@@ -1,11 +1,11 @@
 import * as dungeonsApi from "./dungeonsFS.js";
 // import * as tilesetMatcher from "./tilesetMatch";
 import * as tilesetMatcher from "./tilesetMatch.js";
-import * as dungeonAssembler from "./dungeonChunkAssembler.js"
+import * as dungeonAssembler from "./dungeonChunkAssembler.js";
 
 import getPixels from "get-pixels";
 
-import {promises as nodeFileSys} from "fs";
+import { promises as nodeFileSys } from "fs";
 import * as nodePath from "path";
 
 // const tilesetMatcher = require("./tilesetMatch");
@@ -16,7 +16,7 @@ import * as nodePath from "path";
 
 // const argv = require("yargs").help().argv;
 
-import yargs from 'yargs';
+import yargs from "yargs";
 import { promisify } from "util";
 // import { hideBin } from 'yargs/helpers';
 
@@ -180,25 +180,26 @@ async function matchTileset_test(log = false) {
 
   const tilesetsDesc = await tilesetMatcher.calcNewTilesetShapes();
 
-  const tilesetsDir = "/tilesets/packed/"  ;
+  const tilesetsDir = "/tilesets/packed/";
 
   const tilesetFileNames = [
     tilesetMatcher.TILESETJSON_NAME.materials,
     tilesetMatcher.TILESETJSON_NAME.supports,
     tilesetMatcher.TILESETJSON_NAME.liquids,
     tilesetMatcher.TILESETJSON_NAME.misc,
-  ]
+  ];
 
   let matchMap = [];
 
-  for(const tilesetFile of tilesetFileNames) {
-    const tilesetFilepath = `${dungeonsApi.ioDirPath}${tilesetsDir}${tilesetFile}.json`
+  for (const tilesetFile of tilesetFileNames) {
+    const tilesetFilepath = `${dungeonsApi.ioDirPath}${tilesetsDir}${tilesetFile}.json`;
 
     const tilesetJson = await dungeonsApi.getTileset(tilesetFilepath);
 
     const firstgid = tilesetsDesc.find(
       (element) =>
-        getFilenameFromPath(element.source) === getFilenameFromPath(tilesetFilepath)
+        getFilenameFromPath(element.source) ===
+        getFilenameFromPath(tilesetFilepath)
     ).firstgid;
 
     const partialMatchMap = tilesetMatcher.matchTilelayer(
@@ -208,9 +209,9 @@ async function matchTileset_test(log = false) {
       firstgid
     );
 
-    matchMap = tilesetMatcher.mergeMatchMaps(matchMap,partialMatchMap);
+    matchMap = tilesetMatcher.mergeMatchMaps(matchMap, partialMatchMap);
   }
-  
+
   return matchMap;
 }
 
@@ -255,30 +256,40 @@ async function extractOldTileset(log = false) {
 
 async function writeConvertedMap_test(log = false) {
   const newTilesets = await tilesetMatcher.calcNewTilesetShapes();
+  //convert absolute paths to relative
+
+  for (const tilesetShape of newTilesets) {
+    tilesetShape.source = `.${tilesetShape.source.substring(
+      tilesetShape.source.indexOf("input-output") + 12
+    )}`; //replace everything up to and with "input-output" with .
+  }
   const convertedChunk = new dungeonAssembler.SbDungeonChunk(newTilesets);
 
   const ioDir = await dungeonsApi.readDir();
-  for(const file of ioDir) {
+  for (const file of ioDir) {
     if (file.isFile()) {
       if (getExtension(file.name) === "png") {
-        const newPath = `${dungeonsApi.ioDirPath}/${getFilename(file.name)}.json`;
+        const newPath = `${dungeonsApi.ioDirPath}/${getFilename(
+          file.name
+        )}.json`;
         console.log(
           `Detected ${file.name}, writing ${getFilename(file.name)}.json...`
         );
         const getPixelsPromise = promisify(getPixels); //getPixels originally doesn't support promises
         let pixelsArray;
-        try{
-          pixelsArray = await getPixelsPromise(`${file.path}/${file.name}`);
-        }
-        catch(error) {
+        try {
+          pixelsArray = await getPixelsPromise(
+            `${dungeonsApi.ioDirPath}/${file.name}`
+          );
+        } catch (error) {
           console.error(error);
           return undefined;
         }
-        if(log) {
+        if (log) {
           console.log("  -obtained image shape: ", pixelsArray.shape.slice()); //shape = width, height, channels
         }
         //pixelsArray.data is a Uint8Array of (shape.width * shape.height * #channels) elements
-        convertedChunk.setSize(pixelsArray.shape[0], pixelsArray.shape[1])
+        convertedChunk.setSize(pixelsArray.shape[0], pixelsArray.shape[1]);
 
         /*
         let map = {};
@@ -296,8 +307,11 @@ async function writeConvertedMap_test(log = false) {
         });
         */
 
-        const success = await dungeonsApi.writeConvertedMapJson(newPath, convertedChunk);
-        if(success) {
+        const success = await dungeonsApi.writeConvertedMapJson(
+          newPath,
+          convertedChunk
+        );
+        if (success) {
           console.log(`SUCCESS! ${getFilename(file.name)}.json saved.`);
         }
 
@@ -308,10 +322,10 @@ async function writeConvertedMap_test(log = false) {
   return 4;
 }
 
-async function getPixels_test(){
+async function getPixels_test() {
   const ioDir = await dungeonsApi.readDir();
   let filePath;
-  for(const file of ioDir) {
+  for (const file of ioDir) {
     if (file.isFile()) {
       if (getExtension(file.name) === "png") {
         filePath = `${dungeonsApi.ioDirPath}/${file.name}`;
@@ -321,13 +335,12 @@ async function getPixels_test(){
   }
   const getPixelsPromise = promisify(getPixels); //getPixels originally doesn't support promises
   let pixelsArray;
-  try{
+  try {
     pixelsArray = await getPixelsPromise(filePath);
-  }
-  catch(error) {
+  } catch (error) {
     console.error(error);
   }
-  
+
   console.log("  -obtained image shape: ", pixelsArray.shape.slice()); //shape = width, height, channels
 
   //pixelsArray.data is a Uint8Array of (shape.width * shape.height * #channels) elements
@@ -404,7 +417,7 @@ async function convertPixelToData() {
 }
 
 function invokeAction(argv) {
-  const {action} = argv;
+  const { action } = argv;
   switch (action) {
     case "dir_test":
       getDirContents(true);
@@ -441,7 +454,7 @@ function invokeAction(argv) {
       break;
     default:
       console.warn(`\x1B[31m Unknown action type: ${action}!`);
-      console.log(argv)
+      console.log(argv);
   }
 }
 
