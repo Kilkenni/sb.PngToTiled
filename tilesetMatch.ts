@@ -1,5 +1,6 @@
 import {promises as nodeFS} from "fs";
 import * as nodePath from "path";
+import * as zlib from "zlib";
 // import {v4 as uuidv4} from "uuid";
 
 //https://0xacab.org/bidasci/starbound-v1.4.4-source-code/-/blob/no-masters/tiled/properties.txt?ref_type=heads
@@ -337,8 +338,8 @@ function matchTilelayer(oldTilesCategoryArray: Tile[], newTilesetJSON: TilesetMa
     //Misc tileset
     else if (newTilesetJSON.name === TILESETJSON_NAME.misc) {
       //if we have bkg tile, but search for front layer, or VV - skip
-      if(layerName === "front" && brush.flat(1).includes("surfacebackground") ||
-      layerName === "back" && brush.flat(1).includes("surface")) {
+      if(layerName === "front" && brush && brush.flat(1).includes("surfacebackground") ||
+      layerName === "back" && brush && brush.flat(1).includes("surface")) {
         return;
       }
       //if we have special tile, but search for front layer - skip
@@ -358,7 +359,7 @@ function matchTilelayer(oldTilesCategoryArray: Tile[], newTilesetJSON: TilesetMa
       }
       if(brush && brush.length === 1 && brush.flat(1)[0] === "clear") {
         //Empty hole overwritable #11
-        if(comment.toLowerCase().includes("empty hole") &&
+        if(comment.toLowerCase().includes("empty hole") && rules &&
         rules.flat(2).includes("allowOverwriting")) {
           return {tileName: "empty hole overwritable", tileRgba: value, tileGid: 11}
         }
@@ -468,21 +469,153 @@ function mergeMatchMaps(matchMap1: TileMatch[], matchMap2: TileMatch[]): TileMat
   return sumMap;
 }
 
-function slicePixelsToArray(pixelsArray: Uint8Array, width: number, height: number, channels: number): RgbaValue[] {
+function slicePixelsToArray(pixelArray: Uint8Array, width: number, height: number, channels: number): RgbaValue[] {
   const pixelCount = width * height;
   const RgbaArray = [];
   for (let pixelIndex = 0; pixelIndex < pixelCount; pixelIndex++) {
     const Rgba :RgbaValue = [0,0,0,0];
     for (let channel = 0; channel < channels; channel++){
-      RgbaArray[channel] = (pixelsArray[pixelIndex + channel]);
+      Rgba[channel] = (pixelArray[pixelIndex*channels + channel]);
     }
     RgbaArray.push(Rgba);
   }
   return RgbaArray;
 }
 
-function mapPngToGid() {
+const FLAGS = {
+  //Tiled writes non-compressed GIDs in little-endian 32-bit unsigned ints, i.e. each 4 bytes in a buffer represent a GID
+  //however, highest 4 bits are used as flipping flags (no pun intended)
+  //details: https://doc.mapeditor.org/en/latest/reference/global-tile-ids/#tile-flipping
+  //bit 32 - horizontal flip, bit 31 - vertical, bit 30 - diagonal (rotation). Bit 29 is for hexagonal maps, which Starbound file is not, so it can be ignored - but we still need to clear it, just in case
+  HORIZ_FLIP: 8 << 28, //1000 shifted left 32-4=28 positions.
+  VERT_FLIP: 4 << 28, //0100 shifted left
+  DIAG_FLIP: 2 << 28, //0010 shifted left
+  HEX_120_ROTATE: 1 << 28, //0001 shifted left
+  MASK: 15 << 28, //Sum all flags. When applied to a UInt32 it should reset all bits but flags to 0
+  //in other words, since flags are 4 high bits, it's 111100...0000
+  CLEAR: ~(15 << 28) //reverse (~) mask is 000011..1111, it will reset flags and give us "pure" GID
+}
 
+function isRgbaEqual(Rgba1:RgbaValue, Rgba2:RgbaValue):boolean {
+  for(let component = 0; component < 4; component++) {
+    if(Rgba1[component] != Rgba2[component]) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/*
+function convertPngToGid(RgbaArray:RgbaValue[], tileMatchMap: TileMatch[]):Buffer {
+  const GidBuffer = Buffer.alloc(RgbaArray.length*4);
+  for(let rgbaN = 0; rgbaN < RgbaArray.length; rgbaN++) {
+    for(const conversion of tileMatchMap) {
+      if(isRgbaEqual(RgbaArray[rgbaN], conversion.tileRgba)) {
+        const gid = conversion.tileGid;
+        GidBuffer.writeUInt32LE(gid, rgbaN*4);
+      }
+    }
+  }
+  return GidBuffer;
+}
+*/
+
+function convertPngToGid(RgbaArray:RgbaValue[], tileMatchMap: TileMatch[]):number[] {
+  const layerGids = new Array(RgbaArray.length).fill(0);
+  for(let rgbaN = 0; rgbaN < RgbaArray.length; rgbaN++) {
+    for(const conversion of tileMatchMap) {
+      if(isRgbaEqual(RgbaArray[rgbaN], conversion.tileRgba)) {
+        const gid = conversion.tileGid;
+        layerGids[rgbaN] = gid;//layerGids[rgbaN] = gid;
+      }
+    }
+  }
+  return layerGids;
+}
+
+function zlibTest() {
+  console.log(`Testing zlib functionality`);
+  const chunk =
+    "eJzt1T9uwjAUx3HfxGoOwWV6iQ4MqBNjlx6BSzAwW108MHGj5gmsGniJXxoHv9i/J30FSPn3kRPijNk7hBBCCCFULKNoXEPWMK4hazwOXnjhhRdelePghRdeeOFNzu6N/9x09585xxXykm0ocsblnP+YxpKcc8zKeXOaS3hpLtaYQ287Mn101977PitY3zASb+7hrnlOU84t8Yb7OfyXxfNt+e81eMkzpda8Q2btXups0x1v+cR9vQYvt02cr9z7ZdrxkjXUgnft63ti2nbXanp+U+8SchxuSd492r2pNYu94Xc83t6n3UszdD9TZ/vsfTSu0Std3zErvHq8P/YvqTdlffSG42v0Sp5fzV7fH9Mb/nw+dwNezzjDPkt5tQYvvLV4c1tb9Go2L+XVaF7Sqs39Kmtp86udc8zS/bjtSjqn+qXbl77+OebS14Ha6xfz8DLr";
+  const chunk64 = Buffer.from(chunk, "base64");
+  console.log(chunk64);
+  // console.log(chunk64.toString("base64"));
+  zlib.inflate(chunk64, (error, buffer) => {
+    console.error(error || "Decompression OK");
+    console.log(buffer);
+    console.log(`First raw GID is ${buffer.readUInt32LE(4)}`);
+    /*
+    zlib.deflate(buffer, (error, result) => {
+      const recompressed = Buffer.from(result).toString("base64");
+      console.log(recompressed);
+      console.log(
+        `initial and recompressed chunks match? ${chunk === recompressed}`
+      );
+    });
+    */
+    const arr = [...buffer];
+    console.log(arr);
+    // console.log(buffer.toString("hex"));
+
+    const FLIPPED_HORIZONTALLY_FLAG = 0x80000000;
+    const FLIPPED_VERTICALLY_FLAG = 0x40000000;
+    const FLIPPED_DIAGONALLY_FLAG = 0x20000000;
+    const ROTATED_HEXAGONAL_120_FLAG = 0x10000000;
+    let tile_index = 0;
+    //Tiled writes non-compressed GIDs in little-endian 32-bit unsigned ints, i.e. each4 bytes in a buffer is a GID
+    //however, highest 4 bits are used as flipping flags (no pun intended)
+    //details: https://doc.mapeditor.org/en/latest/reference/global-tile-ids/#tile-flipping
+    //bit 32 - horizontal flip, bit 31 - vertical, bit 30 - diagonal (rotation). Bit 29 is for hexagonal maps, which Starbound file is not, so it can be ignored - but we still need to clear it, just in case
+    const FLAG_HORIZ_FLIP = 8 << 28; //1000 shifted left 32-4=28 positions.
+    const FLAG_VERT_FLIP = 4 << 28; //0100 shifted left
+    const FLAG_DIAG_FLIP = 2 << 28; //0010 shifted left
+    const FLAG_HEX_120_ROTATE = 1 << 28; //0001 shifted left
+    //1+2+4+8 = 15, i.e. 1111 in binary, the case with all flags set to true
+    const flagsMask = 15 << 28
+      //FLAG_HORIZ_FLIP | FLAG_VERT_FLIP | FLAG_DIAG_FLIP | FLAG_HEX_120_ROTATE; //Sum all flags using bitwise OR to get a mask. When applied to a UInt32 it should reset all bits but flags to 0
+    //in other words, since flags are 4 high bits, it's 111100...0000
+    const gidMask = ~flagsMask; //reverse (~) mask is 000011..1111, it will reset flags and give us "pure" GID
+    const rawGidFirst = buffer.readUInt32LE(0);
+    console.log(rawGidFirst);
+    const pureFlags = rawGidFirst & flagsMask;
+    const pureGid = rawGidFirst & gidMask;
+    //what we have from decompression
+    console.log(`Flags are ${pureFlags >>> 28}, pure GID is ${pureGid}`);
+    //what we should have from correct decompression
+    console.log(
+      `Flags are ${(2147483847 & flagsMask) >>> 28}, pure GID is ${
+        2147483847 & gidMask
+      }`
+    );
+    //DAFUQ
+
+    /*
+    let flags = 15 // 1111 binary - all set
+  let gid = 7892 // whatever
+  let flagsShifted = flags << 28 // flags need to end up on the left side of the combined number. Whole length is 32, flags length is 4 so we need to shift left 32 - 4 =28
+  let gidMask = ~ (15 << 28) // all set flags shifted (<<) and negated (~) will give us 0000111...111 
+  let flagsMask = (15 << 28)
+  let combined = ( flags & flagsMask) | (gid & gidMask)
+
+  Розпаковка на js
+
+let gid = combined & gidMask
+let flags = combined >>> 28
+
+int -> little endian byte array
+
+let res = [0,0,0,0]
+let byteMask = 255
+res[0] = combined & byteMask
+
+res[1] = (combined >>> 8) & byteMask;
+res[2] = (combined >>> 16) & byteMask;
+res[3] = (combined >>> 24) & byteMask;
+*/
+
+    // Here you should check that the data has the right size
+    // (map_width * map_height * 4)
+  });
 }
 
 export {
@@ -491,7 +624,9 @@ export {
   matchTilelayer,
   mergeMatchMaps,
   slicePixelsToArray,
-  mapPngToGid,
+  convertPngToGid,
+  zlibTest,
   TILESETJSON_NAME,
+  FLAGS
   };
   

@@ -203,11 +203,12 @@ async function matchTileset_test(log = false) {
     ).firstgid;
 
     const partialMatchMap = tilesetMatcher.matchTilelayer(
-      oldTilesetSorted.background,
+      oldTilesetSorted.background.concat(oldTilesetSorted.specialbackground).concat(oldTilesetSorted.special),
       tilesetJson,
       "back",
       firstgid
     );
+
 
     matchMap = tilesetMatcher.mergeMatchMaps(matchMap, partialMatchMap);
   }
@@ -290,6 +291,11 @@ async function writeConvertedMap_test(log = false) {
         }
         //pixelsArray.data is a Uint8Array of (shape.width * shape.height * #channels) elements
         convertedChunk.setSize(pixelsArray.shape[0], pixelsArray.shape[1]);
+        const RgbaArray = tilesetMatcher.slicePixelsToArray(pixelsArray.data, ...pixelsArray.shape);
+        const backMatchMap = await matchTileset_test();
+        const convertedBackLayer = tilesetMatcher.convertPngToGid(RgbaArray,backMatchMap);
+        convertedChunk.addUncompressedTileLayer(convertedBackLayer,"back",pixelsArray.shape[0],pixelsArray.shape[1]);
+
 
         /*
         let map = {};
@@ -350,6 +356,8 @@ async function getPixels_test() {
     height: pixelsArray.shape[1],
   };
   console.log(shape);
+  const RgbaArray = tilesetMatcher.slicePixelsToArray(pixelsArray.data, ...pixelsArray.shape)
+  return pixelsArray;
 }
 
 async function convertPixelToData() {
@@ -429,7 +437,7 @@ function invokeAction(argv) {
       convertDungeon();
       break;
     case "zlib_test":
-      dungeonAssembler.zlibTest();
+      tilesetMatcher.zlibTest();
       break;
     case "extractoldtileset":
       extractOldTileset(true);
@@ -449,7 +457,7 @@ function invokeAction(argv) {
     case "writeconverted_test":
       writeConvertedMap_test(true);
       break;
-    case "convpng":
+    case "convertpixel_test":
       convertPixelToData();
       break;
     default:
