@@ -286,7 +286,7 @@ async function writeConvertedMap_test(log = false) {
           return undefined;
         }
         if (log) {
-          console.log("  -obtained image shape: ", pixelsArray.shape.slice()); //shape = width, height, channels
+          console.log("  -obtained image shape: ", pixelsArray.shape); //shape = width, height, channels
         }
         //pixelsArray.data is a Uint8Array of (shape.width * shape.height * #channels) elements
         convertedChunk.setSize(pixelsArray.shape[0], pixelsArray.shape[1]);

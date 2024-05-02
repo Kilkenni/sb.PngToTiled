@@ -468,11 +468,30 @@ function mergeMatchMaps(matchMap1: TileMatch[], matchMap2: TileMatch[]): TileMat
   return sumMap;
 }
 
+function slicePixelsToArray(pixelsArray: Uint8Array, width: number, height: number, channels: number): RgbaValue[] {
+  const pixelCount = width * height;
+  const RgbaArray = [];
+  for (let pixelIndex = 0; pixelIndex < pixelCount; pixelIndex++) {
+    const Rgba :RgbaValue = [0,0,0,0];
+    for (let channel = 0; channel < channels; channel++){
+      RgbaArray[channel] = (pixelsArray[pixelIndex + channel]);
+    }
+    RgbaArray.push(Rgba);
+  }
+  return RgbaArray;
+}
+
+function mapPngToGid() {
+
+}
+
 export {
   getSortedTileset,
   calcNewTilesetShapes,
   matchTilelayer,
   mergeMatchMaps,
+  slicePixelsToArray,
+  mapPngToGid,
   TILESETJSON_NAME,
   };
   

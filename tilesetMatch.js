@@ -331,5 +331,19 @@ function mergeMatchMaps(matchMap1, matchMap2) {
     });
     return sumMap;
 }
-export { getSortedTileset, calcNewTilesetShapes, matchTilelayer, mergeMatchMaps, TILESETJSON_NAME, };
+function slicePixelsToArray(pixelsArray, width, height, channels) {
+    const pixelCount = width * height;
+    const RgbaArray = [];
+    for (let pixelIndex = 0; pixelIndex < pixelCount; pixelIndex++) {
+        const Rgba = [0, 0, 0, 0];
+        for (let channel = 0; channel < channels; channel++) {
+            RgbaArray[channel] = (pixelsArray[pixelIndex + channel]);
+        }
+        RgbaArray.push(Rgba);
+    }
+    return RgbaArray;
+}
+function mapPngToGid() {
+}
+export { getSortedTileset, calcNewTilesetShapes, matchTilelayer, mergeMatchMaps, slicePixelsToArray, mapPngToGid, TILESETJSON_NAME, };
 //# sourceMappingURL=tilesetMatch.js.map
