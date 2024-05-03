@@ -512,7 +512,12 @@ async function matchAllTilelayers(oldTilesetArray:Tile[], log:boolean = false):P
     TILESETJSON_NAME.misc,
   ];
 
-  let matchMap:LayerTileMatch[] = [];
+  const fullMatchMap: FullTileMatch = {
+    front: [],
+    back: []
+  }
+
+  // let matchMap:LayerTileMatch[] = [];
 
   for (const tileset of TILELAYER_TILESETS) {
     const tilesetPath = `${tilesetsDir}/${tileset}.json`;
@@ -525,23 +530,21 @@ async function matchAllTilelayers(oldTilesetArray:Tile[], log:boolean = false):P
         getFilenameFromPath(tilesetPath)
     ).firstgid;
 
-    const partialMatchMap = matchTilelayer(
+    const partialBack = matchTilelayer(
       oldTileset.background.concat(oldTileset.specialbackground).concat(oldTileset.special),
       tilesetJson,
       "back",
       firstgid
     );
 
+    fullMatchMap.back = mergeLayerMatchMaps(fullMatchMap.back, partialBack);
 
-    matchMap = mergeLayerMatchMaps(matchMap, partialMatchMap);
+    const partialFront = matchTilelayer(oldTileset.foreground.concat(oldTileset.specialforeground).concat(oldTileset.special), tilesetJson, "front", firstgid);
+
+    fullMatchMap.front = mergeLayerMatchMaps(fullMatchMap.front, partialFront)
   }
 
-  const fullMatchMap: FullTileMatch = {
-    front: [],
-    back: []
-  }
-
-  fullMatchMap.back = matchMap;
+  // fullMatchMap.back = matchMap;
 
   return fullMatchMap;
 }

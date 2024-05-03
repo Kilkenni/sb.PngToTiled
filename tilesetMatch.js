@@ -378,20 +378,22 @@ function matchAllTilelayers(oldTilesetArray_1) {
             TILESETJSON_NAME.liquids,
             TILESETJSON_NAME.misc,
         ];
-        let matchMap = [];
+        const fullMatchMap = {
+            front: [],
+            back: []
+        };
+        // let matchMap:LayerTileMatch[] = [];
         for (const tileset of TILELAYER_TILESETS) {
             const tilesetPath = `${tilesetsDir}/${tileset}.json`;
             const tilesetJson = yield dungeonsFS.getTileset(tilesetPath);
             const firstgid = tilesetsDesc.find((element) => getFilenameFromPath(element.source) ===
                 getFilenameFromPath(tilesetPath)).firstgid;
-            const partialMatchMap = matchTilelayer(oldTileset.background.concat(oldTileset.specialbackground).concat(oldTileset.special), tilesetJson, "back", firstgid);
-            matchMap = mergeLayerMatchMaps(matchMap, partialMatchMap);
+            const partialBack = matchTilelayer(oldTileset.background.concat(oldTileset.specialbackground).concat(oldTileset.special), tilesetJson, "back", firstgid);
+            fullMatchMap.back = mergeLayerMatchMaps(fullMatchMap.back, partialBack);
+            const partialFront = matchTilelayer(oldTileset.foreground.concat(oldTileset.specialforeground).concat(oldTileset.special), tilesetJson, "front", firstgid);
+            fullMatchMap.front = mergeLayerMatchMaps(fullMatchMap.front, partialFront);
         }
-        const fullMatchMap = {
-            front: [],
-            back: []
-        };
-        fullMatchMap.back = matchMap;
+        // fullMatchMap.back = matchMap;
         return fullMatchMap;
     });
 }

@@ -20,8 +20,9 @@ To use under Linux:
 
 ## TODO + ISSUES
 
-- can't properly convert base64 string and gzip.inflate to get value similar to decompressed files from Tiled. Mismatch happens only with back tilelayer, resulting GIDs in code are lower than real ones from the file by 7. Reason unknown.
+- can't properly convert base64 string and gzip.inflate to get value similar to decompressed files from Tiled. Mismatch happens only with back tilelayer, resulting GIDs for tiles with flags in code are lower than real ones from the file by 7. Reason unknown.
 - Front tilelayer seems to be decompressing OK
+- Fix bit flags for Magic Pink Brush in output!
 
 - rough algo to get conversion done:
 
