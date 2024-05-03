@@ -223,6 +223,9 @@ async function writeConvertedMap_test(log = false) {
           ...pixelsArray.shape
         );
         const oldTileset = await extractOldTileset(log);
+        const sortedOldTileset = await tilesetMatcher.getSortedTileset(
+          oldTileset
+        );
         const fullMatchMap = await tilesetMatcher.matchAllTilelayers(
           oldTileset
         );
@@ -230,28 +233,22 @@ async function writeConvertedMap_test(log = false) {
           RgbaArray,
           fullMatchMap.back
         );
-        convertedChunk.addUncompressedTileLayer(
+        const convertedFrontLayer = tilesetMatcher.convertPngToGid(
+          RgbaArray,
+          fullMatchMap.front
+        );
+        convertedChunk.addBothTilelayers(
+          convertedFrontLayer,
           convertedBackLayer,
-          "back",
           pixelsArray.shape[0],
           pixelsArray.shape[1]
         );
-
-        /*
-        let map = {};
-        getPixels(`${file.path}/${file.name}`, (error, pixels) => {
-          if (error) {
-            console.error(error);
-            console.log("Bad PNG image path");
-            return;
-          }
-          //PNG conversion here
-          map = mapPixelsToJson(pixels);
-          const tilesets = tilesetMatcher.calcNewTilesetShapes();
-          //NEEDS AWAIT
-          // dungeonsApi.writeConvertedMapJson(mapPath, map);
-        });
-        */
+        // convertedChunk.addUncompressedTileLayer(
+        //   convertedBackLayer,
+        //   "back",
+        //   pixelsArray.shape[0],
+        //   pixelsArray.shape[1]
+        // );
 
         const success = await dungeonsApi.writeConvertedMapJson(
           newPath,

@@ -235,10 +235,10 @@ function matchTilelayer(oldTilesCategoryArray, newTilesetJSON, layerName, firstg
                 layerName === "back" && brush && brush.flat(1).includes("surface") && !comment.toLowerCase().includes("biome tile brush")) {
                 return;
             }
-            //if we have special tile, but search for front layer - skip
+            //if we have special tile, but search for front layer - write 0. Precaution!
             if (layerName === "front" && (comment.toLowerCase().includes("magic pink") ||
                 brush.length === 1 && brush.flat(1)[0] === "clear")) {
-                return;
+                return { tileName: "special", tileRgba: value, tileGid: 0 };
             }
             /*
             SPECIAL - BKG:
@@ -250,15 +250,20 @@ function matchTilelayer(oldTilesCategoryArray, newTilesetJSON, layerName, firstg
                 return { tileName: "magic pink", tileRgba: value, tileGid: 1 + firstgid };
             }
             if (brush && brush.length === 1 && brush.flat(1)[0] === "clear") {
+                if (comment.toLowerCase().includes("empty hole")) {
+                    return { tileName: "empty", tileRgba: value, tileGid: 0 }; //EMPTY TILE
+                }
+                /*
                 //Empty hole overwritable #11
-                if (comment.toLowerCase().includes("empty hole") && rules &&
-                    rules.flat(2).includes("allowOverwriting")) {
-                    return { tileName: "empty hole overwritable", tileRgba: value, tileGid: 11 + firstgid };
+                if(comment.toLowerCase().includes("empty hole") && rules &&
+                rules.flat(2).includes("allowOverwriting")) {
+                  return {tileName: "empty hole overwritable", tileRgba: value, tileGid: 11 + firstgid}
                 }
                 //Empty hole #0
-                if (comment.toLowerCase().includes("empty hole")) {
-                    return { tileName: "empty hole overwritable", tileRgba: value, tileGid: 0 + firstgid };
+                if(comment.toLowerCase().includes("empty hole")) {
+                  return {tileName: "empty hole", tileRgba: value, tileGid: 0 + firstgid}
                 }
+                */
             }
             if (brush) {
                 for (const brushLayer of brush) {
