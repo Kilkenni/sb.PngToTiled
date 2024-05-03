@@ -338,7 +338,7 @@ function matchTilelayer(oldTilesCategoryArray, newTilesetJSON, layerName, firstg
     return matchMap;
 }
 //merge two match maps with non-intersecting values and return new map
-function mergeMatchMaps(matchMap1, matchMap2) {
+function mergeLayerMatchMaps(matchMap1, matchMap2) {
     if (matchMap1.length > 0 && matchMap1.length != matchMap2.length) {
         throw new Error(`MAP SIZE MISMATCH: Merging matchMap1 of size ${matchMap1.length} with matchMap2 of size ${matchMap2.length}`);
     }
@@ -367,11 +367,11 @@ function getFilename(fileName) {
 function getFilenameFromPath(filePath) {
     return nodePath.parse(filePath).name;
 }
-function matchAllTilelayers(arrayOfOldTiles_1) {
-    return __awaiter(this, arguments, void 0, function* (arrayOfOldTiles, log = false) {
-        const oldTileset = getSortedTileset(arrayOfOldTiles);
+function matchAllTilelayers(oldTilesetArray_1) {
+    return __awaiter(this, arguments, void 0, function* (oldTilesetArray, log = false) {
+        const oldTileset = getSortedTileset(oldTilesetArray);
         const tilesetsDesc = yield calcNewTilesetShapes();
-        const tilesetsDir = "/tilesets/packed/";
+        const tilesetsDir = resolveTilesets(); //"./tilesets/packed/";
         const TILELAYER_TILESETS = [
             TILESETJSON_NAME.materials,
             TILESETJSON_NAME.supports,
@@ -380,12 +380,12 @@ function matchAllTilelayers(arrayOfOldTiles_1) {
         ];
         let matchMap = [];
         for (const tileset of TILELAYER_TILESETS) {
-            const tilesetPath = `${dungeonsFS.ioDirPath}${tilesetsDir}${tileset}.json`;
+            const tilesetPath = `${tilesetsDir}/${tileset}.json`;
             const tilesetJson = yield dungeonsFS.getTileset(tilesetPath);
             const firstgid = tilesetsDesc.find((element) => getFilenameFromPath(element.source) ===
                 getFilenameFromPath(tilesetPath)).firstgid;
             const partialMatchMap = matchTilelayer(oldTileset.background.concat(oldTileset.specialbackground).concat(oldTileset.special), tilesetJson, "back", firstgid);
-            matchMap = mergeMatchMaps(matchMap, partialMatchMap);
+            matchMap = mergeLayerMatchMaps(matchMap, partialMatchMap);
         }
         return matchMap;
     });
@@ -525,5 +525,9 @@ function zlibTest() {
         // (map_width * map_height * 4)
     });
 }
-export { getSortedTileset, calcNewTilesetShapes, matchTilelayer, matchAllTilelayers, mergeMatchMaps, slicePixelsToArray, convertPngToGid, zlibTest, TILESETJSON_NAME, FLAGS };
+export { getSortedTileset, calcNewTilesetShapes, 
+//matchTilelayer,
+matchAllTilelayers, 
+//mergeLayerMatchMaps,
+slicePixelsToArray, convertPngToGid, zlibTest, TILESETJSON_NAME, FLAGS };
 //# sourceMappingURL=tilesetMatch.js.map

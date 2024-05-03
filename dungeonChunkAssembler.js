@@ -56,6 +56,11 @@ class SbDungeonChunk /*implements DungeonChunk */ {
         __classPrivateFieldSet(this, _SbDungeonChunk_nextlayerid, __classPrivateFieldGet(this, _SbDungeonChunk_nextlayerid, "f") + 1, "f");
         return this;
     }
+    addBothTilelayers(frontLayerData, backLayerData, layerWidth, layerHeight) {
+        this.addUncompressedTileLayer(frontLayerData, "front", layerWidth, layerHeight);
+        this.addUncompressedTileLayer(backLayerData, "back", layerWidth, layerHeight);
+        return this;
+    }
     getNextObjectId() {
         return __classPrivateFieldGet(this, _SbDungeonChunk_nextobjectid, "f");
     }

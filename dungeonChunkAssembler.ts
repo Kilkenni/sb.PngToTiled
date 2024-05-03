@@ -162,6 +162,12 @@ class SbDungeonChunk /*implements DungeonChunk */{
     return this;
   }
 
+  addBothTilelayers(frontLayerData: number[], backLayerData: number[], layerWidth: number, layerHeight: number): SbDungeonChunk{
+    this.addUncompressedTileLayer(frontLayerData, "front", layerWidth, layerHeight);
+    this.addUncompressedTileLayer(backLayerData, "back", layerWidth, layerHeight);
+    return this;
+  }
+
   getNextObjectId():number {
     return this.#nextobjectid;
   }

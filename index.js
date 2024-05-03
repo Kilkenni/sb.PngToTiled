@@ -143,85 +143,6 @@ async function convertDungeon() {
   return 3;
 }
 
-/*
-async function sortOldTileset(log = false) {
-  const oldTileMap = await extractOldTileset(log);
-  // const oldTiles = {
-  //   tiletype: [],
-  //   ...
-  // };
-
-  const oldTiles = tilesetMatcher.getSortedTileset(oldTileMap);
-
-  if (log) {
-    console.log(`Total tile count: ${oldTileMap.length}`);
-    for (const tiletype in oldTiles) {
-      if (tiletype != "undefined") {
-        console.log(
-          `Checking ${tiletype}, matched tiles: ${oldTiles[tiletype].length}`
-        );
-      } else {
-        if (oldTiles[tiletype].length > 0) {
-          console.log(
-            `FOUND ${tiletype} tiles, matched tiles: ${oldTiles[tiletype].length}`
-          );
-          console.log(oldTiles.undefined);
-        } else {
-          console.log("All tiles sorted!");
-        }
-      }
-    }
-  }
-
-  const oldTilesSorted = oldTiles;
-
-  return oldTilesSorted;
-}
-*/
-
-async function matchTileset_test(log = false) {
-  const oldTileset = await extractOldTileset();
-  const oldTilesetSorted = await tilesetMatcher.getSortedTileset(oldTileset);
-
-  const tilesetsDesc = await tilesetMatcher.calcNewTilesetShapes();
-
-  const tilesetsDir = "/tilesets/packed/";
-
-  const tilesetFileNames = [
-    tilesetMatcher.TILESETJSON_NAME.materials,
-    tilesetMatcher.TILESETJSON_NAME.supports,
-    tilesetMatcher.TILESETJSON_NAME.liquids,
-    tilesetMatcher.TILESETJSON_NAME.misc,
-  ];
-
-  let matchMap = [];
-
-  for (const tilesetFile of tilesetFileNames) {
-    const tilesetFilepath = `${dungeonsApi.ioDirPath}${tilesetsDir}${tilesetFile}.json`;
-
-    const tilesetJson = await dungeonsApi.getTileset(tilesetFilepath);
-
-    const firstgid = tilesetsDesc.find(
-      (element) =>
-        getFilenameFromPath(element.source) ===
-        getFilenameFromPath(tilesetFilepath)
-    ).firstgid;
-
-    const partialMatchMap = tilesetMatcher.matchTilelayer(
-      oldTilesetSorted.background
-        .concat(oldTilesetSorted.specialbackground)
-        .concat(oldTilesetSorted.special),
-      tilesetJson,
-      "back",
-      firstgid
-    );
-
-    matchMap = tilesetMatcher.mergeMatchMaps(matchMap, partialMatchMap);
-  }
-
-  return matchMap;
-}
-
 async function extractOldTileset(log = false) {
   const ioDir = await dungeonsApi.readDir();
   // console.table(ioDir);
@@ -302,10 +223,9 @@ async function writeConvertedMap_test(log = false) {
           ...pixelsArray.shape
         );
         const oldTileset = await extractOldTileset(log);
-        const oldTilesetSorted = await tilesetMatcher.getSortedTileset(
+        const backMatchMap = await tilesetMatcher.matchAllTilelayers(
           oldTileset
         );
-        const backMatchMap = await matchTileset_test();
         const convertedBackLayer = tilesetMatcher.convertPngToGid(
           RgbaArray,
           backMatchMap
@@ -467,9 +387,6 @@ function invokeAction(argv) {
       break;
     case "calctilesetshapes_test":
       tilesetMatcher.calcNewTilesetShapes(true);
-      break;
-    case "matchtileset_test":
-      matchTileset_test(true);
       break;
     case "getpixels_test":
       getPixels_test();

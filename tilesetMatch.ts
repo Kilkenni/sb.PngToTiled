@@ -139,11 +139,16 @@ type OldTilesetSorted = {
   undefined: Tile[],
 };
 
-type TileMatch = {
+type LayerTileMatch = {
   tileName: string,
   tileRgba: RgbaValue,
   tileGid: number
 };
+
+type FullTileMatch = {
+  front: LayerTileMatch[],
+  back: LayerTileMatch[]
+}
 
 export type TilesetShape = {
   firstgid: number,
@@ -311,11 +316,11 @@ function getSortedTileset(arrayOfOldTiles: Tile[], log: boolean = false): OldTil
 }
 
 //compares explicitly defined tilelayer-related tiles, like foreground/background, liquid etc
-function matchTilelayer(oldTilesCategoryArray: Tile[], newTilesetJSON: TilesetMatJson | TilesetLiquidJson | TilesetMiscJson, layerName: "front" | "back", firstgid: number) : TileMatch[] {
+function matchTilelayer(oldTilesCategoryArray: Tile[], newTilesetJSON: TilesetMatJson | TilesetLiquidJson | TilesetMiscJson, layerName: "front" | "back", firstgid: number) : LayerTileMatch[] {
   if (firstgid < 1) {
     return undefined;
   }
-  const matchMap = oldTilesCategoryArray.map((tile : Tile): TileMatch => {
+  const matchMap = oldTilesCategoryArray.map((tile : Tile): LayerTileMatch => {
     const { value, comment, brush, rules }: Tile = tile;
     
     //if we match materials, platforms or liquids
@@ -459,11 +464,11 @@ const MISCJSON_MAP = [
 }
 
 //merge two match maps with non-intersecting values and return new map
-function mergeMatchMaps(matchMap1: TileMatch[], matchMap2: TileMatch[]): TileMatch[] {
+function mergeLayerMatchMaps(matchMap1: LayerTileMatch[], matchMap2: LayerTileMatch[]): LayerTileMatch[] {
   if (matchMap1.length > 0 && matchMap1.length != matchMap2.length) {
     throw new Error(`MAP SIZE MISMATCH: Merging matchMap1 of size ${matchMap1.length} with matchMap2 of size ${matchMap2.length}`);
   }
-  const sumMap: TileMatch[] = []; 
+  const sumMap: LayerTileMatch[] = []; 
   matchMap2.forEach((element, index) => {
     if (element != undefined && matchMap1[index] != undefined) {
       throw new Error(`CANNOT MERGE: both matches have values at index ${index}`);
@@ -493,12 +498,12 @@ function getFilenameFromPath(filePath) {
   return nodePath.parse(filePath).name;
 }
 
-async function matchAllTilelayers(arrayOfOldTiles:Tile[], log:boolean = false):Promise<TileMatch[]> {
-  const oldTileset = getSortedTileset(arrayOfOldTiles);
+async function matchAllTilelayers(oldTilesetArray:Tile[], log:boolean = false):Promise<LayerTileMatch[]> {
+  const oldTileset = getSortedTileset(oldTilesetArray);
 
   const tilesetsDesc = await calcNewTilesetShapes();
 
-  const tilesetsDir = "/tilesets/packed/";
+  const tilesetsDir = resolveTilesets(); //"./tilesets/packed/";
 
   const TILELAYER_TILESETS = [
     TILESETJSON_NAME.materials,
@@ -507,10 +512,10 @@ async function matchAllTilelayers(arrayOfOldTiles:Tile[], log:boolean = false):P
     TILESETJSON_NAME.misc,
   ];
 
-  let matchMap:TileMatch[] = [];
+  let matchMap:LayerTileMatch[] = [];
 
   for (const tileset of TILELAYER_TILESETS) {
-    const tilesetPath = `${dungeonsFS.ioDirPath}${tilesetsDir}${tileset}.json`;
+    const tilesetPath = `${tilesetsDir}/${tileset}.json`;
 
     const tilesetJson = await dungeonsFS.getTileset(tilesetPath);
 
@@ -528,7 +533,7 @@ async function matchAllTilelayers(arrayOfOldTiles:Tile[], log:boolean = false):P
     );
 
 
-    matchMap = mergeMatchMaps(matchMap, partialMatchMap);
+    matchMap = mergeLayerMatchMaps(matchMap, partialMatchMap);
   }
 
   return matchMap;
@@ -585,7 +590,7 @@ function convertPngToGid(RgbaArray:RgbaValue[], tileMatchMap: TileMatch[]):Buffe
 }
 */
 
-function convertPngToGid(RgbaArray:RgbaValue[], tileMatchMap: TileMatch[]):number[] {
+function convertPngToGid(RgbaArray:RgbaValue[], tileMatchMap: LayerTileMatch[]):number[] {
   const layerGids = new Array(RgbaArray.length).fill(0);
   for(let rgbaN = 0; rgbaN < RgbaArray.length; rgbaN++) {
     for(const conversion of tileMatchMap) {
@@ -686,9 +691,9 @@ res[3] = (combined >>> 24) & byteMask;
 export {
   getSortedTileset,
   calcNewTilesetShapes,
-  matchTilelayer,
+  //matchTilelayer,
   matchAllTilelayers,
-  mergeMatchMaps,
+  //mergeLayerMatchMaps,
   slicePixelsToArray,
   convertPngToGid,
   zlibTest,
