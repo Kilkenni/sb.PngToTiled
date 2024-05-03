@@ -139,6 +139,9 @@ function getSortedTileset(arrayOfOldTiles) {
                         oldTiles.anchors.push(tile);
                         break;
                     case "surface":
+                        if (tile.comment.toLowerCase().includes("biome tile brush")) {
+                            oldTiles.specialbackground.push(tile); //for biome tile brush duplicate to background, as it is often setup incorrectly in old tileset
+                        }
                         oldTiles.specialforeground.push(tile);
                         break;
                     case "surfacebackground":
@@ -208,7 +211,7 @@ function matchTilelayer(oldTilesCategoryArray, newTilesetJSON, layerName, firstg
         else if (newTilesetJSON.name === TILESETJSON_NAME.misc) {
             //if we have bkg tile, but search for front layer, or VV - skip
             if (layerName === "front" && brush && brush.flat(1).includes("surfacebackground") ||
-                layerName === "back" && brush && brush.flat(1).includes("surface")) {
+                layerName === "back" && brush && brush.flat(1).includes("surface") && !comment.toLowerCase().includes("biome tile brush")) {
                 return;
             }
             //if we have special tile, but search for front layer - skip
@@ -229,11 +232,11 @@ function matchTilelayer(oldTilesCategoryArray, newTilesetJSON, layerName, firstg
                 //Empty hole overwritable #11
                 if (comment.toLowerCase().includes("empty hole") && rules &&
                     rules.flat(2).includes("allowOverwriting")) {
-                    return { tileName: "empty hole overwritable", tileRgba: value, tileGid: 11 };
+                    return { tileName: "empty hole overwritable", tileRgba: value, tileGid: 11 + firstgid };
                 }
                 //Empty hole #0
                 if (comment.toLowerCase().includes("empty hole")) {
-                    return { tileName: "empty hole overwritable", tileRgba: value, tileGid: 0 };
+                    return { tileName: "empty hole overwritable", tileRgba: value, tileGid: 0 + firstgid };
                 }
             }
             if (brush) {
@@ -254,15 +257,15 @@ function matchTilelayer(oldTilesCategoryArray, newTilesetJSON, layerName, firstg
                         if (options && options.variant) {
                             switch (options.variant) {
                                 case 0:
-                                    return { tileName: "surface #0", tileRgba: value, tileGid: 8 };
+                                    return { tileName: "surface #0", tileRgba: value, tileGid: 8 + firstgid };
                                 case 1:
-                                    return { tileName: "surface #1", tileRgba: value, tileGid: 9 };
+                                    return { tileName: "surface #1", tileRgba: value, tileGid: 9 + firstgid };
                                 case 2:
-                                    return { tileName: "surface #2", tileRgba: value, tileGid: 10 };
+                                    return { tileName: "surface #2", tileRgba: value, tileGid: 10 + firstgid };
                             }
                         }
                         else {
-                            return { tileName: "surface", tileRgba: value, tileGid: 8 };
+                            return { tileName: "surface", tileRgba: value, tileGid: 8 + firstgid };
                         }
                     }
                     else if (brushType === "surfacebackground") {
@@ -279,15 +282,15 @@ function matchTilelayer(oldTilesCategoryArray, newTilesetJSON, layerName, firstg
                         if (options && options.variant) {
                             switch (options.variant) {
                                 case 0:
-                                    return { tileName: "surfacebackground #0", tileRgba: value, tileGid: 8 };
+                                    return { tileName: "surfacebackground #0", tileRgba: value, tileGid: 8 + firstgid };
                                 case 1:
-                                    return { tileName: "surfacebackground #1", tileRgba: value, tileGid: 9 };
+                                    return { tileName: "surfacebackground #1", tileRgba: value, tileGid: 9 + firstgid };
                                 case 2:
-                                    return { tileName: "surfacebackground #2", tileRgba: value, tileGid: 10 };
+                                    return { tileName: "surfacebackground #2", tileRgba: value, tileGid: 10 + firstgid };
                             }
                         }
                         else {
-                            return { tileName: "surfacebackground", tileRgba: value, tileGid: 8 };
+                            return { tileName: "surfacebackground", tileRgba: value, tileGid: 8 + firstgid };
                         }
                     }
                 }
