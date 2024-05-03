@@ -10,6 +10,8 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 import { promises as nodeFS } from "fs";
 import * as nodePath from "path";
 import * as zlib from "zlib";
+// import {v4 as uuidv4} from "uuid";
+import * as dungeonsFS from "./dungeonsFS.js";
 ;
 const TILESETJSON_NAME = {
     materials: "materials",
@@ -84,8 +86,8 @@ function calcNewTilesetShapes() {
         return tilesetsArray;
     });
 }
-function getSortedTileset(arrayOfOldTiles) {
-    const oldTiles = {
+function getSortedTileset(arrayOfOldTiles, log = false) {
+    const oldSorted = {
         foreground: [],
         background: [],
         specialforeground: [],
@@ -100,7 +102,7 @@ function getSortedTileset(arrayOfOldTiles) {
     };
     for (const tile of arrayOfOldTiles) {
         if (tile.connector === true) {
-            oldTiles.anchors.push(tile);
+            oldSorted.anchors.push(tile);
             continue;
         }
         if (tile.rules) {
@@ -108,12 +110,12 @@ function getSortedTileset(arrayOfOldTiles) {
                 return ANCHORS.includes(ruleString);
             });
             if (ruleMatch.length === 1) {
-                oldTiles.anchors.push(tile);
+                oldSorted.anchors.push(tile);
                 continue;
             }
         }
         if (tile.brush === undefined) {
-            oldTiles.special.push(tile); //if there is no brush at all, probably a Special tile
+            oldSorted.special.push(tile); //if there is no brush at all, probably a Special tile
             continue;
         }
         else {
@@ -128,51 +130,70 @@ function getSortedTileset(arrayOfOldTiles) {
                 switch (brush[0]) {
                     case "clear":
                         if (tile.brush.length === 1) {
-                            oldTiles.special.push(tile); //brush contains 1 "clear" element > special tile
+                            oldSorted.special.push(tile); //brush contains 1 "clear" element > special tile
                         }
                         break; //otherwise skip
                     case "biometree":
                     case "biomeitems":
-                        oldTiles.objects.push(tile);
+                        oldSorted.objects.push(tile);
                         break;
                     case "playerstart":
-                        oldTiles.anchors.push(tile);
+                        oldSorted.anchors.push(tile);
                         break;
                     case "surface":
                         if (tile.comment.toLowerCase().includes("biome tile brush")) {
-                            oldTiles.specialbackground.push(tile); //for biome tile brush duplicate to background, as it is often setup incorrectly in old tileset
+                            oldSorted.specialbackground.push(tile); //for biome tile brush duplicate to background, as it is often setup incorrectly in old tileset
                         }
-                        oldTiles.specialforeground.push(tile);
+                        oldSorted.specialforeground.push(tile);
                         break;
                     case "surfacebackground":
-                        oldTiles.specialbackground.push(tile);
+                        oldSorted.specialbackground.push(tile);
                         break;
                     case "wire":
-                        oldTiles.wires.push(tile);
+                        oldSorted.wires.push(tile);
                         break;
                     case "stagehand":
-                        oldTiles.stagehands.push(tile);
+                        oldSorted.stagehands.push(tile);
                         break;
                     case "npc":
-                        oldTiles.npcs.push(tile);
+                        oldSorted.npcs.push(tile);
                         break;
                     case "object":
-                        oldTiles.objects.push(tile);
+                        oldSorted.objects.push(tile);
                         break;
                     case "back":
-                        oldTiles.background.push(tile);
+                        oldSorted.background.push(tile);
                         break;
                     case "front":
                     case "liquid": //liquids are foreground-only
-                        oldTiles.foreground.push(tile);
+                        oldSorted.foreground.push(tile);
                         break;
                     default:
-                        oldTiles.undefined.push(tile);
+                        oldSorted.undefined.push(tile);
                 }
             }
         }
     }
-    return oldTiles;
+    //DEBUG PART
+    if (log) {
+        console.log(`Total tile count: ${arrayOfOldTiles.length}`);
+        for (const tiletype in oldSorted) {
+            if (tiletype != "undefined") {
+                console.log(`Checking ${tiletype}, matched tiles: ${oldSorted[tiletype].length}`);
+            }
+            else {
+                if (oldSorted[tiletype].length > 0) {
+                    console.log(`FOUND ${tiletype} tiles, matched tiles: ${oldSorted[tiletype].length}`);
+                    console.log(oldSorted.undefined);
+                }
+                else {
+                    console.log("All tiles sorted!");
+                }
+            }
+        }
+    }
+    //END DEBUG PART
+    return oldSorted;
 }
 //compares explicitly defined tilelayer-related tiles, like foreground/background, liquid etc
 function matchTilelayer(oldTilesCategoryArray, newTilesetJSON, layerName, firstgid) {
@@ -324,7 +345,7 @@ function mergeMatchMaps(matchMap1, matchMap2) {
     const sumMap = [];
     matchMap2.forEach((element, index) => {
         if (element != undefined && matchMap1[index] != undefined) {
-            throw new Error(`CANNOT MERGE: both matches are defined at index ${index}`);
+            throw new Error(`CANNOT MERGE: both matches have values at index ${index}`);
         }
         if (element != undefined) {
             sumMap[index] = element;
@@ -334,6 +355,40 @@ function mergeMatchMaps(matchMap1, matchMap2) {
         }
     });
     return sumMap;
+}
+//get extention from path (without .)
+function getExtension(fileName) {
+    return fileName.substring(fileName.lastIndexOf(".") + 1);
+}
+//trunc extension and .
+function getFilename(fileName) {
+    return fileName.substring(0, fileName.lastIndexOf("."));
+}
+function getFilenameFromPath(filePath) {
+    return nodePath.parse(filePath).name;
+}
+function matchAllTilelayers(arrayOfOldTiles_1) {
+    return __awaiter(this, arguments, void 0, function* (arrayOfOldTiles, log = false) {
+        const oldTileset = getSortedTileset(arrayOfOldTiles);
+        const tilesetsDesc = yield calcNewTilesetShapes();
+        const tilesetsDir = "/tilesets/packed/";
+        const TILELAYER_TILESETS = [
+            TILESETJSON_NAME.materials,
+            TILESETJSON_NAME.supports,
+            TILESETJSON_NAME.liquids,
+            TILESETJSON_NAME.misc,
+        ];
+        let matchMap = [];
+        for (const tileset of TILELAYER_TILESETS) {
+            const tilesetPath = `${dungeonsFS.ioDirPath}${tilesetsDir}${tileset}.json`;
+            const tilesetJson = yield dungeonsFS.getTileset(tilesetPath);
+            const firstgid = tilesetsDesc.find((element) => getFilenameFromPath(element.source) ===
+                getFilenameFromPath(tilesetPath)).firstgid;
+            const partialMatchMap = matchTilelayer(oldTileset.background.concat(oldTileset.specialbackground).concat(oldTileset.special), tilesetJson, "back", firstgid);
+            matchMap = mergeMatchMaps(matchMap, partialMatchMap);
+        }
+        return matchMap;
+    });
 }
 function slicePixelsToArray(pixelArray, width, height, channels) {
     const pixelCount = width * height;
@@ -470,5 +525,5 @@ function zlibTest() {
         // (map_width * map_height * 4)
     });
 }
-export { getSortedTileset, calcNewTilesetShapes, matchTilelayer, mergeMatchMaps, slicePixelsToArray, convertPngToGid, zlibTest, TILESETJSON_NAME, FLAGS };
+export { getSortedTileset, calcNewTilesetShapes, matchTilelayer, matchAllTilelayers, mergeMatchMaps, slicePixelsToArray, convertPngToGid, zlibTest, TILESETJSON_NAME, FLAGS };
 //# sourceMappingURL=tilesetMatch.js.map

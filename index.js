@@ -143,8 +143,9 @@ async function convertDungeon() {
   return 3;
 }
 
+/*
 async function sortOldTileset(log = false) {
-  const oldTileMap = await extractOldTileset(true);
+  const oldTileMap = await extractOldTileset(log);
   // const oldTiles = {
   //   tiletype: [],
   //   ...
@@ -152,20 +153,22 @@ async function sortOldTileset(log = false) {
 
   const oldTiles = tilesetMatcher.getSortedTileset(oldTileMap);
 
-  console.log(`Total tile count: ${oldTileMap.length}`);
-  for (const tiletype in oldTiles) {
-    if (log && tiletype != "undefined") {
-      console.log(
-        `Checking ${tiletype}, matched tiles: ${oldTiles[tiletype].length}`
-      );
-    } else if (tiletype === "undefined") {
-      if (oldTiles[tiletype].length > 0) {
+  if (log) {
+    console.log(`Total tile count: ${oldTileMap.length}`);
+    for (const tiletype in oldTiles) {
+      if (tiletype != "undefined") {
         console.log(
-          `FOUND ${tiletype} tiles, matched tiles: ${oldTiles[tiletype].length}`
+          `Checking ${tiletype}, matched tiles: ${oldTiles[tiletype].length}`
         );
-        console.log(oldTiles.undefined);
       } else {
-        console.log("All tiles sorted!");
+        if (oldTiles[tiletype].length > 0) {
+          console.log(
+            `FOUND ${tiletype} tiles, matched tiles: ${oldTiles[tiletype].length}`
+          );
+          console.log(oldTiles.undefined);
+        } else {
+          console.log("All tiles sorted!");
+        }
       }
     }
   }
@@ -174,9 +177,11 @@ async function sortOldTileset(log = false) {
 
   return oldTilesSorted;
 }
+*/
 
 async function matchTileset_test(log = false) {
-  const oldTilesetSorted = await sortOldTileset();
+  const oldTileset = await extractOldTileset();
+  const oldTilesetSorted = await tilesetMatcher.getSortedTileset(oldTileset);
 
   const tilesetsDesc = await tilesetMatcher.calcNewTilesetShapes();
 
@@ -203,12 +208,13 @@ async function matchTileset_test(log = false) {
     ).firstgid;
 
     const partialMatchMap = tilesetMatcher.matchTilelayer(
-      oldTilesetSorted.background.concat(oldTilesetSorted.specialbackground).concat(oldTilesetSorted.special),
+      oldTilesetSorted.background
+        .concat(oldTilesetSorted.specialbackground)
+        .concat(oldTilesetSorted.special),
       tilesetJson,
       "back",
       firstgid
     );
-
 
     matchMap = tilesetMatcher.mergeMatchMaps(matchMap, partialMatchMap);
   }
@@ -256,15 +262,15 @@ async function extractOldTileset(log = false) {
 }
 
 async function writeConvertedMap_test(log = false) {
-  const newTilesets = await tilesetMatcher.calcNewTilesetShapes();
+  const newTilesetShapes = await tilesetMatcher.calcNewTilesetShapes();
   //convert absolute paths to relative
 
-  for (const tilesetShape of newTilesets) {
+  for (const tilesetShape of newTilesetShapes) {
     tilesetShape.source = `.${tilesetShape.source.substring(
       tilesetShape.source.indexOf("input-output") + 12
     )}`; //replace everything up to and with "input-output" with .
   }
-  const convertedChunk = new dungeonAssembler.SbDungeonChunk(newTilesets);
+  const convertedChunk = new dungeonAssembler.SbDungeonChunk(newTilesetShapes);
 
   const ioDir = await dungeonsApi.readDir();
   for (const file of ioDir) {
@@ -291,11 +297,25 @@ async function writeConvertedMap_test(log = false) {
         }
         //pixelsArray.data is a Uint8Array of (shape.width * shape.height * #channels) elements
         convertedChunk.setSize(pixelsArray.shape[0], pixelsArray.shape[1]);
-        const RgbaArray = tilesetMatcher.slicePixelsToArray(pixelsArray.data, ...pixelsArray.shape);
+        const RgbaArray = tilesetMatcher.slicePixelsToArray(
+          pixelsArray.data,
+          ...pixelsArray.shape
+        );
+        const oldTileset = await extractOldTileset(log);
+        const oldTilesetSorted = await tilesetMatcher.getSortedTileset(
+          oldTileset
+        );
         const backMatchMap = await matchTileset_test();
-        const convertedBackLayer = tilesetMatcher.convertPngToGid(RgbaArray,backMatchMap);
-        convertedChunk.addUncompressedTileLayer(convertedBackLayer,"back",pixelsArray.shape[0],pixelsArray.shape[1]);
-
+        const convertedBackLayer = tilesetMatcher.convertPngToGid(
+          RgbaArray,
+          backMatchMap
+        );
+        convertedChunk.addUncompressedTileLayer(
+          convertedBackLayer,
+          "back",
+          pixelsArray.shape[0],
+          pixelsArray.shape[1]
+        );
 
         /*
         let map = {};
@@ -356,7 +376,10 @@ async function getPixels_test() {
     height: pixelsArray.shape[1],
   };
   console.log(shape);
-  const RgbaArray = tilesetMatcher.slicePixelsToArray(pixelsArray.data, ...pixelsArray.shape)
+  const RgbaArray = tilesetMatcher.slicePixelsToArray(
+    pixelsArray.data,
+    ...pixelsArray.shape
+  );
   return pixelsArray;
 }
 
@@ -444,9 +467,6 @@ function invokeAction(argv) {
       break;
     case "calctilesetshapes_test":
       tilesetMatcher.calcNewTilesetShapes(true);
-      break;
-    case "sortoldtileset_test":
-      sortOldTileset(true);
       break;
     case "matchtileset_test":
       matchTileset_test(true);

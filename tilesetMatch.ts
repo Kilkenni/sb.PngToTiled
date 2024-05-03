@@ -3,6 +3,8 @@ import * as nodePath from "path";
 import * as zlib from "zlib";
 // import {v4 as uuidv4} from "uuid";
 
+import * as dungeonsFS from "./dungeonsFS.js";
+
 //https://0xacab.org/bidasci/starbound-v1.4.4-source-code/-/blob/no-masters/tiled/properties.txt?ref_type=heads
 
 
@@ -123,20 +125,6 @@ type Tile = {
   connector?: boolean,
 };
 
-//old tile structure:
-    /*
-  {
-    "value": [ R, G, B, A],
-    "comment": "some comment"
-    ?"brush":[
-    [special|"clear"],
-    [?background],
-    [?foreground]
-    ]
-    ...
-  }
-*/
-
 type OldTilesetSorted = {
   foreground: Tile[],
   background: Tile[],
@@ -156,8 +144,6 @@ type TileMatch = {
   tileRgba: RgbaValue,
   tileGid: number
 };
-
-type TileMatchMap = TileMatch[];
 
 export type TilesetShape = {
   firstgid: number,
@@ -207,8 +193,8 @@ async function calcNewTilesetShapes(log:boolean = false):Promise<TilesetShape[]>
   return tilesetsArray;
 }
 
-function getSortedTileset(arrayOfOldTiles : Tile[]) :OldTilesetSorted {
-  const oldTiles :OldTilesetSorted = {
+function getSortedTileset(arrayOfOldTiles: Tile[], log: boolean = false): OldTilesetSorted {
+  const oldSorted :OldTilesetSorted = {
     foreground: [] ,
     background: [],
     specialforeground: [],
@@ -224,7 +210,7 @@ function getSortedTileset(arrayOfOldTiles : Tile[]) :OldTilesetSorted {
 
   for (const tile of arrayOfOldTiles) {
     if(tile.connector === true) {
-      oldTiles.anchors.push(tile);
+      oldSorted.anchors.push(tile);
       continue;
     }
     if(tile.rules) {
@@ -232,13 +218,13 @@ function getSortedTileset(arrayOfOldTiles : Tile[]) :OldTilesetSorted {
         return ANCHORS.includes(ruleString);
       });
       if(ruleMatch.length === 1) {
-        oldTiles.anchors.push(tile);
+        oldSorted.anchors.push(tile);
         continue;
       }
     }
     
     if (tile.brush === undefined) {
-      oldTiles.special.push(tile); //if there is no brush at all, probably a Special tile
+      oldSorted.special.push(tile); //if there is no brush at all, probably a Special tile
       continue;
     } else {
       //first, consistency expectation checks
@@ -255,52 +241,73 @@ function getSortedTileset(arrayOfOldTiles : Tile[]) :OldTilesetSorted {
         switch (brush[0]) {
           case "clear":
             if(tile.brush.length === 1) {
-              oldTiles.special.push(tile); //brush contains 1 "clear" element > special tile
+              oldSorted.special.push(tile); //brush contains 1 "clear" element > special tile
             }
             break; //otherwise skip
           case "biometree":
           case "biomeitems":
-            oldTiles.objects.push(tile);
+            oldSorted.objects.push(tile);
             break;
           case "playerstart":
-            oldTiles.anchors.push(tile);
+            oldSorted.anchors.push(tile);
             break;
           case "surface":
             if (tile.comment.toLowerCase().includes("biome tile brush")) {
-              oldTiles.specialbackground.push(tile); //for biome tile brush duplicate to background, as it is often setup incorrectly in old tileset
+              oldSorted.specialbackground.push(tile); //for biome tile brush duplicate to background, as it is often setup incorrectly in old tileset
             }
-            oldTiles.specialforeground.push(tile);
+            oldSorted.specialforeground.push(tile);
             break;
           case "surfacebackground":
-            oldTiles.specialbackground.push(tile);
+            oldSorted.specialbackground.push(tile);
             break;
           case "wire":
-            oldTiles.wires.push(tile);
+            oldSorted.wires.push(tile);
             break;
           case "stagehand":
-            oldTiles.stagehands.push(tile);
+            oldSorted.stagehands.push(tile);
             break;
           case "npc":
-            oldTiles.npcs.push(tile);
+            oldSorted.npcs.push(tile);
             break;
           case "object":
-            oldTiles.objects.push(tile);
+            oldSorted.objects.push(tile);
             break;
           case "back":
-            oldTiles.background.push(tile);
+            oldSorted.background.push(tile);
             break;
           case "front":
           case "liquid": //liquids are foreground-only
-            oldTiles.foreground.push(tile);
+            oldSorted.foreground.push(tile);
             break;
           default:
-            oldTiles.undefined.push(tile);
+            oldSorted.undefined.push(tile);
         }
       }
     }
   }
 
-  return oldTiles;
+  //DEBUG PART
+  if (log) {
+    console.log(`Total tile count: ${arrayOfOldTiles.length}`);
+    for (const tiletype in oldSorted) {
+      if (tiletype != "undefined") {
+        console.log(
+          `Checking ${tiletype}, matched tiles: ${oldSorted[tiletype].length}`
+        );
+      } else {
+        if (oldSorted[tiletype].length > 0) {
+          console.log(
+            `FOUND ${tiletype} tiles, matched tiles: ${oldSorted[tiletype].length}`
+          );
+          console.log(oldSorted.undefined);
+        } else {
+          console.log("All tiles sorted!");
+        }
+      }
+    }
+  }
+  //END DEBUG PART
+  return oldSorted;
 }
 
 //compares explicitly defined tilelayer-related tiles, like foreground/background, liquid etc
@@ -459,7 +466,7 @@ function mergeMatchMaps(matchMap1: TileMatch[], matchMap2: TileMatch[]): TileMat
   const sumMap: TileMatch[] = []; 
   matchMap2.forEach((element, index) => {
     if (element != undefined && matchMap1[index] != undefined) {
-      throw new Error(`CANNOT MERGE: both matches are defined at index ${index}`);
+      throw new Error(`CANNOT MERGE: both matches have values at index ${index}`);
     }
     if (element != undefined) {
       sumMap[index] = element;
@@ -470,6 +477,61 @@ function mergeMatchMaps(matchMap1: TileMatch[], matchMap2: TileMatch[]): TileMat
   })
 
   return sumMap;
+}
+
+//get extention from path (without .)
+function getExtension(fileName) {
+  return fileName.substring(fileName.lastIndexOf(".") + 1);
+}
+
+//trunc extension and .
+function getFilename(fileName) {
+  return fileName.substring(0, fileName.lastIndexOf("."));
+}
+
+function getFilenameFromPath(filePath) {
+  return nodePath.parse(filePath).name;
+}
+
+async function matchAllTilelayers(arrayOfOldTiles:Tile[], log:boolean = false):Promise<TileMatch[]> {
+  const oldTileset = getSortedTileset(arrayOfOldTiles);
+
+  const tilesetsDesc = await calcNewTilesetShapes();
+
+  const tilesetsDir = "/tilesets/packed/";
+
+  const TILELAYER_TILESETS = [
+    TILESETJSON_NAME.materials,
+    TILESETJSON_NAME.supports,
+    TILESETJSON_NAME.liquids,
+    TILESETJSON_NAME.misc,
+  ];
+
+  let matchMap:TileMatch[] = [];
+
+  for (const tileset of TILELAYER_TILESETS) {
+    const tilesetPath = `${dungeonsFS.ioDirPath}${tilesetsDir}${tileset}.json`;
+
+    const tilesetJson = await dungeonsFS.getTileset(tilesetPath);
+
+    const firstgid = tilesetsDesc.find(
+      (element) =>
+        getFilenameFromPath(element.source) ===
+        getFilenameFromPath(tilesetPath)
+    ).firstgid;
+
+    const partialMatchMap = matchTilelayer(
+      oldTileset.background.concat(oldTileset.specialbackground).concat(oldTileset.special),
+      tilesetJson,
+      "back",
+      firstgid
+    );
+
+
+    matchMap = mergeMatchMaps(matchMap, partialMatchMap);
+  }
+
+  return matchMap;
 }
 
 function slicePixelsToArray(pixelArray: Uint8Array, width: number, height: number, channels: number): RgbaValue[] {
@@ -625,6 +687,7 @@ export {
   getSortedTileset,
   calcNewTilesetShapes,
   matchTilelayer,
+  matchAllTilelayers,
   mergeMatchMaps,
   slicePixelsToArray,
   convertPngToGid,
