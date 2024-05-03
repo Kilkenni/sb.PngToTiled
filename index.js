@@ -223,12 +223,12 @@ async function writeConvertedMap_test(log = false) {
           ...pixelsArray.shape
         );
         const oldTileset = await extractOldTileset(log);
-        const backMatchMap = await tilesetMatcher.matchAllTilelayers(
+        const fullMatchMap = await tilesetMatcher.matchAllTilelayers(
           oldTileset
         );
         const convertedBackLayer = tilesetMatcher.convertPngToGid(
           RgbaArray,
-          backMatchMap
+          fullMatchMap.back
         );
         convertedChunk.addUncompressedTileLayer(
           convertedBackLayer,

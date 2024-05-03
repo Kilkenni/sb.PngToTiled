@@ -387,7 +387,12 @@ function matchAllTilelayers(oldTilesetArray_1) {
             const partialMatchMap = matchTilelayer(oldTileset.background.concat(oldTileset.specialbackground).concat(oldTileset.special), tilesetJson, "back", firstgid);
             matchMap = mergeLayerMatchMaps(matchMap, partialMatchMap);
         }
-        return matchMap;
+        const fullMatchMap = {
+            front: [],
+            back: []
+        };
+        fullMatchMap.back = matchMap;
+        return fullMatchMap;
     });
 }
 function slicePixelsToArray(pixelArray, width, height, channels) {

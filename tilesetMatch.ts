@@ -498,7 +498,7 @@ function getFilenameFromPath(filePath) {
   return nodePath.parse(filePath).name;
 }
 
-async function matchAllTilelayers(oldTilesetArray:Tile[], log:boolean = false):Promise<LayerTileMatch[]> {
+async function matchAllTilelayers(oldTilesetArray:Tile[], log:boolean = false):Promise<FullTileMatch> {
   const oldTileset = getSortedTileset(oldTilesetArray);
 
   const tilesetsDesc = await calcNewTilesetShapes();
@@ -536,7 +536,14 @@ async function matchAllTilelayers(oldTilesetArray:Tile[], log:boolean = false):P
     matchMap = mergeLayerMatchMaps(matchMap, partialMatchMap);
   }
 
-  return matchMap;
+  const fullMatchMap: FullTileMatch = {
+    front: [],
+    back: []
+  }
+
+  fullMatchMap.back = matchMap;
+
+  return fullMatchMap;
 }
 
 function slicePixelsToArray(pixelArray: Uint8Array, width: number, height: number, channels: number): RgbaValue[] {
