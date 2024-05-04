@@ -12,7 +12,7 @@ var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (
 var _SbDungeonChunk_height, _SbDungeonChunk_layers, _SbDungeonChunk_nextlayerid, _SbDungeonChunk_nextobjectid, _SbDungeonChunk_properties, _SbDungeonChunk_tilesets, _SbDungeonChunk_width;
 ;
 ;
-class SbDungeonChunk /*implements DungeonChunk */ {
+class SbDungeonChunk {
     constructor(tilesetShapes) {
         this.backgroundcolor = "#000000";
         // #compressionlevel:number = -1;
@@ -57,8 +57,8 @@ class SbDungeonChunk /*implements DungeonChunk */ {
         return this;
     }
     addBothTilelayers(frontLayerData, backLayerData, layerWidth, layerHeight) {
-        this.addUncompressedTileLayer(frontLayerData, "front", layerWidth, layerHeight);
         this.addUncompressedTileLayer(backLayerData, "back", layerWidth, layerHeight);
+        this.addUncompressedTileLayer(frontLayerData, "front", layerWidth, layerHeight);
         return this;
     }
     getNextObjectId() {
@@ -75,47 +75,5 @@ class SbDungeonChunk /*implements DungeonChunk */ {
     }
 }
 _SbDungeonChunk_height = new WeakMap(), _SbDungeonChunk_layers = new WeakMap(), _SbDungeonChunk_nextlayerid = new WeakMap(), _SbDungeonChunk_nextobjectid = new WeakMap(), _SbDungeonChunk_properties = new WeakMap(), _SbDungeonChunk_tilesets = new WeakMap(), _SbDungeonChunk_width = new WeakMap();
-/* async function addTilesets(chunk: SbDungeonChunk):Promise<SbDungeonChunk> {
-  const tilesetShapes:TilesetShape[] = await tilesetMatcher.calcNewTilesetShapes();
-  chunk.addTilesets(tilesetShapes);
-    return chunk;
-} */
-/*
-function writeDungeonChunk(chunk) {
-    const tileMap = await extractOldTileset(true);
-  
-    let mapPath = "";
-    try {
-      // console.table(tileMap);
-      dungeonsApi.writeTileMap(`${getFilename(dungeonPath) + ".TILES"}`, tileMap);
-      for (const file of ioDir) {
-        if (file.isFile())
-          if (getExtension(file.name) === "png") {
-            mapPath = `${file.path}/${getFilename(file.name)}.json`;
-            console.log(
-              `Detected ${file.name}, writing ${getFilename(file.name)}.json...`
-            );
-            let map = {};
-            getPixels(`${file.path}/${file.name}`, (error, pixels) => {
-              if (error) {
-                console.error(error);
-                console.log("Bad PNG image path");
-                return;
-              }
-              //PNG conversion here
-              map = mapPixelsToJson(pixels, tileMap);
-              const tilesets = calcnewTilesets();
-              //NEEDS AWAIT
-              // dungeonsApi.writeConvertedMapJson(mapPath, map);
-            });
-          }
-      }
-    } catch (error) {
-      console.error(error);
-      return undefined;
-    }
-    return 4;
-}
-*/
 export { SbDungeonChunk, };
 //# sourceMappingURL=dungeonChunkAssembler.js.map

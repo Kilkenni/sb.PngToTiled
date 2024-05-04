@@ -12,49 +12,6 @@ import {TilesetShape} from "./tilesetMatch";
 
 //Tiled JSON format reference: https://doc.mapeditor.org/en/stable/reference/json-map-format/
 
-/*
-interface DungeonChunk {
-  backgroundcolor?: string,
-  compressionlevel: number,
-  height: number,
-  infinite:boolean,
-  layers: Layer[],
-  nextlayerid: number,
-  nextobjectid: number,
-  orientation:"orthogonal"|"isometric"|"staggered"|"hexagonal",
-  properties:object,
-  renderorder:"right-down"|"right-up"|"left-down"|"left-up",
-  tileheight:number,
-  tilesets: TilesetShape[],
-  tilewidth:number,
-  type:"map",
-  version:number|string,
-  width:number,
-}
-*/
-
-/*
-const SB_DUNGEONCHUNK : DungeonChunk = {
-  backgroundcolor:"#000000",
-  compressionlevel:-1,
-  height:60,
-  infinite:false,
-  layers:[],
-  nextlayerid:1,
-  nextobjectid:1,
-  orientation:"orthogonal",
-  properties:{},
-  renderorder:"right-down",
-  tileheight:8,
-  tilesets:[],
-  tilewidth:8,
-  type:"map",
-  version:1,
-  width:60
-}
-*/
-
-
 interface Layer {
   chunks?: [any],
   class?: string,
@@ -115,7 +72,7 @@ interface SbModsLayer extends SbObjectgroupLayer {
   readonly name: "mods",
 }
 
-class SbDungeonChunk /*implements DungeonChunk */{
+class SbDungeonChunk{
   readonly backgroundcolor?:string = "#000000";
   // #compressionlevel:number = -1;
   #height:number = 10;
@@ -163,8 +120,8 @@ class SbDungeonChunk /*implements DungeonChunk */{
   }
 
   addBothTilelayers(frontLayerData: number[], backLayerData: number[], layerWidth: number, layerHeight: number): SbDungeonChunk{
-    this.addUncompressedTileLayer(frontLayerData, "front", layerWidth, layerHeight);
     this.addUncompressedTileLayer(backLayerData, "back", layerWidth, layerHeight);
+    this.addUncompressedTileLayer(frontLayerData, "front", layerWidth, layerHeight);
     return this;
   }
 
@@ -192,52 +149,6 @@ class SbDungeonChunk /*implements DungeonChunk */{
     };
   }
 }
-
-/* async function addTilesets(chunk: SbDungeonChunk):Promise<SbDungeonChunk> {
-  const tilesetShapes:TilesetShape[] = await tilesetMatcher.calcNewTilesetShapes();
-  chunk.addTilesets(tilesetShapes);
-    return chunk;
-} */
-
-/*
-function writeDungeonChunk(chunk) {
-    const tileMap = await extractOldTileset(true);
-  
-    let mapPath = "";
-    try {
-      // console.table(tileMap);
-      dungeonsApi.writeTileMap(`${getFilename(dungeonPath) + ".TILES"}`, tileMap);
-      for (const file of ioDir) {
-        if (file.isFile())
-          if (getExtension(file.name) === "png") {
-            mapPath = `${file.path}/${getFilename(file.name)}.json`;
-            console.log(
-              `Detected ${file.name}, writing ${getFilename(file.name)}.json...`
-            );
-            let map = {};
-            getPixels(`${file.path}/${file.name}`, (error, pixels) => {
-              if (error) {
-                console.error(error);
-                console.log("Bad PNG image path");
-                return;
-              }
-              //PNG conversion here
-              map = mapPixelsToJson(pixels, tileMap);
-              const tilesets = calcnewTilesets();
-              //NEEDS AWAIT
-              // dungeonsApi.writeConvertedMapJson(mapPath, map);
-            });
-          }
-      }
-    } catch (error) {
-      console.error(error);
-      return undefined;
-    }
-    return 4;
-}
-*/
-
-
 
 export {
   SbDungeonChunk,
