@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from "uuid";
 // const nodeFileSys = require("fs").promises;
 // const nodePathModule = require("path");
 // const { v4: uuidv4 } = require("uuid");
+import { resolveTilesets } from "./tilesetMatch.js";
 
 const ioDirPath = nodePath.resolve("./input-output/");
 
@@ -112,7 +113,8 @@ async function writeTileMap(path, JsonData) {
   return true;
 }
 
-async function getTileset(tilesetPath) {
+async function getTileset(tilesetName) {
+  const tilesetPath = `${resolveTilesets()}/${tilesetName}.json`;
   try {
     if (!tilesetPath || typeof tilesetPath != "string") {
       return undefined; //basic path validation check

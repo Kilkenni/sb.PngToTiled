@@ -46,10 +46,11 @@ const MISCJSON_MAP = [
     "worldGenMustContainLiquid (ocean)", //22 --> anchors etc
     "worldGenMustNotContainLiquid (ocean)" //23 --> anchors etc
 ]; //index = tile #
-const ANCHORS = [
+;
+const ANCHOR_RULES = [
     "worldGenMustContainSolidBackground",
     "worldGenMustContainAirBackground",
-    "worldGenMustContainAirForeground"
+    "worldGenMustContainAirForeground",
 ];
 //determine paths to tilesets for mapping PNG
 function resolveTilesets() {
@@ -108,7 +109,7 @@ function getSortedTileset(arrayOfOldTiles, log = false) {
         }
         if (tile.rules) {
             const ruleMatch = tile.rules.flat(3).filter((ruleString) => {
-                return ANCHORS.includes(ruleString);
+                return ANCHOR_RULES.includes(ruleString);
             });
             if (ruleMatch.length === 1) {
                 oldSorted.anchors.push(tile);
@@ -204,7 +205,7 @@ function matchTilelayer(oldTilesCategoryArray, newTilesetJSON, layerName, firstg
     const matchMap = oldTilesCategoryArray.map((tile) => {
         const { value, comment, brush, rules } = tile;
         //if we match materials, platforms or liquids
-        if ([TILESETJSON_NAME.materials, TILESETJSON_NAME.supports, TILESETJSON_NAME.liquids].includes(newTilesetJSON.name)) {
+        if (TILESETJSON_NAME.materials === newTilesetJSON.name || TILESETJSON_NAME.supports === newTilesetJSON.name || TILESETJSON_NAME.liquids === newTilesetJSON.name) {
             if (brush === undefined) {
                 return;
                 //throw new Error(`Tile brush is ${brush}`);
@@ -344,6 +345,84 @@ function matchTilelayer(oldTilesCategoryArray, newTilesetJSON, layerName, firstg
     });
     return matchMap;
 }
+function matchAnchors(oldAnchorsArray, miscTilesetJSON, firstgid) {
+    function ruleGetName(rule) {
+        let ruleName = rule;
+        //try to trim layer from the name
+        if (rule.includes("Background")) {
+            ruleName = rule.substring(0, rule.indexOf("Background"));
+        }
+        else if (rule.includes("Foreground")) {
+            ruleName = rule.substring(0, rule.indexOf("Foreground"));
+        }
+        return ruleName;
+    }
+    function ruleIsBackLayer(rule) {
+        if (rule.includes("Background")) {
+            return "back";
+        }
+        else if (rule.includes("Foreground")) {
+            return undefined;
+        }
+        return undefined;
+    }
+    if (firstgid < 1) {
+        return undefined;
+    }
+    const matchMap = oldAnchorsArray.map((tile) => {
+        const { value, comment, brush, rules, connector } = tile;
+        /*
+        "Player Start",                      //3 --> anchors etc
+        "worldGenMustContainAir",            //4 --> anchors etc
+        "worldGenMustContainSolid",          //5 --> anchors etc
+        "Red Connector",                     //12 --> anchors etc
+        "Yellow Connector",                  //13 --> anchors etc
+        "Green Connector",                   //14 --> anchors etc
+        "Blue Connector",                    //15 --> anchors etc
+        "worldGenMustContainAir (background)",   //16 --> anchors etc
+        "worldGenMustContainSolid (background)", //17 --> anchors etc
+        "worldGenMustContainLiquid (ocean)",     //22 --> anchors etc
+        "worldGenMustNotContainLiquid (ocean)"   //23 --> anchors etc
+        */
+        if (brush) {
+            for (const brushlayer of brush) {
+                if (brushlayer.includes("playerstart")) {
+                    return { tileName: "Player Start", tileRgba: value, tileGid: (3 + firstgid) };
+                }
+            }
+        }
+        if (connector) {
+            if (comment.includes("entrance coupler")) {
+                return { tileName: comment + " -> red", tileRgba: value, tileGid: (12 + firstgid) };
+            }
+            ;
+            if (comment.includes("alternate coupler #2")) {
+                return { tileName: comment + " -> yellow", tileRgba: value, tileGid: (13 + firstgid) };
+            }
+            ;
+            if (comment.includes("alternate coupler #3")) {
+                return { tileName: comment + " -> green", tileRgba: value, tileGid: (14 + firstgid) };
+            }
+            else {
+                return { tileName: comment + " -> blue", tileRgba: value, tileGid: (15 + firstgid) };
+            }
+        }
+        for (const rule of rules.flat()) { //worldGenMust(Not)Contain
+            for (const anchorRule of ANCHOR_RULES) {
+                if (rule === anchorRule) {
+                    for (const materialIndex in miscTilesetJSON.tileproperties) {
+                        const material = miscTilesetJSON.tileproperties[materialIndex];
+                        if (Object.keys(material).includes(ruleGetName(rule)) && material.layer === ruleIsBackLayer(rule)) {
+                            return { tileName: material["//shortdescription"], tileRgba: value, tileGid: (parseInt(materialIndex) + firstgid) };
+                        }
+                    }
+                }
+            }
+        }
+        return; //skip tile if no matches
+    });
+    return matchMap;
+}
 //merge two match maps with non-intersecting values and return new map
 function mergeLayerMatchMaps(matchMap1, matchMap2) {
     if (matchMap1.length > 0 && matchMap1.length != matchMap2.length) {
@@ -374,9 +453,8 @@ function getFilename(fileName) {
 function getFilenameFromPath(filePath) {
     return nodePath.parse(filePath).name;
 }
-function matchAllTilelayers(oldTilesetArray_1) {
-    return __awaiter(this, arguments, void 0, function* (oldTilesetArray, log = false) {
-        const oldTileset = getSortedTileset(oldTilesetArray);
+function matchAllTilelayers(oldTileset_1) {
+    return __awaiter(this, arguments, void 0, function* (oldTileset, log = false) {
         const tilesetsDesc = yield calcNewTilesetShapes();
         const tilesetsDir = resolveTilesets(); //"./tilesets/packed/";
         const TILELAYER_TILESETS = [
@@ -391,10 +469,11 @@ function matchAllTilelayers(oldTilesetArray_1) {
         };
         // let matchMap:LayerTileMatch[] = [];
         for (const tileset of TILELAYER_TILESETS) {
-            const tilesetPath = `${tilesetsDir}/${tileset}.json`;
-            const tilesetJson = yield dungeonsFS.getTileset(tilesetPath);
-            const firstgid = tilesetsDesc.find((element) => getFilenameFromPath(element.source) ===
-                getFilenameFromPath(tilesetPath)).firstgid;
+            // const tilesetPath = `${tilesetsDir}/${tileset}.json`;
+            const tilesetJson = yield dungeonsFS.getTileset(tileset);
+            const firstgid = tilesetsDesc.find((element) => getFilenameFromPath(element.source) === tileset
+            // getFilenameFromPath(tilesetPath)
+            ).firstgid;
             const partialBack = matchTilelayer(oldTileset.background.concat(oldTileset.specialbackground).concat(oldTileset.special), tilesetJson, "back", firstgid);
             fullMatchMap.back = mergeLayerMatchMaps(fullMatchMap.back, partialBack);
             const partialFront = matchTilelayer(oldTileset.foreground.concat(oldTileset.specialforeground).concat(oldTileset.special), tilesetJson, "front", firstgid);
@@ -416,74 +495,6 @@ function slicePixelsToArray(pixelArray, width, height, channels) {
     }
     return RgbaArray;
 }
-/*
-export type UnsignedInt32 = number;
-
-class GidFlags {
-  //Tiled writes non-compressed GIDs in little-endian 32-bit unsigned ints, i.e. each 4 bytes in a buffer represent a GID
-  //however, highest 4 bits are used as flipping flags (no pun intended)
-  //details: https://doc.mapeditor.org/en/latest/reference/global-tile-ids/#tile-flipping
-  //bit 32 - horizontal flip, bit 31 - vertical, bit 30 - diagonal (rotation). Bit 29 is for hexagonal maps, which Starbound file is not, so it can be ignored - but we still need to clear it, just in case
-  static FLIP_HORIZ = 8 << 28; //1000 shifted left 32-4=28 positions.
-  static FLIP_VERT = 4 << 28; //0100 shifted left
-  static FLIP_DIAG = 2 << 28; //0010 shifted left
-  static HEX_120_ROTATE = 1 << 28; //0001 shifted left
-  static FLAGS_MASK = 15 << 28; //Sum all flags. When applied to a UInt32 it should reset all bits but flags to 0
-  //in other words, since flags are 4 high bits, it's 111100...0000
-  static FLAGS_CLEAR = ~(15 << 28); //reverse (~) mask is 000011..1111, it will reset flags and give us "pure" GID
-
-  constructor() { }
-
-  static #checkUInt32(gid: number) {
-    if (gid > 0 && gid < 4294967295) {
-      return true;
-    }
-    throw new Error(`Gid ${gid} in not an Unsigned Int32`);
-  }
-  
-  static getPureGid(gidWithFlags: UnsignedInt32):UnsignedInt32 {
-    this.#checkUInt32(gidWithFlags);
-    return (gidWithFlags & this.FLAGS_CLEAR) >>> 0; //Gid > 0, convert to Unsigned Int!
-  }
-
-  static getFlagsOnly(gidWithFlags: UnsignedInt32): number {
-    this.#checkUInt32(gidWithFlags);
-    return gidWithFlags & this.FLAGS_MASK;
-  }
-
-  static getHorizontal(gidWithFlags: UnsignedInt32): boolean {
-    this.#checkUInt32(gidWithFlags);
-    return (gidWithFlags & this.FLIP_HORIZ) === this.FLIP_HORIZ;
-  }
-
-  static getVertical(gidWithFlags: UnsignedInt32): boolean {
-    this.#checkUInt32(gidWithFlags);
-    return (gidWithFlags & this.FLIP_VERT) === this.FLIP_VERT;
-  }
-
-  static getDiagonal(gidWithFlags: UnsignedInt32): boolean {
-    this.#checkUInt32(gidWithFlags);
-    return (gidWithFlags & this.FLIP_DIAG) === this.FLIP_DIAG;
-  }
-
-  static apply(pureGid: UnsignedInt32, flipDiag: boolean, flipHoriz: boolean, flipVert: boolean):UnsignedInt32 {
-    //Starbound uses orthogonal maps; order of flips matters! DIAG > HORIZ > VERT
-    this.#checkUInt32(pureGid);
-    let gidWithFlags = pureGid;
-    if (flipDiag) {
-      gidWithFlags = gidWithFlags | this.FLIP_DIAG;
-    }
-    if (flipHoriz) {
-      gidWithFlags = gidWithFlags | this.FLIP_HORIZ;
-    }
-    if (flipVert) {
-      gidWithFlags = gidWithFlags | this.FLIP_VERT;
-    }
-
-    return (gidWithFlags >>> 0); //Gid > 0, convert to Unsigned Int!
-  }
-}
-*/
 function isRgbaEqual(Rgba1, Rgba2) {
     for (let component = 0; component < 4; component++) {
         if (Rgba1[component] != Rgba2[component]) {
@@ -594,9 +605,9 @@ function zlibTest() {
         // (map_width * map_height * 4)
     });
 }
-export { getSortedTileset, calcNewTilesetShapes, 
+export { resolveTilesets, getSortedTileset, isRgbaEqual, calcNewTilesetShapes, 
 //matchTilelayer,
-matchAllTilelayers, 
+matchAllTilelayers, matchAnchors, 
 //mergeLayerMatchMaps,
 slicePixelsToArray, convertPngToGid, zlibTest, TILESETJSON_NAME, };
 //# sourceMappingURL=tilesetMatch.js.map

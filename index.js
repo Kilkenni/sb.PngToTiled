@@ -61,8 +61,7 @@ async function getDungeons(log = false) {
           // console.log(dungeonPath);
           const dungeons = await dungeonsApi.getDungeons(dungeonPath);
           console.log(
-            `Found .dungeon file: ${
-              dungeons?.metadata?.name || "some weird shit"
+            `Found .dungeon file: ${dungeons?.metadata?.name || "some weird shit"
             }`
           );
         }
@@ -86,8 +85,7 @@ async function convertDungeon() {
           // console.log(dungeonPath);
           const dungeons = await dungeonsApi.getDungeons(dungeonPath);
           console.log(
-            `Found .dungeon file: ${
-              dungeons?.metadata?.name || "some weird shit"
+            `Found .dungeon file: ${dungeons?.metadata?.name || "some weird shit"
             }`
           );
 
@@ -191,20 +189,31 @@ async function writeConvertedMap_test(log = false) {
       tilesetShape.source.indexOf("input-output") + 12
     )}`; //replace everything up to and with "input-output" with .
   }
-  const convertedChunk = new dungeonAssembler.SbDungeonChunk(newTilesetShapes);
 
   const ioDir = await dungeonsApi.readDir();
   for (const file of ioDir) {
     if (file.isFile()) {
       if (getExtension(file.name) === "png") {
+
         const newPath = `${dungeonsApi.ioDirPath}/${getFilename(
           file.name
         )}.json`;
         console.log(
           `Detected ${file.name}, writing ${getFilename(file.name)}.json...`
         );
+
+        const convertedChunk = new dungeonAssembler.SbDungeonChunk(newTilesetShapes);
         const getPixelsPromise = promisify(getPixels); //getPixels originally doesn't support promises
         let pixelsArray;
+        const oldTileset = await extractOldTileset(log);
+        const sortedOldTileset = await tilesetMatcher.getSortedTileset(
+          oldTileset
+        );
+        const fullMatchMap = await tilesetMatcher.matchAllTilelayers(
+          sortedOldTileset
+        );
+
+        //Calculating original chunk
         try {
           pixelsArray = await getPixelsPromise(
             `${dungeonsApi.ioDirPath}/${file.name}`
@@ -217,17 +226,10 @@ async function writeConvertedMap_test(log = false) {
           console.log("  -obtained image shape: ", pixelsArray.shape); //shape = width, height, channels
         }
         //pixelsArray.data is a Uint8Array of (shape.width * shape.height * #channels) elements
-        convertedChunk.setSize(pixelsArray.shape[0], pixelsArray.shape[1]);
+        convertedChunk.setSize(pixelsArray.shape[0], pixelsArray.shape[1]); 
         const RgbaArray = tilesetMatcher.slicePixelsToArray(
           pixelsArray.data,
           ...pixelsArray.shape
-        );
-        const oldTileset = await extractOldTileset(log);
-        const sortedOldTileset = await tilesetMatcher.getSortedTileset(
-          oldTileset
-        );
-        const fullMatchMap = await tilesetMatcher.matchAllTilelayers(
-          oldTileset
         );
         const convertedBackLayer = tilesetMatcher.convertPngToGid(
           RgbaArray,
@@ -243,12 +245,24 @@ async function writeConvertedMap_test(log = false) {
           pixelsArray.shape[0],
           pixelsArray.shape[1]
         );
-        // convertedChunk.addUncompressedTileLayer(
-        //   convertedBackLayer,
-        //   "back",
-        //   pixelsArray.shape[0],
-        //   pixelsArray.shape[1]
-        // );
+
+        function getCoordsFromFlatArray(index, width) {
+          const x = index % width;
+          const y = Math.trunc(index / width);
+          return { x, y };
+        }
+
+        const miscTileset = await dungeonsApi.getTileset(tilesetMatcher.TILESETJSON_NAME.misc)
+        const anchorsMap = tilesetMatcher.matchAnchors(sortedOldTileset.anchors, miscTileset, convertedChunk.getFirstGid(tilesetMatcher.TILESETJSON_NAME.misc));
+        for (let rgbaN = 0; rgbaN < RgbaArray.length; rgbaN++) {
+          for (const match of anchorsMap) {
+            if (tilesetMatcher.isRgbaEqual(RgbaArray[rgbaN], match.tileRgba)) {
+              const gid = match.tileGid;
+              const { x: anchorX, y: anchorY } = getCoordsFromFlatArray(rgbaN, pixelsArray.shape[0]);
+              convertedChunk.addAnchorToObjectLayer(gid, anchorX, anchorY);
+            }
+          }
+        }
 
         const success = await dungeonsApi.writeConvertedMapJson(
           newPath,

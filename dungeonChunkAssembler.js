@@ -9,11 +9,23 @@ var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (
     if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
     return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
 };
-var _SbDungeonChunk_height, _SbDungeonChunk_layers, _SbDungeonChunk_nextlayerid, _SbDungeonChunk_nextobjectid, _SbDungeonChunk_properties, _SbDungeonChunk_tilesets, _SbDungeonChunk_width;
+var _SbDungeonChunk_instances, _SbDungeonChunk_height, _SbDungeonChunk_layers, _SbDungeonChunk_nextlayerid, _SbDungeonChunk_nextobjectid, _SbDungeonChunk_properties, _SbDungeonChunk_tilesets, _SbDungeonChunk_width, _SbDungeonChunk_getLayerIndexByName, _SbDungeonChunk_mergeLayerData, _SbDungeonChunk_initObjectLayer;
+import { TILESETJSON_NAME } from "./tilesetMatch.js";
+import GidFlags from "./GidFlags.js";
 ;
 ;
+const OBJECTLAYERS = [
+    "anchors etc",
+    "outside the map",
+    "wiring - locked door",
+    "monsters & npcs",
+    "wiring - lights & guns",
+    "objects",
+    "mods"
+];
 class SbDungeonChunk {
     constructor(tilesetShapes) {
+        _SbDungeonChunk_instances.add(this);
         this.backgroundcolor = "#000000";
         // #compressionlevel:number = -1;
         _SbDungeonChunk_height.set(this, 10);
@@ -61,8 +73,51 @@ class SbDungeonChunk {
         this.addUncompressedTileLayer(frontLayerData, "front", layerWidth, layerHeight);
         return this;
     }
+    mergeTilelayers(frontLayerData, backLayerData) {
+        const frontIndex = __classPrivateFieldGet(this, _SbDungeonChunk_instances, "m", _SbDungeonChunk_getLayerIndexByName).call(this, "front");
+        const backIndex = __classPrivateFieldGet(this, _SbDungeonChunk_instances, "m", _SbDungeonChunk_getLayerIndexByName).call(this, "back");
+        if (typeof __classPrivateFieldGet(this, _SbDungeonChunk_layers, "f")[frontIndex].data === "string" || typeof __classPrivateFieldGet(this, _SbDungeonChunk_layers, "f")[backIndex].data === "string") {
+            throw new Error(`Cannot merge into encoded tilelayer ${frontIndex}!`);
+        }
+        __classPrivateFieldGet(this, _SbDungeonChunk_instances, "m", _SbDungeonChunk_mergeLayerData).call(this, __classPrivateFieldGet(this, _SbDungeonChunk_layers, "f")[frontIndex].data, frontLayerData);
+        __classPrivateFieldGet(this, _SbDungeonChunk_instances, "m", _SbDungeonChunk_mergeLayerData).call(this, __classPrivateFieldGet(this, _SbDungeonChunk_layers, "f")[backIndex].data, backLayerData);
+        return this;
+    }
+    isLayerExist(layerName) {
+        for (const layer of __classPrivateFieldGet(this, _SbDungeonChunk_layers, "f")) {
+            if (layer.name === layerName) {
+                return layer.id;
+            }
+        }
+        return false;
+    }
+    addAnchorToObjectLayer(anchorGid, pngX, pngY) {
+        const layerId = __classPrivateFieldGet(this, _SbDungeonChunk_instances, "m", _SbDungeonChunk_initObjectLayer).call(this, "anchors etc") - 1; //layers in Sb start from 1
+        const newAnchor = {
+            gid: anchorGid,
+            id: this.getNextObjectId(),
+            name: "",
+            type: "",
+            height: 8,
+            width: 8,
+            rotation: 0,
+            visible: true,
+            x: pngX * 8,
+            y: (pngY + 1) * 8, //shift coordinates because Sb uses bottom-left corner as zero while normal programs use top-left
+        };
+        __classPrivateFieldGet(this, _SbDungeonChunk_layers, "f")[layerId].objects.push(newAnchor);
+        __classPrivateFieldSet(this, _SbDungeonChunk_nextobjectid, __classPrivateFieldGet(this, _SbDungeonChunk_nextobjectid, "f") + 1, "f");
+        return this;
+    }
     getNextObjectId() {
         return __classPrivateFieldGet(this, _SbDungeonChunk_nextobjectid, "f");
+    }
+    getFirstGid(tilesetName) {
+        const tsShape = __classPrivateFieldGet(this, _SbDungeonChunk_tilesets, "f").find((shape) => shape.source.includes(`${tilesetName}.json`));
+        if (tsShape) {
+            return tsShape.firstgid;
+        }
+        return undefined;
     }
     setSize(width, height) {
         __classPrivateFieldSet(this, _SbDungeonChunk_height, height, "f");
@@ -74,6 +129,52 @@ class SbDungeonChunk {
         return Object.assign(Object.assign({}, this), { height: __classPrivateFieldGet(this, _SbDungeonChunk_height, "f"), layers: __classPrivateFieldGet(this, _SbDungeonChunk_layers, "f"), nextlayerid: __classPrivateFieldGet(this, _SbDungeonChunk_nextlayerid, "f"), nextobjectid: __classPrivateFieldGet(this, _SbDungeonChunk_nextobjectid, "f"), properties: __classPrivateFieldGet(this, _SbDungeonChunk_properties, "f"), tilesets: __classPrivateFieldGet(this, _SbDungeonChunk_tilesets, "f"), width: __classPrivateFieldGet(this, _SbDungeonChunk_width, "f") });
     }
 }
-_SbDungeonChunk_height = new WeakMap(), _SbDungeonChunk_layers = new WeakMap(), _SbDungeonChunk_nextlayerid = new WeakMap(), _SbDungeonChunk_nextobjectid = new WeakMap(), _SbDungeonChunk_properties = new WeakMap(), _SbDungeonChunk_tilesets = new WeakMap(), _SbDungeonChunk_width = new WeakMap();
+_SbDungeonChunk_height = new WeakMap(), _SbDungeonChunk_layers = new WeakMap(), _SbDungeonChunk_nextlayerid = new WeakMap(), _SbDungeonChunk_nextobjectid = new WeakMap(), _SbDungeonChunk_properties = new WeakMap(), _SbDungeonChunk_tilesets = new WeakMap(), _SbDungeonChunk_width = new WeakMap(), _SbDungeonChunk_instances = new WeakSet(), _SbDungeonChunk_getLayerIndexByName = function _SbDungeonChunk_getLayerIndexByName(layerName) {
+    for (let layerIndex = 0; layerIndex < __classPrivateFieldGet(this, _SbDungeonChunk_layers, "f").length; layerIndex++) {
+        if (layerName === __classPrivateFieldGet(this, _SbDungeonChunk_layers, "f")[layerIndex].name) {
+            return layerIndex;
+        }
+    }
+}, _SbDungeonChunk_mergeLayerData = function _SbDungeonChunk_mergeLayerData(baseLayerData, mergeLayerData) {
+    if (baseLayerData.length !== mergeLayerData.length) {
+        throw new Error(`Cannot merge Tilelayers: size mismatch!`);
+    }
+    const magicPinkBrushGid = GidFlags.apply(this.getFirstGid(TILESETJSON_NAME.misc) + 1, false, true, false); //MPP is 2nd in tileset + Horiz flip
+    for (let pixelN = 0; pixelN < baseLayerData.length; pixelN++) {
+        if (baseLayerData[pixelN] === magicPinkBrushGid) {
+            if (baseLayerData[pixelN] === magicPinkBrushGid) {
+                continue; //both layers have MPP in pixel, skip
+            }
+            else {
+                baseLayerData[pixelN] = mergeLayerData[pixelN]; //merge
+            }
+        }
+        else {
+            if (mergeLayerData[pixelN] != magicPinkBrushGid) {
+                throw new Error(`Merging layers both have non-empty values at pixel ${pixelN}`);
+            }
+        }
+    }
+    return baseLayerData;
+}, _SbDungeonChunk_initObjectLayer = function _SbDungeonChunk_initObjectLayer(layerName) {
+    const layerId = this.isLayerExist(layerName);
+    if (layerId != false) {
+        return layerId; //already initiated
+    }
+    const newObjectLayer = {
+        draworder: "topdown",
+        name: layerName,
+        id: __classPrivateFieldGet(this, _SbDungeonChunk_nextlayerid, "f"),
+        objects: [],
+        opacity: 1,
+        type: "objectgroup",
+        visible: true,
+        x: 0,
+        y: 0
+    };
+    __classPrivateFieldGet(this, _SbDungeonChunk_layers, "f").push(newObjectLayer);
+    __classPrivateFieldSet(this, _SbDungeonChunk_nextlayerid, __classPrivateFieldGet(this, _SbDungeonChunk_nextlayerid, "f") + 1, "f");
+    return __classPrivateFieldGet(this, _SbDungeonChunk_nextlayerid, "f") - 1;
+};
 export { SbDungeonChunk, };
 //# sourceMappingURL=dungeonChunkAssembler.js.map

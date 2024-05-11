@@ -17,7 +17,7 @@ const TILESETJSON_NAME = {
   supports: "supports",
   liquids: "liquids",
   misc: "miscellaneous",
-}
+} as const;
 
 const MISCJSON_MAP = [
   "Air",                               //0 - is it ever used?
@@ -72,80 +72,6 @@ interface TilesetLiquidJson extends TilesetJson {
   },
 }
 
-// type MiscSurfaceTile = {
-//   allowOverDrawing: "true";
-//   surface: number,
-// }
-
-// type BiomeTreeTile = {
-//   "biometree": ""
-// }
-
-// type BiomeItemTile = {
-//   "biomeitems": ""
-// }
-
-/*
-  "Air",                               //0 - is it ever used?
-  "Magic Pink Brush",                  //1 - back
-  "Invisible wall (boundary)",         //2 - front (only for quests)
-  "Player Start",                      //3 --> anchors etc
-  "worldGenMustContainAir",            //4 --> anchors etc
-  "worldGenMustContainSolid",          //5 --> anchors etc
-  "Biome Item",                        //6 --> objects
-  "Biome Tree",                        //7 --> objects
-  "Default Surface Tile 0",            //8 - front/back
-  "Default Surface Tile 1",            //9 - front/back
-  "Default Surface Tile 2",            //10 - front/back
-  "Air (overwritable)",                //11 -is it ever used?
-  "Red Connector",                     //12 --> anchors etc
-  "Yellow Connector",                  //13 --> anchors etc
-  "Green Connector",                   //14 --> anchors etc
-  "Blue Connector",                    //15 --> anchors etc
-  "worldGenMustContainAir (background)",   //16 --> anchors etc
-  "worldGenMustContainSolid (background)", //17 --> anchors etc
-  "Invisible wall (climbable)",            //18 - front (only for quests)
-  "Underwater invisible wall (boundary)",  //19 - front (only for quests)
-  "Zero G",                                //20 --> front, but can be ignored? Probably no space maps in old format
-  "Zero G (protected)",                    //21 --> front, but can be ignored? Probably no space maps in old format
-  "worldGenMustContainLiquid (ocean)",     //22 --> anchors etc
-  "worldGenMustNotContainLiquid (ocean)"   //23 --> anchors etc
-*/
-
-// type LimitationAnchorProp = { worldGenMustContainAir: "" } |
-// { worldGenMustContainSolid: "" } |
-// { worldGenMustContainLiquid: "" } |
-// { worldGenMustNotContainLiquid: "" };
-
-// type LimitationAnchorProps = {
-//   allowOverdrawing?: "true",
-//   layer: "back" | undefined,
-// } & LimitationAnchorProp;
-
-// type MiscProps = {
-//     allowOverdrawing?: "true",
-//     clear: "true"|"false",
-//   } | {
-//     allowOverdrawing?: "true",
-//     surface: string,
-//   } | {
-//   allowOverdrawing?: "true",
-//   dungeonId: string,
-//   } |
-//   LimitationAnchorProps | {
-//     connector: string,
-//   } | {
-//     material: string, //metamaterial
-//   } | {
-//     dungeonid: string,
-//   } | {
-//     playerstart: "",
-//   } | {
-//     biomeitems: "",
-//   } | {
-//     biometree: "",
-//   }
-
 interface TilesetMiscJson extends TilesetJson {
   name: "miscellaneous",
   tileproperties: {
@@ -167,32 +93,6 @@ interface TilesetMiscJson extends TilesetJson {
       biomeitems?: "",
       biometree?: "",
     }
-    
-    /*({
-      "//description": string,
-      "//shortdescription": string,
-    } & (({
-      clear?: "true" | "false",
-      allowOverdrawing? : "true",
-      surface? : string,
-      layer: "back" | undefined,
-    } & ( {worldGenMustContainAir?: ""} | 
-      {worldGenMustContainSolid?: ""} | 
-      {worldGenMustContainLiquid?: ""} | { worldGenMustNotContainLiquid?: ""} )
-      ) | 
-    {
-      connector: string
-    } | {
-      material: string
-    } | {
-      dungeonid: string
-    } | {
-      playerstart: ""
-    } | {
-      biomeitems: ""
-    } | {
-      biometree: ""
-    }) )*/
   }
 }
 
@@ -430,7 +330,7 @@ function matchTilelayer(oldTilesCategoryArray: Tile[], newTilesetJSON: TilesetMa
     const { value, comment, brush, rules }: Tile = tile;
     
     //if we match materials, platforms or liquids
-    if([TILESETJSON_NAME.materials, TILESETJSON_NAME.supports, TILESETJSON_NAME.liquids].includes(newTilesetJSON.name)) {
+    if(TILESETJSON_NAME.materials === newTilesetJSON.name || TILESETJSON_NAME.supports === newTilesetJSON.name || TILESETJSON_NAME.liquids === newTilesetJSON.name) {
       if (brush === undefined) {
         return;
         //throw new Error(`Tile brush is ${brush}`);
@@ -605,36 +505,56 @@ function matchAnchors(oldAnchorsArray: AnchorTile[], miscTilesetJSON: TilesetMis
   const matchMap = oldAnchorsArray.map((tile: AnchorTile): LayerTileMatch => {
     const { value, comment, brush, rules, connector }: AnchorTile = tile;
     
-    for (const rule of rules) {
+    /*
+    "Player Start",                      //3 --> anchors etc
+    "worldGenMustContainAir",            //4 --> anchors etc
+    "worldGenMustContainSolid",          //5 --> anchors etc
+    "Red Connector",                     //12 --> anchors etc
+    "Yellow Connector",                  //13 --> anchors etc
+    "Green Connector",                   //14 --> anchors etc
+    "Blue Connector",                    //15 --> anchors etc
+    "worldGenMustContainAir (background)",   //16 --> anchors etc
+    "worldGenMustContainSolid (background)", //17 --> anchors etc
+    "worldGenMustContainLiquid (ocean)",     //22 --> anchors etc
+    "worldGenMustNotContainLiquid (ocean)"   //23 --> anchors etc
+    */
+
+    if(brush){
+      for(const brushlayer of brush) {
+        if(brushlayer.includes("playerstart")) {
+          return {tileName: "Player Start", tileRgba: value, tileGid: (3 + firstgid )};
+        }
+      }
+    }
+
+    if(connector) {
+      if(comment.includes("entrance coupler")) {
+        return {tileName: comment + " -> red", tileRgba: value, tileGid: (12 + firstgid )};
+      };
+      if(comment.includes("alternate coupler #2")) {
+        return {tileName: comment + " -> yellow", tileRgba: value, tileGid: (13 + firstgid )};
+      };
+      if(comment.includes("alternate coupler #3")) {
+        return {tileName: comment + " -> green", tileRgba: value, tileGid: (14 + firstgid )};
+      }
+      else {
+        return {tileName: comment + " -> blue", tileRgba: value, tileGid: (15 + firstgid )};
+      }
+    }
+
+    for (const rule of rules.flat()) { //worldGenMust(Not)Contain
       for (const anchorRule of ANCHOR_RULES) {
-        /*
-        "Player Start",                      //3 --> anchors etc
-        "worldGenMustContainAir",            //4 --> anchors etc
-        "worldGenMustContainSolid",          //5 --> anchors etc
-        "Red Connector",                     //12 --> anchors etc
-        "Yellow Connector",                  //13 --> anchors etc
-        "Green Connector",                   //14 --> anchors etc
-        "Blue Connector",                    //15 --> anchors etc
-        "worldGenMustContainAir (background)",   //16 --> anchors etc
-        "worldGenMustContainSolid (background)", //17 --> anchors etc
-        "worldGenMustContainLiquid (ocean)",     //22 --> anchors etc
-        "worldGenMustNotContainLiquid (ocean)"   //23 --> anchors etc
-        */
         if (rule === anchorRule) {
           for (const materialIndex in miscTilesetJSON.tileproperties) {
             const material = miscTilesetJSON.tileproperties[materialIndex];
-            if (Object.keys(material).includes(ruleGetName(rule)) && material.layer === ruleIsBackLayer(rule)) { //We have worldGenMustContain
-              return {tileName: material["//shortdescription"], tileRgba: value, tileGid: (parseInt(materialIndex) + firstgid )}
-              
-            }
-            
-          }
-          return;
-        }
-        
-      }
+            if (Object.keys(material).includes(ruleGetName(rule)) && material.layer === ruleIsBackLayer(rule)) { 
+              return {tileName: material["//shortdescription"], tileRgba: value, tileGid: (parseInt(materialIndex) + firstgid )};
+            }            
+          }  
+        }     
+      } 
     }
-    
+    return; //skip tile if no matches
   });
   return matchMap;
 }
@@ -674,9 +594,7 @@ function getFilenameFromPath(filePath) {
   return nodePath.parse(filePath).name;
 }
 
-async function matchAllTilelayers(oldTilesetArray:Tile[], log:boolean = false):Promise<FullTileMatch> {
-  const oldTileset = getSortedTileset(oldTilesetArray);
-
+async function matchAllTilelayers(oldTileset:OldTilesetSorted, log:boolean = false):Promise<FullTileMatch> {
   const tilesetsDesc = await calcNewTilesetShapes();
 
   const tilesetsDir = resolveTilesets(); //"./tilesets/packed/";
@@ -696,14 +614,14 @@ async function matchAllTilelayers(oldTilesetArray:Tile[], log:boolean = false):P
   // let matchMap:LayerTileMatch[] = [];
 
   for (const tileset of TILELAYER_TILESETS) {
-    const tilesetPath = `${tilesetsDir}/${tileset}.json`;
+    // const tilesetPath = `${tilesetsDir}/${tileset}.json`;
 
-    const tilesetJson = await dungeonsFS.getTileset(tilesetPath);
+    const tilesetJson = await dungeonsFS.getTileset(tileset);
 
     const firstgid = tilesetsDesc.find(
       (element) =>
-        getFilenameFromPath(element.source) ===
-        getFilenameFromPath(tilesetPath)
+        getFilenameFromPath(element.source) === tileset
+        // getFilenameFromPath(tilesetPath)
     ).firstgid;
 
     const partialBack = matchTilelayer(
@@ -738,72 +656,6 @@ function slicePixelsToArray(pixelArray: Uint8Array, width: number, height: numbe
   return RgbaArray;
 }
 export type UnsignedInt32 = number;
-
-class GidFlags {
-  //Tiled writes non-compressed GIDs in little-endian 32-bit unsigned ints, i.e. each 4 bytes in a buffer represent a GID
-  //however, highest 4 bits are used as flipping flags (no pun intended)
-  //details: https://doc.mapeditor.org/en/latest/reference/global-tile-ids/#tile-flipping
-  //bit 32 - horizontal flip, bit 31 - vertical, bit 30 - diagonal (rotation). Bit 29 is for hexagonal maps, which Starbound file is not, so it can be ignored - but we still need to clear it, just in case
-  static FLIP_HORIZ = 8 << 28; //1000 shifted left 32-4=28 positions.
-  static FLIP_VERT = 4 << 28; //0100 shifted left
-  static FLIP_DIAG = 2 << 28; //0010 shifted left
-  static HEX_120_ROTATE = 1 << 28; //0001 shifted left
-  static FLAGS_MASK = 15 << 28; //Sum all flags. When applied to a UInt32 it should reset all bits but flags to 0
-  //in other words, since flags are 4 high bits, it's 111100...0000
-  static FLAGS_CLEAR = ~(15 << 28); //reverse (~) mask is 000011..1111, it will reset flags and give us "pure" GID
-
-  constructor() { }
-
-  static #checkUInt32(gid: number) {
-    if (gid > 0 && gid < 4294967295) {
-      return true;
-    }
-    throw new Error(`Gid ${gid} in not an Unsigned Int32`);
-  }
-  
-  static getPureGid(gidWithFlags: UnsignedInt32):UnsignedInt32 {
-    this.#checkUInt32(gidWithFlags);
-    return (gidWithFlags & this.FLAGS_CLEAR) >>> 0; //Gid > 0, convert to Unsigned Int!
-  }
-
-  static getFlagsOnly(gidWithFlags: UnsignedInt32): number {
-    this.#checkUInt32(gidWithFlags);
-    return gidWithFlags & this.FLAGS_MASK;
-  }
-
-  static getHorizontal(gidWithFlags: UnsignedInt32): boolean {
-    this.#checkUInt32(gidWithFlags);
-    return (gidWithFlags & this.FLIP_HORIZ) === this.FLIP_HORIZ;
-  }
-
-  static getVertical(gidWithFlags: UnsignedInt32): boolean {
-    this.#checkUInt32(gidWithFlags);
-    return (gidWithFlags & this.FLIP_VERT) === this.FLIP_VERT;
-  }
-
-  static getDiagonal(gidWithFlags: UnsignedInt32): boolean {
-    this.#checkUInt32(gidWithFlags);
-    return (gidWithFlags & this.FLIP_DIAG) === this.FLIP_DIAG;
-  }
-
-  static apply(pureGid: UnsignedInt32, flipDiag: boolean, flipHoriz: boolean, flipVert: boolean):UnsignedInt32 {
-    //Starbound uses orthogonal maps; order of flips matters! DIAG > HORIZ > VERT
-    this.#checkUInt32(pureGid);
-    let gidWithFlags = pureGid;
-    if (flipDiag) {
-      gidWithFlags = gidWithFlags | this.FLIP_DIAG;
-    }
-    if (flipHoriz) {
-      gidWithFlags = gidWithFlags | this.FLIP_HORIZ;
-    }
-    if (flipVert) {
-      gidWithFlags = gidWithFlags | this.FLIP_VERT;
-    }
-
-    return (gidWithFlags >>> 0); //Gid > 0, convert to Unsigned Int!
-  }
-}
-*/
 
 function isRgbaEqual(Rgba1:RgbaValue, Rgba2:RgbaValue):boolean {
   for(let component = 0; component < 4; component++) {
@@ -928,10 +780,13 @@ res[3] = (combined >>> 24) & byteMask;
 }
 
 export {
+  resolveTilesets,
   getSortedTileset,
+  isRgbaEqual,
   calcNewTilesetShapes,
   //matchTilelayer,
   matchAllTilelayers,
+  matchAnchors,
   //mergeLayerMatchMaps,
   slicePixelsToArray,
   convertPngToGid,
