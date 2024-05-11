@@ -737,8 +737,6 @@ function slicePixelsToArray(pixelArray: Uint8Array, width: number, height: numbe
   }
   return RgbaArray;
 }
-
-/*
 export type UnsignedInt32 = number;
 
 class GidFlags {
