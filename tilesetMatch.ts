@@ -46,12 +46,6 @@ const MISCJSON_MAP = [
   "worldGenMustNotContainLiquid (ocean)"   //23 --> anchors etc
 ]; //index = tile #
 
-const ANCHORS = [
-  "worldGenMustContainSolidBackground",
-  "worldGenMustContainAirBackground",
-  "worldGenMustContainAirForeground"
-];
-
 interface TilesetMatJson extends TilesetJson {
   name: "materials"|"supports",
   tileproperties:{
@@ -78,17 +72,110 @@ interface TilesetLiquidJson extends TilesetJson {
   },
 }
 
+// type MiscSurfaceTile = {
+//   allowOverDrawing: "true";
+//   surface: number,
+// }
+
+// type BiomeTreeTile = {
+//   "biometree": ""
+// }
+
+// type BiomeItemTile = {
+//   "biomeitems": ""
+// }
+
+/*
+  "Air",                               //0 - is it ever used?
+  "Magic Pink Brush",                  //1 - back
+  "Invisible wall (boundary)",         //2 - front (only for quests)
+  "Player Start",                      //3 --> anchors etc
+  "worldGenMustContainAir",            //4 --> anchors etc
+  "worldGenMustContainSolid",          //5 --> anchors etc
+  "Biome Item",                        //6 --> objects
+  "Biome Tree",                        //7 --> objects
+  "Default Surface Tile 0",            //8 - front/back
+  "Default Surface Tile 1",            //9 - front/back
+  "Default Surface Tile 2",            //10 - front/back
+  "Air (overwritable)",                //11 -is it ever used?
+  "Red Connector",                     //12 --> anchors etc
+  "Yellow Connector",                  //13 --> anchors etc
+  "Green Connector",                   //14 --> anchors etc
+  "Blue Connector",                    //15 --> anchors etc
+  "worldGenMustContainAir (background)",   //16 --> anchors etc
+  "worldGenMustContainSolid (background)", //17 --> anchors etc
+  "Invisible wall (climbable)",            //18 - front (only for quests)
+  "Underwater invisible wall (boundary)",  //19 - front (only for quests)
+  "Zero G",                                //20 --> front, but can be ignored? Probably no space maps in old format
+  "Zero G (protected)",                    //21 --> front, but can be ignored? Probably no space maps in old format
+  "worldGenMustContainLiquid (ocean)",     //22 --> anchors etc
+  "worldGenMustNotContainLiquid (ocean)"   //23 --> anchors etc
+*/
+
+// type LimitationAnchorProp = { worldGenMustContainAir: "" } |
+// { worldGenMustContainSolid: "" } |
+// { worldGenMustContainLiquid: "" } |
+// { worldGenMustNotContainLiquid: "" };
+
+// type LimitationAnchorProps = {
+//   allowOverdrawing?: "true",
+//   layer: "back" | undefined,
+// } & LimitationAnchorProp;
+
+// type MiscProps = {
+//     allowOverdrawing?: "true",
+//     clear: "true"|"false",
+//   } | {
+//     allowOverdrawing?: "true",
+//     surface: string,
+//   } | {
+//   allowOverdrawing?: "true",
+//   dungeonId: string,
+//   } |
+//   LimitationAnchorProps | {
+//     connector: string,
+//   } | {
+//     material: string, //metamaterial
+//   } | {
+//     dungeonid: string,
+//   } | {
+//     playerstart: "",
+//   } | {
+//     biomeitems: "",
+//   } | {
+//     biometree: "",
+//   }
+
 interface TilesetMiscJson extends TilesetJson {
   name: "miscellaneous",
   tileproperties: {
-    [key:string] : {
-      "//description" : string,
-      "//shortdescription" : string,
-    } & ( ({
+    [key: string]: {
+      "//description": string,
+      "//shortdescription": string,
       clear?: "true" | "false",
       allowOverdrawing? : "true",
       surface? : string,
       layer?: "back",
+      worldGenMustContainAir?: "",
+      worldGenMustContainSolid?: "",
+      worldGenMustContainLiquid?: "",
+      worldGenMustNotContainLiquid?: ""
+      connector?: string,
+      material?: string,
+      dungeonId?: number,
+      playerstart?: "",
+      biomeitems?: "",
+      biometree?: "",
+    }
+    
+    /*({
+      "//description": string,
+      "//shortdescription": string,
+    } & (({
+      clear?: "true" | "false",
+      allowOverdrawing? : "true",
+      surface? : string,
+      layer: "back" | undefined,
     } & ( {worldGenMustContainAir?: ""} | 
       {worldGenMustContainSolid?: ""} | 
       {worldGenMustContainLiquid?: ""} | { worldGenMustNotContainLiquid?: ""} )
@@ -105,25 +192,44 @@ interface TilesetMiscJson extends TilesetJson {
       biomeitems: ""
     } | {
       biometree: ""
-    })
+    }) )*/
   }
 }
+
+type AnchorBrush = ["clear"|"surface"|"playerstart"];
+
+type FrontOrBack = "front" | "back";
 
 type Brush = ["clear"] |
 ["surface"|"surfacebackground", {variant:number}?, any?] | //material, tilled? 
 ["liquid", string] |
-["front"|"back", string, string?] |
+[FrontOrBack, string, string?] |
+AnchorBrush |
 ["biometree"|"biomeitems"|"playerstart"|"wire"|"stagehand"|"npc"|"object", any?];
 
 type RgbaValue = [number, number, number, number];
 
-type Tile = {
+interface Tile {
   value: RgbaValue, // [R, G, B, A]
   comment?: string,
   brush?: Brush[],
   rules?: ["allowOverdrawing"] | any[],
   connector?: boolean,
 };
+
+const ANCHOR_RULES = [
+  "worldGenMustContainSolidBackground",
+  "worldGenMustContainAirBackground",
+  "worldGenMustContainAirForeground",
+] as const;
+
+type AnchorRule = "allowOverdrawing" | typeof ANCHOR_RULES[number];
+
+interface AnchorTile extends Tile {
+  brush?: AnchorBrush[],
+  rules?: AnchorRule[],
+  connector? : true,
+}
 
 type OldTilesetSorted = {
   foreground: Tile[],
@@ -220,7 +326,7 @@ function getSortedTileset(arrayOfOldTiles: Tile[], log: boolean = false): OldTil
     }
     if(tile.rules) {
       const ruleMatch = tile.rules.flat(3).filter((ruleString) => {
-        return ANCHORS.includes(ruleString);
+        return ANCHOR_RULES.includes(ruleString);
       });
       if(ruleMatch.length === 1) {
         oldSorted.anchors.push(tile);
@@ -316,7 +422,7 @@ function getSortedTileset(arrayOfOldTiles: Tile[], log: boolean = false): OldTil
 }
 
 //compares explicitly defined tilelayer-related tiles, like foreground/background, liquid etc
-function matchTilelayer(oldTilesCategoryArray: Tile[], newTilesetJSON: TilesetMatJson | TilesetLiquidJson | TilesetMiscJson, layerName: "front" | "back", firstgid: number) : LayerTileMatch[] {
+function matchTilelayer(oldTilesCategoryArray: Tile[], newTilesetJSON: TilesetMatJson | TilesetLiquidJson | TilesetMiscJson, layerName: FrontOrBack, firstgid: number) : LayerTileMatch[] {
   if (firstgid < 1) {
     return undefined;
   }
@@ -467,6 +573,70 @@ const MISCJSON_MAP = [
     return; //if no matches are found - next tile
   });
     return matchMap;
+}
+
+function matchAnchors(oldAnchorsArray: AnchorTile[], miscTilesetJSON: TilesetMiscJson, firstgid: number): LayerTileMatch[] {
+  
+  function ruleGetName(rule: typeof ANCHOR_RULES[number]): string {
+    let ruleName: string = rule;
+    //try to trim layer from the name
+    if (rule.includes("Background")) {
+      ruleName = rule.substring(0, rule.indexOf("Background"));
+    }
+    else if (rule.includes("Foreground")) {
+      ruleName = rule.substring(0, rule.indexOf("Foreground"));
+    }
+    return ruleName;
+  }
+  function ruleIsBackLayer(rule: typeof ANCHOR_RULES[number]): "back"|void {
+    if (rule.includes("Background")) {
+      return "back";
+    }
+    else if (rule.includes("Foreground")) {
+      return undefined;
+    }
+    return undefined;
+  }
+
+
+  if (firstgid < 1) {
+    return undefined;
+  }
+  const matchMap = oldAnchorsArray.map((tile: AnchorTile): LayerTileMatch => {
+    const { value, comment, brush, rules, connector }: AnchorTile = tile;
+    
+    for (const rule of rules) {
+      for (const anchorRule of ANCHOR_RULES) {
+        /*
+        "Player Start",                      //3 --> anchors etc
+        "worldGenMustContainAir",            //4 --> anchors etc
+        "worldGenMustContainSolid",          //5 --> anchors etc
+        "Red Connector",                     //12 --> anchors etc
+        "Yellow Connector",                  //13 --> anchors etc
+        "Green Connector",                   //14 --> anchors etc
+        "Blue Connector",                    //15 --> anchors etc
+        "worldGenMustContainAir (background)",   //16 --> anchors etc
+        "worldGenMustContainSolid (background)", //17 --> anchors etc
+        "worldGenMustContainLiquid (ocean)",     //22 --> anchors etc
+        "worldGenMustNotContainLiquid (ocean)"   //23 --> anchors etc
+        */
+        if (rule === anchorRule) {
+          for (const materialIndex in miscTilesetJSON.tileproperties) {
+            const material = miscTilesetJSON.tileproperties[materialIndex];
+            if (Object.keys(material).includes(ruleGetName(rule)) && material.layer === ruleIsBackLayer(rule)) { //We have worldGenMustContain
+              return {tileName: material["//shortdescription"], tileRgba: value, tileGid: (parseInt(materialIndex) + firstgid )}
+              
+            }
+            
+          }
+          return;
+        }
+        
+      }
+    }
+    
+  });
+  return matchMap;
 }
 
 //merge two match maps with non-intersecting values and return new map
