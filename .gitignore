@@ -12,4 +12,4 @@
 !/input-output/template.json
 
 #build
-/dist
+# /dist
