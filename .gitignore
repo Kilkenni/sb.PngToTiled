@@ -10,3 +10,6 @@
 # working folder
 /input-output/*
 !/input-output/template.json
+
+#build
+/dist
