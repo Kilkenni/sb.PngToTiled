@@ -16,61 +16,63 @@ async function convertDungeon() {
   // console.table(ioDir);
   let dungeonPath = "";
   try {
-    for (const file of ioDir) {
-      if (file.isFile())
-        if (getExtension(file.name) === "dungeon") {
-          dungeonPath = file.path + "/" + file.name;
-          // console.log(dungeonPath);
-          const dungeons = await dungeonsApi.getDungeons(dungeonPath);
-          console.log(
-            `Found .dungeon file: ${dungeons?.metadata?.name || "some weird shit"
-            }`
-          );
-
-          //converting dungeon from old SB format into new
-          if (dungeons && dungeons.tiles) {
-            //
-            delete dungeons.tiles; //New format does not store a map of tiles here
-            console.log("  Processing: <tiles> deleted");
-            if (!dungeons.protected) dungeons.metadata.protected = false; //if tile protection is not enabled, disable it explicitly
-            console.log("  Processing: <tile protection> established");
-            if (dungeons.parts) {
-              const partPairs = [];
-              console.log("  Processing: <parts>");
-              dungeons.parts.forEach((part) => {
-                try {
-                  // console.log(part);
-                  if (part.def[0] === "tmx")
-                    throw new Error(
-                      `Part ${part.name} seems to be in new format already (TMX, not 'image'). Aborting.`
-                    );
-                  if (part.def[0] === "image") {
-                    partPairs.push(part.def[1]); //let's save related parts in a nice table
-                    // console.log(`    Processing dungeon part ${part.def[1][0]}`);
-                    part.def[1] = part.def[1][0]; //parts past 0 are objects, items etc. located in separate PNGs. TMX format should only have one JSON file, so user will need to superimpose those "partials" manually later. For now we leave in the registry only the main one
+    if(ioDir) {
+      for (const file of ioDir) {
+        if (file.isFile())
+          if (getExtension(file.name) === "dungeon") {
+            dungeonPath = file.path + "/" + file.name;
+            // console.log(dungeonPath);
+            const dungeons = await dungeonsApi.getDungeons(dungeonPath);
+            console.log(
+              `Found .dungeon file: ${dungeons?.metadata?.name || "some weird shit"
+              }`
+            );
+  
+            //converting dungeon from old SB format into new
+            if (dungeons && dungeons.tiles) {
+              //
+              delete dungeons.tiles; //New format does not store a map of tiles here
+              console.log("  Processing: <tiles> deleted");
+              if (!dungeons.protected) dungeons.metadata.protected = false; //if tile protection is not enabled, disable it explicitly
+              console.log("  Processing: <tile protection> established");
+              if (dungeons.parts in dungeons) {
+                const partPairs = [];
+                console.log("  Processing: <parts>");
+                dungeons.parts.forEach((part) => {
+                  try {
+                    // console.log(part);
+                    if (part.def[0] === "tmx")
+                      throw new Error(
+                        `Part ${part.name} seems to be in new format already (TMX, not 'image'). Aborting.`
+                      );
+                    if (part.def[0] === "image") {
+                      partPairs.push(part.def[1]); //let's save related parts in a nice table
+                      // console.log(`    Processing dungeon part ${part.def[1][0]}`);
+                      part.def[1] = part.def[1][0]; //parts past 0 are objects, items etc. located in separate PNGs. TMX format should only have one JSON file, so user will need to superimpose those "partials" manually later. For now we leave in the registry only the main one
+                    }
+                  } catch (error) {
+                    console.error(error);
+                    return;
                   }
-                } catch (error) {
-                  console.error(error.message);
-                  return null;
-                }
-              });
+                });
+              }
+            } else {
+              console.error(
+                "No tile info in dungeon file. Already converted to new format?"
+              );
+              continue; //next file, please
             }
-          } else {
-            console.error(
-              "No tile info in dungeon file. Already converted to new format?"
-            );
-            continue; //next file, please
+            const success = await dungeonsApi.writeConvertedDungeons(dungeons);
+            if (success) {
+              console.log(
+                `SUCCESS. ${dungeons.metadata.name} .dungeon file converted. Check I/O directory. Original file intact.`
+              );
+              console.log(
+                `Remember to check files with JSONLint, just in case ;)`
+              );
+            }
           }
-          const success = await dungeonsApi.writeConvertedDungeons(dungeons);
-          if (success) {
-            console.log(
-              `SUCCESS. ${dungeons.metadata.name} .dungeon file converted. Check I/O directory. Original file intact.`
-            );
-            console.log(
-              `Remember to check files with JSONLint, just in case ;)`
-            );
-          }
-        }
+      }
     }
   } catch (error) {
     console.error(error);

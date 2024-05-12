@@ -7,12 +7,20 @@ import getPixels from "get-pixels";
 
 import * as nodePath from "path";
 
-//get extention from path (without .)
+/**
+ * utility
+ * @param fileName 
+ * @returns extension without the (.)
+ */
 function getExtension(fileName:string) {
     return fileName.substring(fileName.lastIndexOf(".") + 1);
   }
   
-  //trunc extension and .
+/**
+ * utility
+ * @param fileName 
+ * @returns name without extension
+ */
 function getFilename(fileName:string) {
 return fileName.substring(0, fileName.lastIndexOf("."));
 }
