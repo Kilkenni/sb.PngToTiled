@@ -12,10 +12,11 @@ To use under Linux:
   Converter script was written under Node 20, but any modern version will do, hopefully
 - Clone this repo locally
 - <npm install> in terminal inside repo directory to install dependencies
-- TODO: <node index.js --help>
+- TODO: <node dist/index.js --help>
+- Converter has (partially) migrated onto TS to ensure type checks. Remember to `npm run build` before you run anything with node.
 - Place files in /input-output/ . You will need at least one .dungeon file or a .dungeon and .png file.
 - Place tilesets/packed in /input-output/. This is a set of .json files describing Starbound tilesets for Tiled. PNG files will be remapped relative to these tilesets.
-- <node index.js --action COMMAND> to start converting (list of available commands can be found at the end of index.js)
+- <node dist/index.js --action COMMAND> to start converting (list of available commands can be found at the end of index.js)
 - TODO: If you try to use converted dungeons in the game, remember to change their internal tileset paths relative to their actual location in Starbound assets!
 
 ## TODO + ISSUES
