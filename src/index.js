@@ -8,22 +8,8 @@ import getPixels from "get-pixels";
 import { promises as nodeFileSys } from "fs";
 import * as nodePath from "path";
 
-// const tilesetMatcher = require("./tilesetMatch");
-// const getPixels = require("get-pixels");
-// const zlib = require("zlib");
-// const nodeFileSys = require("fs").promises;
-// const nodePathModule = require("path");
-
-// const argv = require("yargs").help().argv;
-
 import yargs from "yargs";
 import { promisify } from "util";
-// import { hideBin } from 'yargs/helpers';
-
-// const argv = yargs.help().argv;
-
-let dungeonDefinition = {};
-let rawPNG = undefined;
 
 //get extention from path (without .)
 function getExtension(fileName) {
@@ -314,70 +300,6 @@ async function getPixels_test() {
   return pixelsArray;
 }
 
-async function convertPixelToData() {
-  const ioDir = await dungeonsApi.readDir();
-  // console.table(ioDir);
-  let dungeonPath = "";
-  for (const file of ioDir) {
-    if (file.isFile())
-      if (getExtension(file.name) === "dungeon") {
-        dungeonPath = file.path + "/" + file.name;
-        // console.log(dungeonPath);
-        break;
-      }
-  }
-  let dungeons;
-  try {
-    dungeons = await dungeonsApi.getDungeons(dungeonPath);
-    console.log(
-      `Found .dungeon file: ${dungeons?.metadata?.name || "some weird shit"}`
-    );
-  } catch (error) {
-    console.error(error.message);
-    return undefined;
-  }
-  let tileMap;
-  if (dungeons?.tiles) tileMap = dungeons.tiles;
-  else {
-    console.error(
-      `${dungeonPath} does not contain <tiles> map. New SB .dungeon files cannot be used.`
-    );
-    return undefined;
-  }
-
-  let mapPath = "";
-  try {
-    // console.table(tileMap);
-    dungeonsApi.writeTileMap(`${getFilename(dungeonPath) + ".TILES"}`, tileMap);
-    for (const file of ioDir) {
-      if (file.isFile())
-        if (getExtension(file.name) === "png") {
-          mapPath = `${file.path}/${getFilename(file.name)}.json`;
-          console.log(
-            `Detected ${file.name}, writing ${getFilename(file.name)}.json...`
-          );
-          let map = {};
-          getPixels(`${file.path}/${file.name}`, (error, pixels) => {
-            if (error) {
-              console.error(error);
-              console.log("Bad PNG image path");
-              return;
-            }
-            //PNG conversion here
-            // map = mapPixelsToJson(pixels, tileMap);
-            const tilesets = tilesetMatcher.calcNewTilesetShapes();
-            //NEEDS AWAIT
-            // dungeonsApi.writeConvertedMapJson(mapPath, map);
-          });
-        }
-    }
-  } catch (error) {
-    console.error(error);
-    return undefined;
-  }
-  return 4;
-}
-
 function invokeAction(argv) {
   const { action } = argv;
   switch (action) {
@@ -404,9 +326,6 @@ function invokeAction(argv) {
       break;
     case "writeconverted_test":
       writeConvertedMap_test(true);
-      break;
-    case "convertpixel_test":
-      convertPixelToData();
       break;
     default:
       console.warn(`\x1B[31m Unknown action type: ${action}!`);
