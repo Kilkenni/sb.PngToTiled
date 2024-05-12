@@ -6,8 +6,8 @@ import * as nodePath from "path";
 import {v4 as uuidv4} from "uuid";
 
 // const dungeonsFS = require("./dungeonsFS");
-import * as dungeonsFS from "./dungeonsFS";
-import * as tilesetMatcher from "./tilesetMatch";
+import * as dungeonsFS from "./dungeonsFS.js";
+import * as tilesetMatcher from "./tilesetMatch.js";
 import {TilesetShape} from "./tilesetMatch.js";
 import { TILESETJSON_NAME } from "./tilesetMatch.js";
 import GidFlags from "./GidFlags.js";
@@ -161,12 +161,13 @@ class SbDungeonChunk{
     return this;
   }
 
-  #getLayerIndexByName(layerName:string):number {
+  #getLayerIndexByName(layerName:string):number|undefined {
     for(let layerIndex = 0; layerIndex < this.#layers.length; layerIndex++) {
       if(layerName === this.#layers[layerIndex].name ) {
         return layerIndex;
       }
     }
+    return;
   }
 
   #mergeLayerData(baseLayerData: number[], mergeLayerData: number[]):number[] {
@@ -174,7 +175,11 @@ class SbDungeonChunk{
       throw new Error(`Cannot merge Tilelayers: size mismatch!`)
     }
 
-    const magicPinkBrushGid = GidFlags.apply(this.getFirstGid(TILESETJSON_NAME.misc) + 1, false, true, false); //MPP is 2nd in tileset + Horiz flip
+    const miscFirstGid = this.getFirstGid(TILESETJSON_NAME.misc);
+    if(!miscFirstGid) {
+      throw new Error(`Cannot find ${TILESETJSON_NAME.misc} tileset in chunk tileset shapes`);
+    }
+    const magicPinkBrushGid = GidFlags.apply(miscFirstGid + 1, false, true, false); //MPP is 2nd in tileset + Horiz flip
 
     for(let pixelN = 0; pixelN < baseLayerData.length; pixelN++) {
       if(baseLayerData[pixelN] === magicPinkBrushGid) {
@@ -197,6 +202,10 @@ class SbDungeonChunk{
   mergeTilelayers(frontLayerData: number[], backLayerData: number[]):SbDungeonChunk {
     const frontIndex = this.#getLayerIndexByName("front");
     const backIndex = this.#getLayerIndexByName("back");
+
+    if(!frontIndex || !backIndex) {
+      throw new Error("Cannot merge: original chunk lacks tilelayers!");
+    }
 
     if(typeof (this.#layers[frontIndex] as SbTilelayer).data === "string" || typeof (this.#layers[backIndex] as SbTilelayer).data === "string") {
       throw new Error(`Cannot merge into encoded tilelayer ${frontIndex}!`);
@@ -266,7 +275,7 @@ class SbDungeonChunk{
   }
 
   getFirstGid(tilesetName:string):number|undefined {
-    const tsShape:TilesetShape = this.#tilesets.find((shape) => shape.source.includes(`${tilesetName}.json`));
+    const tsShape = this.#tilesets.find((shape) => shape.source.includes(`${tilesetName}.json`));
     if(tsShape) {
       return tsShape.firstgid;
     }

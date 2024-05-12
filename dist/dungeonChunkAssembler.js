@@ -76,6 +76,9 @@ class SbDungeonChunk {
     mergeTilelayers(frontLayerData, backLayerData) {
         const frontIndex = __classPrivateFieldGet(this, _SbDungeonChunk_instances, "m", _SbDungeonChunk_getLayerIndexByName).call(this, "front");
         const backIndex = __classPrivateFieldGet(this, _SbDungeonChunk_instances, "m", _SbDungeonChunk_getLayerIndexByName).call(this, "back");
+        if (!frontIndex || !backIndex) {
+            throw new Error("Cannot merge: original chunk lacks tilelayers!");
+        }
         if (typeof __classPrivateFieldGet(this, _SbDungeonChunk_layers, "f")[frontIndex].data === "string" || typeof __classPrivateFieldGet(this, _SbDungeonChunk_layers, "f")[backIndex].data === "string") {
             throw new Error(`Cannot merge into encoded tilelayer ${frontIndex}!`);
         }
@@ -126,7 +129,16 @@ class SbDungeonChunk {
     }
     //Add back private fields explicitly! Serialize via JSON.stringify to store as file.
     toJSON() {
-        return Object.assign(Object.assign({}, this), { height: __classPrivateFieldGet(this, _SbDungeonChunk_height, "f"), layers: __classPrivateFieldGet(this, _SbDungeonChunk_layers, "f"), nextlayerid: __classPrivateFieldGet(this, _SbDungeonChunk_nextlayerid, "f"), nextobjectid: __classPrivateFieldGet(this, _SbDungeonChunk_nextobjectid, "f"), properties: __classPrivateFieldGet(this, _SbDungeonChunk_properties, "f"), tilesets: __classPrivateFieldGet(this, _SbDungeonChunk_tilesets, "f"), width: __classPrivateFieldGet(this, _SbDungeonChunk_width, "f") });
+        return {
+            ...this,
+            height: __classPrivateFieldGet(this, _SbDungeonChunk_height, "f"),
+            layers: __classPrivateFieldGet(this, _SbDungeonChunk_layers, "f"),
+            nextlayerid: __classPrivateFieldGet(this, _SbDungeonChunk_nextlayerid, "f"),
+            nextobjectid: __classPrivateFieldGet(this, _SbDungeonChunk_nextobjectid, "f"),
+            properties: __classPrivateFieldGet(this, _SbDungeonChunk_properties, "f"),
+            tilesets: __classPrivateFieldGet(this, _SbDungeonChunk_tilesets, "f"),
+            width: __classPrivateFieldGet(this, _SbDungeonChunk_width, "f")
+        };
     }
 }
 _SbDungeonChunk_height = new WeakMap(), _SbDungeonChunk_layers = new WeakMap(), _SbDungeonChunk_nextlayerid = new WeakMap(), _SbDungeonChunk_nextobjectid = new WeakMap(), _SbDungeonChunk_properties = new WeakMap(), _SbDungeonChunk_tilesets = new WeakMap(), _SbDungeonChunk_width = new WeakMap(), _SbDungeonChunk_instances = new WeakSet(), _SbDungeonChunk_getLayerIndexByName = function _SbDungeonChunk_getLayerIndexByName(layerName) {
@@ -135,11 +147,16 @@ _SbDungeonChunk_height = new WeakMap(), _SbDungeonChunk_layers = new WeakMap(), 
             return layerIndex;
         }
     }
+    return;
 }, _SbDungeonChunk_mergeLayerData = function _SbDungeonChunk_mergeLayerData(baseLayerData, mergeLayerData) {
     if (baseLayerData.length !== mergeLayerData.length) {
         throw new Error(`Cannot merge Tilelayers: size mismatch!`);
     }
-    const magicPinkBrushGid = GidFlags.apply(this.getFirstGid(TILESETJSON_NAME.misc) + 1, false, true, false); //MPP is 2nd in tileset + Horiz flip
+    const miscFirstGid = this.getFirstGid(TILESETJSON_NAME.misc);
+    if (!miscFirstGid) {
+        throw new Error(`Cannot find ${TILESETJSON_NAME.misc} tileset in chunk tileset shapes`);
+    }
+    const magicPinkBrushGid = GidFlags.apply(miscFirstGid + 1, false, true, false); //MPP is 2nd in tileset + Horiz flip
     for (let pixelN = 0; pixelN < baseLayerData.length; pixelN++) {
         if (baseLayerData[pixelN] === magicPinkBrushGid) {
             if (baseLayerData[pixelN] === magicPinkBrushGid) {

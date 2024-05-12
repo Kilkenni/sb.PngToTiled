@@ -1,10 +1,23 @@
 {
     "compilerOptions": {
-      "target": "ES6",
-      "module": "es6",
+      "target": "ES2021",
+      "module": "es2020",
       "sourceMap": true,
-      "lib": ["es6"],
+      "lib": ["ES2021"],
+
+      "strict": true,
       "moduleDetection": "force",
-      "moduleResolution": "Node"
+      "moduleResolution": "Bundler",
+      "allowJs": true,
+      "rootDir": "./src",
+      "resolveJsonModule": true,
+      "outDir": "./dist",
+      "noEmitOnError": true,
+      "forceConsistentCasingInFileNames": true,
+      // "emitDeclarationOnly":true,
+      // "allowImportingTsExtensions": true,
+      "noImplicitReturns": true
     },
+    "include": ["./src/**/*.js", "./src/**/*.ts"],
+    "exclude": ["node-modules", "dist", "**/*.spec.ts", "old"]
   }

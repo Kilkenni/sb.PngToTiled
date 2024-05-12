@@ -1,12 +1,3 @@
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 import { promises as nodeFS } from "fs";
 import * as nodePath from "path";
 import * as zlib from "zlib";
@@ -14,12 +5,19 @@ import * as zlib from "zlib";
 import * as dungeonsFS from "./dungeonsFS.js";
 import GidFlags from "./GidFlags.js";
 ;
-const TILESETJSON_NAME = {
-    materials: "materials",
-    supports: "supports",
-    liquids: "liquids",
-    misc: "miscellaneous",
-};
+// const TILESETJSON_NAME = {
+//   materials: "materials",
+//   supports: "supports",
+//   liquids: "liquids",
+//   misc: "miscellaneous",
+// } as const;
+var TILESETJSON_NAME;
+(function (TILESETJSON_NAME) {
+    TILESETJSON_NAME["materials"] = "materials";
+    TILESETJSON_NAME["supports"] = "supports";
+    TILESETJSON_NAME["liquids"] = "liquids";
+    TILESETJSON_NAME["misc"] = "miscellaneous";
+})(TILESETJSON_NAME || (TILESETJSON_NAME = {})); //as const;
 const MISCJSON_MAP = [
     "Air", //0 - is it ever used?
     "Magic Pink Brush", //1 - back
@@ -52,41 +50,40 @@ const ANCHOR_RULES = [
     "worldGenMustContainAirBackground",
     "worldGenMustContainAirForeground",
 ];
+;
 //determine paths to tilesets for mapping PNG
 function resolveTilesets() {
     const matPath = nodePath.resolve("./input-output/tilesets/packed/materials.json");
     const pathToTileset = matPath.substring(0, matPath.lastIndexOf("/"));
     return pathToTileset;
 }
-function calcNewTilesetShapes() {
-    return __awaiter(this, arguments, void 0, function* (log = false) {
-        const path = resolveTilesets();
-        const TILESETS = [
-            ///blocks
-            TILESETJSON_NAME.materials,
-            TILESETJSON_NAME.supports,
-            TILESETJSON_NAME.liquids,
-            TILESETJSON_NAME.misc,
-            //TODO other tilesets for objects
-        ];
-        let startGID = 1;
-        const tilesetsArray = [];
-        for (const tilesetName of TILESETS) {
-            const currentTsPath = `${path}/${tilesetName}.json`;
-            const tilesetShape = {
-                firstgid: startGID,
-                source: currentTsPath // `${currentTsPath.replace(/\//g, "\/")}`, //RegEx is useless since JSON.stringify either loses backslash or doubles it
-            };
-            const currentTileset = JSON.parse((yield nodeFS.readFile(currentTsPath)).toString("utf8"));
-            // console.log(currentTileset)
-            startGID = startGID + currentTileset.tilecount; //increase GID by size of current tileset
-            tilesetsArray.push(tilesetShape);
-        }
-        if (log) {
-            console.log(tilesetsArray);
-        }
-        return tilesetsArray;
-    });
+async function calcNewTilesetShapes(log = false) {
+    const path = resolveTilesets();
+    const TILESETS = [
+        ///blocks
+        TILESETJSON_NAME.materials,
+        TILESETJSON_NAME.supports,
+        TILESETJSON_NAME.liquids,
+        TILESETJSON_NAME.misc,
+        //TODO other tilesets for objects
+    ];
+    let startGID = 1;
+    const tilesetsArray = [];
+    for (const tilesetName of TILESETS) {
+        const currentTsPath = `${path}/${tilesetName}.json`;
+        const tilesetShape = {
+            firstgid: startGID,
+            source: currentTsPath // `${currentTsPath.replace(/\//g, "\/")}`, //RegEx is useless since JSON.stringify either loses backslash or doubles it
+        };
+        const currentTileset = JSON.parse((await nodeFS.readFile(currentTsPath)).toString("utf8"));
+        // console.log(currentTileset)
+        startGID = startGID + currentTileset.tilecount; //increase GID by size of current tileset
+        tilesetsArray.push(tilesetShape);
+    }
+    if (log) {
+        console.log(tilesetsArray);
+    }
+    return tilesetsArray;
 }
 function getSortedTileset(arrayOfOldTiles, log = false) {
     const oldSorted = {
@@ -143,7 +140,7 @@ function getSortedTileset(arrayOfOldTiles, log = false) {
                         oldSorted.anchors.push(tile);
                         break;
                     case "surface":
-                        if (tile.comment.toLowerCase().includes("biome tile brush")) {
+                        if (tile.comment?.toLowerCase().includes("biome tile brush")) {
                             oldSorted.specialbackground.push(tile); //for biome tile brush duplicate to background, as it is often setup incorrectly in old tileset
                         }
                         oldSorted.specialforeground.push(tile);
@@ -200,7 +197,7 @@ function getSortedTileset(arrayOfOldTiles, log = false) {
 //compares explicitly defined tilelayer-related tiles, like foreground/background, liquid etc
 function matchTilelayer(oldTilesCategoryArray, newTilesetJSON, layerName, firstgid) {
     if (firstgid < 1) {
-        return undefined;
+        throw new Error(`FirstGid is ${firstgid} but it can't be negative!`);
     }
     const matchMap = oldTilesCategoryArray.map((tile) => {
         const { value, comment, brush, rules } = tile;
@@ -210,7 +207,6 @@ function matchTilelayer(oldTilesCategoryArray, newTilesetJSON, layerName, firstg
                 return;
                 //throw new Error(`Tile brush is ${brush}`);
             }
-            const newBrushType = (newTilesetJSON.name === TILESETJSON_NAME.liquids) ? "liquid" : "material";
             const oldBrushTypes = [];
             if (layerName === "front") {
                 oldBrushTypes.push("front", "liquid");
@@ -222,7 +218,14 @@ function matchTilelayer(oldTilesCategoryArray, newTilesetJSON, layerName, firstg
                 const [brushType, brushMaterial] = brushLayer;
                 if (oldBrushTypes.includes(brushType)) {
                     for (const materialIndex in newTilesetJSON.tileproperties) {
-                        const material = newTilesetJSON.tileproperties[materialIndex][newBrushType];
+                        const tileDesc = newTilesetJSON.tileproperties[materialIndex];
+                        let material;
+                        if (newTilesetJSON.name === TILESETJSON_NAME.liquids) { // TS Typeguard
+                            material = tileDesc["liquid"];
+                        }
+                        else {
+                            material = tileDesc["material"];
+                        }
                         if (material === brushMaterial) {
                             return { tileName: brushMaterial, tileRgba: value, tileGid: (parseInt(materialIndex) + firstgid) };
                         }
@@ -234,12 +237,12 @@ function matchTilelayer(oldTilesCategoryArray, newTilesetJSON, layerName, firstg
         else if (newTilesetJSON.name === TILESETJSON_NAME.misc) {
             //if we have bkg tile, but search for front layer, or VV - skip
             if (layerName === "front" && brush && brush.flat(1).includes("surfacebackground") ||
-                layerName === "back" && brush && brush.flat(1).includes("surface") && !comment.toLowerCase().includes("biome tile brush")) {
+                layerName === "back" && brush && brush.flat(1).includes("surface") && !comment?.toLowerCase().includes("biome tile brush")) {
                 return;
             }
             //if we have special tile, but search for front layer - write 0. Precaution!
-            if (layerName === "front" && (comment.toLowerCase().includes("magic pink") ||
-                brush.length === 1 && brush.flat(1)[0] === "clear")) {
+            if (layerName === "front" && (comment?.toLowerCase().includes("magic pink") ||
+                brush?.length === 1 && brush.flat(1)[0] === "clear")) {
                 return { tileName: "special", tileRgba: value, tileGid: 0 };
             }
             /*
@@ -248,12 +251,12 @@ function matchTilelayer(oldTilesCategoryArray, newTilesetJSON, layerName, firstg
             0 = brush:["clear"], comment:"Empty hole"
             11 = brush:["clear"], comment:"Empty hole overwritable" */
             //Magic Pink Brush #1
-            if (comment.toLowerCase().includes("magic pink")) {
+            if (comment?.toLowerCase().includes("magic pink")) {
                 return { tileName: "magic pink", tileRgba: value, tileGid: GidFlags.apply(1 + firstgid, false, true, false) };
                 //Gid for Magic Pink Brush in original files is flipped horizontally, let's mimic that
             }
             if (brush && brush.length === 1 && brush.flat(1)[0] === "clear") {
-                if (comment.toLowerCase().includes("empty hole")) {
+                if (comment?.toLowerCase().includes("empty hole")) {
                     return { tileName: "empty", tileRgba: value, tileGid: 0 }; //EMPTY TILE
                 }
                 /*
@@ -392,28 +395,30 @@ function matchAnchors(oldAnchorsArray, miscTilesetJSON, firstgid) {
             }
         }
         if (connector) {
-            if (comment.includes("entrance coupler")) {
+            if (comment?.includes("entrance coupler")) {
                 return { tileName: comment + " -> red", tileRgba: value, tileGid: (12 + firstgid) };
             }
             ;
-            if (comment.includes("alternate coupler #2")) {
+            if (comment?.includes("alternate coupler #2")) {
                 return { tileName: comment + " -> yellow", tileRgba: value, tileGid: (13 + firstgid) };
             }
             ;
-            if (comment.includes("alternate coupler #3")) {
+            if (comment?.includes("alternate coupler #3")) {
                 return { tileName: comment + " -> green", tileRgba: value, tileGid: (14 + firstgid) };
             }
             else {
                 return { tileName: comment + " -> blue", tileRgba: value, tileGid: (15 + firstgid) };
             }
         }
-        for (const rule of rules.flat()) { //worldGenMust(Not)Contain
-            for (const anchorRule of ANCHOR_RULES) {
-                if (rule === anchorRule) {
-                    for (const materialIndex in miscTilesetJSON.tileproperties) {
-                        const material = miscTilesetJSON.tileproperties[materialIndex];
-                        if (Object.keys(material).includes(ruleGetName(rule)) && material.layer === ruleIsBackLayer(rule)) {
-                            return { tileName: material["//shortdescription"], tileRgba: value, tileGid: (parseInt(materialIndex) + firstgid) };
+        if (rules) {
+            for (const rule of rules.flat()) { //worldGenMust(Not)Contain
+                for (const anchorRule of ANCHOR_RULES) {
+                    if (rule === anchorRule) {
+                        for (const materialIndex in miscTilesetJSON.tileproperties) {
+                            const material = miscTilesetJSON.tileproperties[materialIndex];
+                            if (Object.keys(material).includes(ruleGetName(rule)) && material.layer === ruleIsBackLayer(rule)) {
+                                return { tileName: material["//shortdescription"], tileRgba: value, tileGid: (parseInt(materialIndex) + firstgid) };
+                            }
                         }
                     }
                 }
@@ -453,35 +458,40 @@ function getFilename(fileName) {
 function getFilenameFromPath(filePath) {
     return nodePath.parse(filePath).name;
 }
-function matchAllTilelayers(oldTileset_1) {
-    return __awaiter(this, arguments, void 0, function* (oldTileset, log = false) {
-        const tilesetsDesc = yield calcNewTilesetShapes();
-        const tilesetsDir = resolveTilesets(); //"./tilesets/packed/";
-        const TILELAYER_TILESETS = [
-            TILESETJSON_NAME.materials,
-            TILESETJSON_NAME.supports,
-            TILESETJSON_NAME.liquids,
-            TILESETJSON_NAME.misc,
-        ];
-        const fullMatchMap = {
-            front: [],
-            back: []
-        };
-        // let matchMap:LayerTileMatch[] = [];
-        for (const tileset of TILELAYER_TILESETS) {
-            // const tilesetPath = `${tilesetsDir}/${tileset}.json`;
-            const tilesetJson = yield dungeonsFS.getTileset(tileset);
-            const firstgid = tilesetsDesc.find((element) => getFilenameFromPath(element.source) === tileset
-            // getFilenameFromPath(tilesetPath)
-            ).firstgid;
-            const partialBack = matchTilelayer(oldTileset.background.concat(oldTileset.specialbackground).concat(oldTileset.special), tilesetJson, "back", firstgid);
+async function matchAllTilelayers(oldTileset, log = false) {
+    const tilesetsDesc = await calcNewTilesetShapes();
+    const tilesetsDir = resolveTilesets(); //"./tilesets/packed/";
+    const TILELAYER_TILESETS = [
+        TILESETJSON_NAME.materials,
+        TILESETJSON_NAME.supports,
+        TILESETJSON_NAME.liquids,
+        TILESETJSON_NAME.misc,
+    ];
+    const fullMatchMap = {
+        front: [],
+        back: []
+    };
+    // let matchMap:LayerTileMatch[] = [];
+    for (const tileset of TILELAYER_TILESETS) {
+        // const tilesetPath = `${tilesetsDir}/${tileset}.json`;
+        const tilesetJson = await dungeonsFS.getTileset(tileset);
+        const firstgid = tilesetsDesc.find((element) => getFilenameFromPath(element.source) === tileset
+        // getFilenameFromPath(tilesetPath)
+        )?.firstgid;
+        if (!firstgid) {
+            throw new Error(`Tileset ${tileset} not found in tileset shapes; cannot retrieve firstgid`);
+        }
+        const partialBack = matchTilelayer(oldTileset.background.concat(oldTileset.specialbackground).concat(oldTileset.special), tilesetJson, "back", firstgid);
+        if (partialBack) {
             fullMatchMap.back = mergeLayerMatchMaps(fullMatchMap.back, partialBack);
-            const partialFront = matchTilelayer(oldTileset.foreground.concat(oldTileset.specialforeground).concat(oldTileset.special), tilesetJson, "front", firstgid);
+        }
+        const partialFront = matchTilelayer(oldTileset.foreground.concat(oldTileset.specialforeground).concat(oldTileset.special), tilesetJson, "front", firstgid);
+        if (partialFront) {
             fullMatchMap.front = mergeLayerMatchMaps(fullMatchMap.front, partialFront);
         }
-        // fullMatchMap.back = matchMap;
-        return fullMatchMap;
-    });
+    }
+    // fullMatchMap.back = matchMap;
+    return fullMatchMap;
 }
 function slicePixelsToArray(pixelArray, width, height, channels) {
     const pixelCount = width * height;

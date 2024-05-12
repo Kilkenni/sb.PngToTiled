@@ -8,16 +8,26 @@ import GidFlags from "./GidFlags.js";
 //https://0xacab.org/bidasci/starbound-v1.4.4-source-code/-/blob/no-masters/tiled/properties.txt?ref_type=heads
 
 
-interface TilesetJson { 
-  tilecount: number
+interface TilesetJson extends Record<string,any> { 
+  tilecount: number,
+  tileproperties:{
+    [key: string] : any,
+  }
 };
 
-const TILESETJSON_NAME = {
-  materials: "materials",
-  supports: "supports",
-  liquids: "liquids",
-  misc: "miscellaneous",
-} as const;
+// const TILESETJSON_NAME = {
+//   materials: "materials",
+//   supports: "supports",
+//   liquids: "liquids",
+//   misc: "miscellaneous",
+// } as const;
+
+enum TILESETJSON_NAME {
+  materials = "materials",
+  supports = "supports",
+  liquids = "liquids",
+  misc = "miscellaneous"
+} //as const;
 
 const MISCJSON_MAP = [
   "Air",                               //0 - is it ever used?
@@ -46,34 +56,59 @@ const MISCJSON_MAP = [
   "worldGenMustNotContainLiquid (ocean)"   //23 --> anchors etc
 ]; //index = tile #
 
-interface TilesetMatJson extends TilesetJson {
-  name: "materials"|"supports",
-  tileproperties:{
-    [key: string] : ({
-      "//description"? : string,
-      "//name"? : string,
-      "//shortdescription"? : string,
-      material: string
-    } | {
-      "//name": string,
-      invalid: "true",
-    }),
-  },
+/*
+type TileMatJSON = {
+  "//description"? : string,
+  "//name"? : string,
+  "//shortdescription"? : string,
+  material: string
+} | {
+  "//name": string,
+  invalid: "true",
+};
+*/
+
+interface TileSubstanceJson {
+  "//name"? : string,
+  "//description"? : string,
+  "//shortdescription"? : string,
 }
 
-interface TilesetLiquidJson extends TilesetJson {
-  name: "liquids",
+interface TileLiquidJson extends TileSubstanceJson {
+  source?: "true",
+  liquid?: string,
+  invalid?: "true"
+}
+
+interface TileSolidJson extends TileSubstanceJson {
+  material?: string,
+  invalid?: "true",
+}
+
+interface TilesetMatJson extends TilesetJson {
+  name: TILESETJSON_NAME.materials|TILESETJSON_NAME.supports,
   tileproperties:{
-    [key: string] : {
-      "//name" : string,
-      "//shortdescription"? : string,
-      source?: "true",
-    } & ( {liquid: string} | {invalid: "true"} ),
+    [key: string] : TileSolidJson,
+  },
+}
+/*
+type TileLiquidJson = {
+  "//name" : string,
+  "//shortdescription"? : string,
+  source?: "true",
+  // liquid?: string,
+  // invalid?: true,
+} & ( {liquid: string} | {invalid: "true"} );*/
+
+interface TilesetLiquidJson extends TilesetJson {
+  name: TILESETJSON_NAME.liquids,
+  tileproperties:{
+    [key: string] : TileLiquidJson,
   },
 }
 
 interface TilesetMiscJson extends TilesetJson {
-  name: "miscellaneous",
+  name: TILESETJSON_NAME.misc,
   tileproperties: {
     [key: string]: {
       "//description": string,
@@ -131,7 +166,7 @@ interface AnchorTile extends Tile {
   connector? : true,
 }
 
-type OldTilesetSorted = {
+interface OldTilesetSorted extends Record<string, Tile[]> {
   foreground: Tile[],
   background: Tile[],
   specialforeground: Tile[],
@@ -263,7 +298,7 @@ function getSortedTileset(arrayOfOldTiles: Tile[], log: boolean = false): OldTil
             oldSorted.anchors.push(tile);
             break;
           case "surface":
-            if (tile.comment.toLowerCase().includes("biome tile brush")) {
+            if (tile.comment?.toLowerCase().includes("biome tile brush")) {
               oldSorted.specialbackground.push(tile); //for biome tile brush duplicate to background, as it is often setup incorrectly in old tileset
             }
             oldSorted.specialforeground.push(tile);
@@ -322,11 +357,11 @@ function getSortedTileset(arrayOfOldTiles: Tile[], log: boolean = false): OldTil
 }
 
 //compares explicitly defined tilelayer-related tiles, like foreground/background, liquid etc
-function matchTilelayer(oldTilesCategoryArray: Tile[], newTilesetJSON: TilesetMatJson | TilesetLiquidJson | TilesetMiscJson, layerName: FrontOrBack, firstgid: number) : LayerTileMatch[] {
+function matchTilelayer(oldTilesCategoryArray: Tile[], newTilesetJSON: TilesetMatJson | TilesetLiquidJson | TilesetMiscJson, layerName: FrontOrBack, firstgid: number) : (LayerTileMatch|undefined)[]|void {
   if (firstgid < 1) {
-    return undefined;
+    throw new Error(`FirstGid is ${firstgid} but it can't be negative!`)
   }
-  const matchMap = oldTilesCategoryArray.map((tile : Tile): LayerTileMatch => {
+  const matchMap = oldTilesCategoryArray.map((tile : Tile): undefined|LayerTileMatch => {
     const { value, comment, brush, rules }: Tile = tile;
     
     //if we match materials, platforms or liquids
@@ -335,7 +370,6 @@ function matchTilelayer(oldTilesCategoryArray: Tile[], newTilesetJSON: TilesetMa
         return;
         //throw new Error(`Tile brush is ${brush}`);
       }
-      const newBrushType = (newTilesetJSON.name === TILESETJSON_NAME.liquids)?"liquid":"material";
 
       const oldBrushTypes = [];
       if(layerName === "front") {
@@ -348,7 +382,14 @@ function matchTilelayer(oldTilesCategoryArray: Tile[], newTilesetJSON: TilesetMa
         const [brushType, brushMaterial]: Brush = brushLayer;
         if(oldBrushTypes.includes(brushType)) {
           for (const materialIndex in newTilesetJSON.tileproperties) {
-            const material = newTilesetJSON.tileproperties[materialIndex][newBrushType];
+            const tileDesc = newTilesetJSON.tileproperties[materialIndex] as TileSubstanceJson;
+            let material;
+            if(newTilesetJSON.name === TILESETJSON_NAME.liquids) { // TS Typeguard
+              material = (tileDesc as TileLiquidJson)["liquid"];  
+            }
+            else {
+              material = (tileDesc as TileSolidJson)["material"];  
+            }
             if (material === brushMaterial) {
               return { tileName: brushMaterial, tileRgba: value, tileGid: (parseInt(materialIndex) + firstgid )};
             }
@@ -360,12 +401,12 @@ function matchTilelayer(oldTilesCategoryArray: Tile[], newTilesetJSON: TilesetMa
     else if (newTilesetJSON.name === TILESETJSON_NAME.misc) {
       //if we have bkg tile, but search for front layer, or VV - skip
       if(layerName === "front" && brush && brush.flat(1).includes("surfacebackground") ||
-      layerName === "back" && brush && brush.flat(1).includes("surface") && !comment.toLowerCase().includes("biome tile brush") ) {
+      layerName === "back" && brush && brush.flat(1).includes("surface") && !comment?.toLowerCase().includes("biome tile brush") ) {
         return;
       }
       //if we have special tile, but search for front layer - write 0. Precaution!
-      if(layerName === "front" && (comment.toLowerCase().includes("magic pink") || 
-      brush.length === 1 && brush.flat(1)[0] === "clear")) {
+      if(layerName === "front" && (comment?.toLowerCase().includes("magic pink") || 
+      brush?.length === 1 && brush.flat(1)[0] === "clear")) {
         return{tileName: "special", tileRgba: value, tileGid: 0};
       }
 
@@ -375,12 +416,12 @@ function matchTilelayer(oldTilesCategoryArray: Tile[], newTilesetJSON: TilesetMa
       0 = brush:["clear"], comment:"Empty hole"
       11 = brush:["clear"], comment:"Empty hole overwritable" */
       //Magic Pink Brush #1
-      if(comment.toLowerCase().includes("magic pink")) {
+      if(comment?.toLowerCase().includes("magic pink")) {
         return { tileName: "magic pink", tileRgba: value, tileGid: GidFlags.apply(1 + firstgid, false, true, false) };
         //Gid for Magic Pink Brush in original files is flipped horizontally, let's mimic that
       }
       if(brush && brush.length === 1 && brush.flat(1)[0] === "clear") {
-        if (comment.toLowerCase().includes("empty hole")) {
+        if (comment?.toLowerCase().includes("empty hole")) {
           return { tileName: "empty", tileRgba: value, tileGid: 0 }; //EMPTY TILE
         }
         /*
@@ -475,7 +516,7 @@ const MISCJSON_MAP = [
     return matchMap;
 }
 
-function matchAnchors(oldAnchorsArray: AnchorTile[], miscTilesetJSON: TilesetMiscJson, firstgid: number): LayerTileMatch[] {
+function matchAnchors(oldAnchorsArray: AnchorTile[], miscTilesetJSON: TilesetMiscJson, firstgid: number): (LayerTileMatch|undefined)[]|void {
   
   function ruleGetName(rule: typeof ANCHOR_RULES[number]): string {
     let ruleName: string = rule;
@@ -502,7 +543,7 @@ function matchAnchors(oldAnchorsArray: AnchorTile[], miscTilesetJSON: TilesetMis
   if (firstgid < 1) {
     return undefined;
   }
-  const matchMap = oldAnchorsArray.map((tile: AnchorTile): LayerTileMatch => {
+  const matchMap = oldAnchorsArray.map((tile: AnchorTile): LayerTileMatch|undefined => {
     const { value, comment, brush, rules, connector }: AnchorTile = tile;
     
     /*
@@ -528,13 +569,13 @@ function matchAnchors(oldAnchorsArray: AnchorTile[], miscTilesetJSON: TilesetMis
     }
 
     if(connector) {
-      if(comment.includes("entrance coupler")) {
+      if(comment?.includes("entrance coupler")) {
         return {tileName: comment + " -> red", tileRgba: value, tileGid: (12 + firstgid )};
       };
-      if(comment.includes("alternate coupler #2")) {
+      if(comment?.includes("alternate coupler #2")) {
         return {tileName: comment + " -> yellow", tileRgba: value, tileGid: (13 + firstgid )};
       };
-      if(comment.includes("alternate coupler #3")) {
+      if(comment?.includes("alternate coupler #3")) {
         return {tileName: comment + " -> green", tileRgba: value, tileGid: (14 + firstgid )};
       }
       else {
@@ -542,25 +583,28 @@ function matchAnchors(oldAnchorsArray: AnchorTile[], miscTilesetJSON: TilesetMis
       }
     }
 
-    for (const rule of rules.flat()) { //worldGenMust(Not)Contain
-      for (const anchorRule of ANCHOR_RULES) {
-        if (rule === anchorRule) {
-          for (const materialIndex in miscTilesetJSON.tileproperties) {
-            const material = miscTilesetJSON.tileproperties[materialIndex];
-            if (Object.keys(material).includes(ruleGetName(rule)) && material.layer === ruleIsBackLayer(rule)) { 
-              return {tileName: material["//shortdescription"], tileRgba: value, tileGid: (parseInt(materialIndex) + firstgid )};
-            }            
-          }  
-        }     
-      } 
+    if(rules) {
+      for (const rule of rules.flat()) { //worldGenMust(Not)Contain
+        for (const anchorRule of ANCHOR_RULES) {
+          if (rule === anchorRule) {
+            for (const materialIndex in miscTilesetJSON.tileproperties) {
+              const material = miscTilesetJSON.tileproperties[materialIndex];
+              if (Object.keys(material).includes(ruleGetName(rule)) && material.layer === ruleIsBackLayer(rule)) { 
+                return {tileName: material["//shortdescription"], tileRgba: value, tileGid: (parseInt(materialIndex) + firstgid )};
+              }            
+            }  
+          }     
+        } 
+      }
     }
+    
     return; //skip tile if no matches
   });
   return matchMap;
 }
 
 //merge two match maps with non-intersecting values and return new map
-function mergeLayerMatchMaps(matchMap1: LayerTileMatch[], matchMap2: LayerTileMatch[]): LayerTileMatch[] {
+function mergeLayerMatchMaps(matchMap1: LayerTileMatch[], matchMap2: (LayerTileMatch|undefined)[]): LayerTileMatch[] {
   if (matchMap1.length > 0 && matchMap1.length != matchMap2.length) {
     throw new Error(`MAP SIZE MISMATCH: Merging matchMap1 of size ${matchMap1.length} with matchMap2 of size ${matchMap2.length}`);
   }
@@ -581,16 +625,16 @@ function mergeLayerMatchMaps(matchMap1: LayerTileMatch[], matchMap2: LayerTileMa
 }
 
 //get extention from path (without .)
-function getExtension(fileName) {
+function getExtension(fileName:string) {
   return fileName.substring(fileName.lastIndexOf(".") + 1);
 }
 
 //trunc extension and .
-function getFilename(fileName) {
+function getFilename(fileName:string) {
   return fileName.substring(0, fileName.lastIndexOf("."));
 }
 
-function getFilenameFromPath(filePath) {
+function getFilenameFromPath(filePath:string) {
   return nodePath.parse(filePath).name;
 }
 
@@ -622,7 +666,10 @@ async function matchAllTilelayers(oldTileset:OldTilesetSorted, log:boolean = fal
       (element) =>
         getFilenameFromPath(element.source) === tileset
         // getFilenameFromPath(tilesetPath)
-    ).firstgid;
+    )?.firstgid;
+    if(!firstgid) {
+      throw new Error(`Tileset ${tileset} not found in tileset shapes; cannot retrieve firstgid`);
+    }
 
     const partialBack = matchTilelayer(
       oldTileset.background.concat(oldTileset.specialbackground).concat(oldTileset.special),
@@ -631,11 +678,15 @@ async function matchAllTilelayers(oldTileset:OldTilesetSorted, log:boolean = fal
       firstgid
     );
 
-    fullMatchMap.back = mergeLayerMatchMaps(fullMatchMap.back, partialBack);
+    if(partialBack) {
+      fullMatchMap.back = mergeLayerMatchMaps(fullMatchMap.back, partialBack);
+    }
+    
 
     const partialFront = matchTilelayer(oldTileset.foreground.concat(oldTileset.specialforeground).concat(oldTileset.special), tilesetJson, "front", firstgid);
-
-    fullMatchMap.front = mergeLayerMatchMaps(fullMatchMap.front, partialFront)
+    if(partialFront) {
+    fullMatchMap.front = mergeLayerMatchMaps(fullMatchMap.front, partialFront);
+    }
   }
 
   // fullMatchMap.back = matchMap;

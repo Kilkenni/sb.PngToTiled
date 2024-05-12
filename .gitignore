@@ -1,6 +1,6 @@
 #Junk
 .DS_Store
-.vscode/
+# .vscode/
 .idea/
 /temp
 
