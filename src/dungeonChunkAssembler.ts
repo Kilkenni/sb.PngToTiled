@@ -162,7 +162,9 @@ class SbDungeonChunk{
   }
 
   #getLayerIndexByName(layerName:string):number|undefined {
+    // const tempLayers = this.#layers;
     for(let layerIndex = 0; layerIndex < this.#layers.length; layerIndex++) {
+      // const layName = tempLayers[layerIndex].name;
       if(layerName === this.#layers[layerIndex].name ) {
         return layerIndex;
       }
@@ -181,17 +183,18 @@ class SbDungeonChunk{
     }
     const magicPinkBrushGid = GidFlags.apply(miscFirstGid + 1, false, true, false); //MPP is 2nd in tileset + Horiz flip
 
+    //caution! Front layer can have 0-s, which is "no tile" value
     for(let pixelN = 0; pixelN < baseLayerData.length; pixelN++) {
-      if(baseLayerData[pixelN] === magicPinkBrushGid) {
-        if(baseLayerData[pixelN] === magicPinkBrushGid) {
-          continue; //both layers have MPP in pixel, skip
+      if(baseLayerData[pixelN] === magicPinkBrushGid || baseLayerData[pixelN] === 0) {
+        if(mergeLayerData[pixelN] === baseLayerData[pixelN]) {
+          continue; //both layers have MPP or 0 in pixel, skip
         }
         else {
             baseLayerData[pixelN] = mergeLayerData[pixelN]; //merge
         }
       }
       else {
-        if(mergeLayerData[pixelN] != magicPinkBrushGid) {
+        if(mergeLayerData[pixelN] !== magicPinkBrushGid && mergeLayerData[pixelN] !== 0) {
           throw new Error(`Merging layers both have non-empty values at pixel ${pixelN}`)
         }
       }
@@ -203,7 +206,7 @@ class SbDungeonChunk{
     const frontIndex = this.#getLayerIndexByName("front");
     const backIndex = this.#getLayerIndexByName("back");
 
-    if(!frontIndex || !backIndex) {
+    if(frontIndex === undefined || backIndex === undefined) {
       throw new Error("Cannot merge: original chunk lacks tilelayers!");
     }
 

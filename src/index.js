@@ -92,7 +92,7 @@ async function writeConvertedMap_test(log = false) {
   }
 
   const ioDir = await dungeonsApi.readDir();
-  for (const file of ioDir) {
+  for (const file of ioDir.filter((file) => getExtension(file.name) === "png")) {
     if (file.isFile()) {
       if (getExtension(file.name) === "png") {
         if(file.name.includes("objects")) {
@@ -108,7 +108,6 @@ async function writeConvertedMap_test(log = false) {
 
         const convertedChunk = new dungeonAssembler.SbDungeonChunk(newTilesetShapes);
         const getPixelsPromise = promisify(getPixels); //getPixels originally doesn't support promises
-        let pixelsArray;
         const oldTileset = await extractOldTileset(log);
         const sortedOldTileset = await tilesetMatcher.getSortedTileset(
           oldTileset
@@ -117,6 +116,7 @@ async function writeConvertedMap_test(log = false) {
           sortedOldTileset
         );
 
+        let pixelsArray;
         //Calculating original chunk
         try {
           pixelsArray = await getPixelsPromise(
@@ -170,7 +170,37 @@ async function writeConvertedMap_test(log = false) {
 
         //MERGE OBJECTS TEST
         if(ioDir) {
-
+          const pngObjects = ioDir.find((fileObjects) => fileObjects.isFile() && fileObjects.name.includes("-objects") && fileObjects.name.includes(getFilename(file.name)) && getExtension(fileObjects.name) === "png");
+          
+          if(pngObjects) { //if we found name-objects.png file
+            try {
+              pixelsArray = await getPixelsPromise(
+                `${dungeonsApi.ioDirPath}/${pngObjects.name}`
+              );
+            } catch (error) {
+              console.error(error);
+              return undefined;
+            }
+            if (log) {
+              console.log("  -Found objects PNG, image shape: ", pixelsArray.shape); //shape = width, height, channels
+            }
+            //pixelsArray.data is a Uint8Array of (shape.width * shape.height * #channels) elements
+            convertedChunk.setSize(pixelsArray.shape[0], pixelsArray.shape[1]); 
+            const RgbaArray = tilesetMatcher.slicePixelsToArray(
+              pixelsArray.data,
+              ...pixelsArray.shape
+            );
+            //we use the same MatchMap since it's still the same dungeon - tilesets didn't change
+            const convertedBackLayer = tilesetMatcher.convertPngToGid(
+              RgbaArray,
+              fullMatchMap.back
+            );
+            const convertedFrontLayer = tilesetMatcher.convertPngToGid(
+              RgbaArray,
+              fullMatchMap.front
+            );
+            convertedChunk.mergeTilelayers(convertedFrontLayer, convertedBackLayer);
+          }
         }
 
         const success = await dungeonsApi.writeConvertedMapJson(
@@ -181,7 +211,7 @@ async function writeConvertedMap_test(log = false) {
           console.log(`SUCCESS! ${getFilename(file.name)}.json saved.`);
         }
 
-        return 4; //TEMP - return on first PNG converted
+        //return 4; //TEMP - return on first PNG converted
       }
     }
   }
