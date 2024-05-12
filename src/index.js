@@ -2,62 +2,14 @@ import * as dungeonsApi from "./dungeonsFS.js";
 // import * as tilesetMatcher from "./tilesetMatch";
 import * as tilesetMatcher from "./tilesetMatch.js";
 import * as dungeonAssembler from "./dungeonChunkAssembler.js";
+import {getFilename, getExtension, getFilenameFromPath, getDirContents, getDungeons, extractOldTileset} from "./conversionSteps.js";
 
 import getPixels from "get-pixels";
 
-import { promises as nodeFileSys } from "fs";
-import * as nodePath from "path";
+// import * as nodePath from "path";
 
 import yargs from "yargs";
 import { promisify } from "util";
-
-//get extention from path (without .)
-function getExtension(fileName) {
-  return fileName.substring(fileName.lastIndexOf(".") + 1);
-}
-
-//trunc extension and .
-function getFilename(fileName) {
-  return fileName.substring(0, fileName.lastIndexOf("."));
-}
-
-function getFilenameFromPath(filePath) {
-  return nodePath.parse(filePath).name;
-}
-
-async function getDirContents(log = false) {
-  const ioDir = await dungeonsApi.readDir();
-  if (log) {
-    console.table(ioDir);
-  }
-  return 1;
-}
-
-async function getDungeons(log = false) {
-  const ioDir = await dungeonsApi.readDir();
-  if (log) {
-    console.table(ioDir);
-  }
-  let dungeonPath = "";
-  try {
-    for (const file of ioDir) {
-      if (file.isFile())
-        if (getExtension(file.name) === "dungeon") {
-          dungeonPath = file.path + "/" + file.name;
-          // console.log(dungeonPath);
-          const dungeons = await dungeonsApi.getDungeons(dungeonPath);
-          console.log(
-            `Found .dungeon file: ${dungeons?.metadata?.name || "some weird shit"
-            }`
-          );
-        }
-    }
-  } catch (error) {
-    console.error(error);
-    return undefined;
-  }
-  return 2;
-}
 
 async function convertDungeon() {
   const ioDir = await dungeonsApi.readDir();
@@ -125,45 +77,6 @@ async function convertDungeon() {
     return undefined;
   }
   return 3;
-}
-
-async function extractOldTileset(log = false) {
-  const ioDir = await dungeonsApi.readDir();
-  // console.table(ioDir);
-  let dungeonPath = "";
-  for (const file of ioDir) {
-    if (file.isFile())
-      if (getExtension(file.name) === "dungeon") {
-        // console.log(file.path);
-        dungeonPath = dungeonsApi.ioDirPath + "/" + file.name;
-        // console.log(dungeonPath);
-        break; //break on first dungeon found!
-      }
-  }
-  let dungeons;
-  try {
-    dungeons = await dungeonsApi.getDungeons(dungeonPath);
-    console.log(
-      `Found .dungeon file: ${dungeons?.metadata?.name || "some weird shit"}`
-    );
-  } catch (error) {
-    console.error(error.message);
-    return undefined;
-  }
-  let tileMap;
-  if (dungeons?.tiles) tileMap = dungeons.tiles;
-  else {
-    console.error(
-      `${dungeonPath} does not contain <tiles> map. New SB .dungeon files cannot be used.`
-    );
-    return undefined;
-  }
-
-  if (log) {
-    dungeonsApi.writeTileMap(`${getFilename(dungeonPath) + ".TILES"}`, tileMap); //debug file
-    console.log(`${getFilename(dungeonPath) + ".TILES"} saved to I/O dir`);
-  }
-  return tileMap;
 }
 
 async function writeConvertedMap_test(log = false) {
@@ -303,12 +216,12 @@ async function getPixels_test() {
 function invokeAction(argv) {
   const { action } = argv;
   switch (action) {
-    case "dir_test":
-      getDirContents(true);
-      break;
-    case "dungeons":
-      getDungeons(true);
-      break;
+    // case "dir_test":
+    //   getDirContents(true);
+    //   break;
+    // case "dungeons":
+    //   getDungeons(true);
+    //   break;
     case "convdungeons":
       convertDungeon();
       break;
