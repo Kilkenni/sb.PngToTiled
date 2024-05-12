@@ -1,7 +1,9 @@
 import * as dungeonsApi from "./dungeonsFS.js";
-// import * as tilesetMatcher from "./tilesetMatch";
+// import * as tilesetMatcher from "./tilesetMatch.js";
 import * as tilesetMatcher from "./tilesetMatch.js";
-import * as dungeonAssembler from "./dungeonChunkAssembler.js";
+// import * as dungeonAssembler from "./dungeonChunkAssembler.js";
+import { promisify } from "util";
+import { NdArray } from "ndarray";
 
 import getPixels from "get-pixels";
 
@@ -112,6 +114,53 @@ async function extractOldTileset(log = false) {
   return tileMap;
 }
 
+/**
+ * debug function
+ * @returns promise of NdArray<Uint8Array>
+ */
+async function getPixels_test():Promise<NdArray<Uint8Array>> {
+  const ioDir = await dungeonsApi.readDir();
+  let filePath = "";
+  if(ioDir) {
+    for (const file of ioDir) {
+      if (file.isFile()) {
+        if (getExtension(file.name) === "png") {
+          filePath = `${dungeonsApi.ioDirPath}/${file.name}`;
+          break;
+        }
+      }
+    }
+  }
+  const getPixelsPromise = promisify(getPixels); //getPixels originally doesn't support promises
+  let pixelsArray:NdArray<Uint8Array>;
+  try {
+    pixelsArray = await getPixelsPromise(filePath, "image/png");
+  } catch (error) {
+    throw error;
+    // console.error(error);
+  }
+
+  console.log("  -obtained image shape: ", pixelsArray?.shape.slice()); //shape = width, height, channels
+
+  //pixelsArray.data is a Uint8Array of (shape.width * shape.height * #channels) elements
+
+  const shape = {
+    width: pixelsArray?.shape[0] as number,
+    height: pixelsArray?.shape[1] as number,
+    channels: pixelsArray?.shape[2] as number,
+  };
+  console.log(shape);
+  let RgbaArray;
+  if(pixelsArray?.data) {
+    RgbaArray = tilesetMatcher.slicePixelsToArray(
+      pixelsArray?.data,
+      shape.width, shape.height, shape.channels
+    );
+  }
+  
+  return pixelsArray;
+}
+
 export {
     getExtension,
     getFilename,
@@ -119,5 +168,6 @@ export {
     getDirContents,
     getDungeons,
     extractOldTileset,
+    getPixels_test,
 };
 

@@ -2,7 +2,7 @@ import * as dungeonsApi from "./dungeonsFS.js";
 // import * as tilesetMatcher from "./tilesetMatch";
 import * as tilesetMatcher from "./tilesetMatch.js";
 import * as dungeonAssembler from "./dungeonChunkAssembler.js";
-import {getFilename, getExtension, getFilenameFromPath, getDirContents, getDungeons, extractOldTileset} from "./conversionSteps.js";
+import {getFilename, getExtension, getFilenameFromPath, getDirContents, getDungeons, extractOldTileset, getPixels_test} from "./conversionSteps.js";
 
 import getPixels from "get-pixels";
 
@@ -95,6 +95,9 @@ async function writeConvertedMap_test(log = false) {
   for (const file of ioDir) {
     if (file.isFile()) {
       if (getExtension(file.name) === "png") {
+        if(file.name.includes("objects")) {
+          continue; //do not convert objects layers as separate files
+        }
 
         const newPath = `${dungeonsApi.ioDirPath}/${getFilename(
           file.name
@@ -165,6 +168,11 @@ async function writeConvertedMap_test(log = false) {
           }
         }
 
+        //MERGE OBJECTS TEST
+        if(ioDir) {
+
+        }
+
         const success = await dungeonsApi.writeConvertedMapJson(
           newPath,
           convertedChunk
@@ -180,41 +188,6 @@ async function writeConvertedMap_test(log = false) {
   return 4;
 }
 
-async function getPixels_test() {
-  const ioDir = await dungeonsApi.readDir();
-  let filePath;
-  for (const file of ioDir) {
-    if (file.isFile()) {
-      if (getExtension(file.name) === "png") {
-        filePath = `${dungeonsApi.ioDirPath}/${file.name}`;
-        break;
-      }
-    }
-  }
-  const getPixelsPromise = promisify(getPixels); //getPixels originally doesn't support promises
-  let pixelsArray;
-  try {
-    pixelsArray = await getPixelsPromise(filePath);
-  } catch (error) {
-    console.error(error);
-  }
-
-  console.log("  -obtained image shape: ", pixelsArray.shape.slice()); //shape = width, height, channels
-
-  //pixelsArray.data is a Uint8Array of (shape.width * shape.height * #channels) elements
-
-  const shape = {
-    width: pixelsArray.shape[0],
-    height: pixelsArray.shape[1],
-  };
-  console.log(shape);
-  const RgbaArray = tilesetMatcher.slicePixelsToArray(
-    pixelsArray.data,
-    ...pixelsArray.shape
-  );
-  return pixelsArray;
-}
-
 function invokeAction(argv) {
   const { action } = argv;
   switch (action) {
@@ -223,6 +196,9 @@ function invokeAction(argv) {
     //   break;
     // case "dungeons":
     //   getDungeons(true);
+    //   break;
+    // case "getpixels_test":
+    //   getPixels_test();
     //   break;
     case "convdungeons":
       convertDungeon();
@@ -235,9 +211,6 @@ function invokeAction(argv) {
       break;
     case "calctilesetshapes_test":
       tilesetMatcher.calcNewTilesetShapes(true);
-      break;
-    case "getpixels_test":
-      getPixels_test();
       break;
     case "writeconverted_test":
       writeConvertedMap_test(true);
