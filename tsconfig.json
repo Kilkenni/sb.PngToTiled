@@ -16,7 +16,8 @@
     "forceConsistentCasingInFileNames": true,
     // "emitDeclarationOnly":true,
     // "allowImportingTsExtensions": true,
-    "noImplicitReturns": true
+    "noImplicitReturns": true,
+    "allowSyntheticDefaultImports": true,
   },
   "include": ["./src/**/*.js", "./src/**/*.ts"],
   "exclude": ["node-modules", "dist", "**/*.spec.ts", "old"]

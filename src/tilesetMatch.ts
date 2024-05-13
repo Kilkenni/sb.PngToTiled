@@ -893,11 +893,11 @@ async function matchAllTilelayers(oldTileset:OldTilesetSorted, log:boolean = fal
 
   const tilesetsDir = resolveTilesets(); //"./tilesets/packed/";
 
-  const TILELAYER_TILESETS = [
-    TILESETJSON_NAME.materials,
-    TILESETJSON_NAME.supports,
-    TILESETJSON_NAME.liquids,
-    TILESETJSON_NAME.misc,
+  const TILELAYER_TILESETS:string[] = [
+    "materials",
+    "supports",
+    "liquids",
+    "miscellaneous",
   ];
 
   const fullMatchMap: FullTileMatch = {

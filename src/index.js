@@ -1,4 +1,4 @@
-import * as dungeonsFS from "./dungeonsFStoTs.js";
+import * as dungeonsFS from "./dungeonsFStoTS.js";
 import * as tilesetMatcher from "./tilesetMatch.js";
 import * as dungeonAssembler from "./dungeonChunkAssembler.js";
 import {
