@@ -131,6 +131,13 @@ interface TilesetMiscJson extends TilesetJson {
   }
 }
 
+interface TilesetObjectsJson extends TilesetJson {
+  tilecount: number,
+  tileproperties:{
+    [key: string] : any,
+  }
+}
+
 type AnchorBrush = ["clear"|"surface"|"playerstart"];
 
 type FrontOrBack = "front" | "back";
