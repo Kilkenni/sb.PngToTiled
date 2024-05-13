@@ -199,6 +199,9 @@ async function writeConvertedMap_test(log = false) {
               RgbaArray,
               fullMatchMap.front
             );
+            if(log) {
+              console.log(`  - merging tilelayers from objects.png...`);
+            }
             convertedChunk.mergeTilelayers(convertedFrontLayer, convertedBackLayer);
           }
         }

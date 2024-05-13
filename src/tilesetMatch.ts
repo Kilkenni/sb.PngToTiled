@@ -9,6 +9,7 @@ import GidFlags from "./GidFlags.js";
 
 
 interface TilesetJson extends Record<string,any> { 
+  name: string,
   tilecount: number,
   tileproperties:{
     [key: string] : any,
@@ -26,8 +27,220 @@ enum TILESETJSON_NAME {
   materials = "materials",
   supports = "supports",
   liquids = "liquids",
-  misc = "miscellaneous"
+  misc = "miscellaneous",
+  //objects
+  objHuge = "huge-objects",
+  objByCat = 1,
+  objByTag = 2,
+  objByRace = 3,
+  objByType = 4,
 } //as const;
+
+const TS_CAT_PATH = "objects-by-category" as const;
+enum TSJSON_OBJ_BY_CAT {
+  "actionfigure",
+  "artifact",
+  "bug",
+  "breakable",
+  "crafting",
+  "decorative",
+  "door",
+  "farmable",
+  "farmbeastegg",
+  "fridgestorage",
+  "furniture",
+  "genboss",
+  "generic",
+  "light",
+  "other",
+  "playerstation",
+  "pot",
+  "rail",
+  "railpoint",
+  "refinery",
+  "sapling",
+  "seed",
+  "shippingcontainer",
+  "spawner",
+  "storage",
+  "techmanagement",
+  "teleporter",
+  "teleportmarker",
+  "terraformer",
+  "tool",
+  "tools",
+  "trap",
+  "wire",
+}
+
+const TS_COLTAG_PATH = "objects-by-colonytag" as const;
+enum TSJSON_OBJ_BY_COLTAG {
+  "agaran",
+  "alien",
+  "alpaca",
+  "alpine",
+  "ancient",
+  "apexcamp",
+  "apex",
+  "apexmansion",
+  "apexmission1",
+  "apexresearchlab",
+  "apexvillage",
+  "astro",
+  "astronaut",
+  "avianairship",
+  "avian",
+  "aviantemple",
+  "aviantomb",
+  "avianvillage",
+  "bench",
+  "bioluminescence",
+  "bone",
+  "cabin",
+  "cell",
+  "christmas",
+  "colourful",
+  "combat",
+  "commerce",
+  "cooking",
+  "copper",
+  "coral",
+  "crafting",
+  "crystalline",
+  "cultist",
+  "dark",
+  "doom",
+  "door",
+  "egyptian",
+  "electronic",
+  "evil",
+  "executive",
+  "explorer",
+  "eyepatch",
+  "farming",
+  "farm",
+  "fenerox",
+  "flesh",
+  "floranhuntinggrounds",
+  "floran",
+  "floranprison",
+  "floranvillage",
+  "fossil",
+  "foundry",
+  "frozenfire",
+  "geode",
+  "geometric",
+  "giantflower",
+  "glitchcastle",
+  "glitch",
+  "glitchsewer",
+  "glitchvillage",
+  "gnome",
+  "gothic",
+  "hive",
+  "hoard",
+  "humanbunker",
+  "human",
+  "humanprison",
+  "humanvillage",
+  "hylotl",
+  "hylotloceancity",
+  "hylotlvillage",
+  "ice",
+  "industrial",
+  "island",
+  "jungle",
+  "knowledge",
+  "light",
+  "lunarbase",
+  "mechanical",
+  "mech",
+  "medical",
+  "mining",
+  "misc",
+  "mushroompatch",
+  "musical",
+  "naturalcave",
+  "nature",
+  "neon",
+  "novakid",
+  "novakidvillage",
+  "oasis",
+  "ocean",
+  "odd",
+  "office",
+  "opulent",
+  "outdoor",
+  "outpost",
+  "pastel",
+  "peacekeeper",
+  "pretty",
+  "prism",
+  "protectorate",
+  "rails",
+  "retroscifi",
+  "rust",
+  "saloon",
+  "sandstone",
+  "science",
+  "scorched",
+  "sea",
+  "serene",
+  "sign",
+  "slime",
+  "space",
+  "spooky",
+  "spring",
+  "station",
+  "steampunk",
+  "steamspring",
+  "stonecave",
+  "storage",
+  "swamp",
+  "tar",
+  "technology",
+  "tentacle",
+  "tier1",
+  "tier2",
+  "tier3",
+  "tier4",
+  "toxic",
+  "trap",
+  "traveller",
+  "valentines",
+  "valuable",
+  "volcanic",
+  "wave",
+  "wired",
+  "wreck",
+  "zen",
+}
+
+const TS_RACE_PATH = "objects-by-race" as const;
+enum TSJSON_OBJ_BY_RACE {
+  "alpaca",
+  "ancient",
+  "apex",
+  "avian",
+  "floran",
+  "generic",
+  "glitch",
+  "human",
+  "hylotl",
+  "novakid",
+  "protectorate",
+  "tentacle"
+}
+
+const TS_TYPE_PATH = "objects-by-type" as const;
+enum TSJSON_OBJ_BY_TYPE {
+  "container",
+  "farmable",
+  "loungeable",
+  "noisy",
+  "physics",
+  "teleporter"
+}
 
 const MISCJSON_MAP = [
   "Air",                               //0 - is it ever used?
@@ -56,18 +269,6 @@ const MISCJSON_MAP = [
   "worldGenMustNotContainLiquid (ocean)"   //23 --> anchors etc
 ]; //index = tile #
 
-/*
-type TileMatJSON = {
-  "//description"? : string,
-  "//name"? : string,
-  "//shortdescription"? : string,
-  material: string
-} | {
-  "//name": string,
-  invalid: "true",
-};
-*/
-
 interface TileSubstanceJson {
   "//name"? : string,
   "//description"? : string,
@@ -91,20 +292,16 @@ interface TilesetMatJson extends TilesetJson {
     [key: string] : TileSolidJson,
   },
 }
-/*
-type TileLiquidJson = {
-  "//name" : string,
-  "//shortdescription"? : string,
-  source?: "true",
-  // liquid?: string,
-  // invalid?: true,
-} & ( {liquid: string} | {invalid: "true"} );*/
 
 interface TilesetLiquidJson extends TilesetJson {
   name: TILESETJSON_NAME.liquids,
   tileproperties:{
     [key: string] : TileLiquidJson,
   },
+}
+
+interface TilesetObjectJson extends TilesetJson {
+
 }
 
 interface TilesetMiscJson extends TilesetJson {
@@ -164,6 +361,10 @@ interface AnchorTile extends Tile {
   brush?: AnchorBrush[],
   rules?: AnchorRule[],
   connector? : true,
+}
+
+interface ObjectTile extends Tile {
+
 }
 
 interface OldTilesetSorted extends Record<string, Tile[]> {
@@ -371,7 +572,7 @@ function matchTilelayer(oldTilesCategoryArray: Tile[], newTilesetJSON: TilesetMa
         //throw new Error(`Tile brush is ${brush}`);
       }
 
-      const oldBrushTypes = [];
+      const oldBrushTypes:string[] = [];
       if(layerName === "front") {
         oldBrushTypes.push("front", "liquid");
       }
@@ -539,7 +740,6 @@ function matchAnchors(oldAnchorsArray: AnchorTile[], miscTilesetJSON: TilesetMis
     return undefined;
   }
 
-
   if (firstgid < 1) {
     return undefined;
   }
@@ -603,6 +803,34 @@ function matchAnchors(oldAnchorsArray: AnchorTile[], miscTilesetJSON: TilesetMis
   return matchMap;
 }
 
+function matchObjects() {
+ //TODO
+}
+
+function matchObjectsBiome(oldObjectsArray: ObjectTile[], miscTilesetJSON: TilesetMiscJson, firstgid: number): (LayerTileMatch|undefined)[]|void {
+  //TODO
+/*
+  "Biome Item",                        //6 --> objects
+  "Biome Tree",                        //7 --> objects
+  */
+}
+
+function matchNPCS() {
+  //TODO
+}
+
+function matchStagehands() {
+  //TODO
+}
+
+function matchWires() {
+  //TODO
+}
+
+function matchMods() {
+  //TODO
+}
+
 //merge two match maps with non-intersecting values and return new map
 function mergeLayerMatchMaps(matchMap1: LayerTileMatch[], matchMap2: (LayerTileMatch|undefined)[]): LayerTileMatch[] {
   if (matchMap1.length > 0 && matchMap1.length != matchMap2.length) {
@@ -658,8 +886,6 @@ async function matchAllTilelayers(oldTileset:OldTilesetSorted, log:boolean = fal
   // let matchMap:LayerTileMatch[] = [];
 
   for (const tileset of TILELAYER_TILESETS) {
-    // const tilesetPath = `${tilesetsDir}/${tileset}.json`;
-
     const tilesetJson = await dungeonsFS.getTileset(tileset);
 
     const firstgid = tilesetsDesc.find(
@@ -838,6 +1064,12 @@ export {
   //matchTilelayer,
   matchAllTilelayers,
   matchAnchors,
+  matchObjects,
+  matchObjectsBiome,
+  matchNPCS,
+  matchStagehands,
+  matchWires,
+  matchMods,
   //mergeLayerMatchMaps,
   slicePixelsToArray,
   convertPngToGid,

@@ -266,7 +266,7 @@ class SbDungeonChunk{
       rotation: 0,
       visible: true,
       x: pngX * 8,
-      y: (pngY + 1) * 8, //shift coordinates because Sb uses bottom-left corner as zero while normal programs use top-left
+      y: pngY * 8 + 8, //shift coordinates because Sb uses bottom-left corner as zero while normal programs use top-left, shift on Y by height of the tile
     };
     (this.#layers[layerId] as SbAnchorLayer).objects.push(newAnchor);
     this.#nextobjectid = this.#nextobjectid +1;
