@@ -1,13 +1,12 @@
 // const {promises:nodeFS} = require("fs");
 // const nodePathModule = require("path");
 // const {v4: uuidv4} = require("uuid");
-import {promises as nodeFS} from "fs";
-import * as nodePath from "path";
-import {v4 as uuidv4} from "uuid";
+// import {promises as nodeFS} from "fs";
+// import * as nodePath from "path";
+// import {v4 as uuidv4} from "uuid";
 
-// const dungeonsFS = require("./dungeonsFS");
-import * as dungeonsFS from "./dungeonsFS.js";
-import * as tilesetMatcher from "./tilesetMatch.js";
+// import * as dungeonsFS from "./dungeonsFS.js";
+// import * as tilesetMatcher from "./tilesetMatch.js";
 import {TilesetShape} from "./tilesetMatch.js";
 import { TILESETJSON_NAME } from "./tilesetMatch.js";
 import GidFlags from "./GidFlags.js";
@@ -64,41 +63,100 @@ const OBJECTLAYERS = [
   "mods"
 ] as const;
 
+interface SbObjectgroupItem {
+  height: number, //divides by 8
+  width:number,
+  id:number, //unique
+  readonly name:"",
+  properties: {},
+  readonly rotation:0,
+  readonly type:"",
+  readonly visible:true,
+  x:number, //must divide by 8!
+  y:number, //must divide by 8! 
+}
+
 interface SbObjectgroupLayer extends Layer {
   readonly draworder: "topdown", //topdown (default) or index.
   readonly type: "objectgroup",
   name: typeof OBJECTLAYERS[number],
-  objects: any[], //Array of objects.
+  objects: SbObjectgroupItem[], //Array of objects.
   readonly opacity: 1,
 }
 
-interface SbAnchor {
-    gid:number,
-    readonly height: 8,
-    id:number,
-    readonly name:"",
-    readonly rotation:0,
-    readonly type:"",
-    readonly visible:true,
-    readonly width: 8,
-    x:number, //must divide by 8!
-    y:number, //must divide by 8! 
+interface SbAnchor extends SbObjectgroupItem {
+  gid:number,
+  readonly height: 8,
+  readonly width: 8,
+  readonly properties: {},
 }
 
 /**
  * Starbound layer for anchors (connectors to adjacent dungeon chunks)
  */
 interface SbAnchorLayer extends SbObjectgroupLayer {
-  readonly name:"anchors etc",
-  readonly type: "objectgroup",
-  objects:SbAnchor[]
+  readonly name: "anchors etc",
+  objects: SbAnchor[],
 }
+
+interface SbObject extends SbObjectgroupItem {
+  gid:number, 
+  properties: {
+    parameters?: any, //treasure pools, detect areas etc
+  },
+}
+
+interface SbEntity extends SbObjectgroupItem{
+  readonly height: 8, 
+  readonly width:8,
+  properties: {
+    npc: string,
+    typeName:string,
+  },
+}
+
+interface SbWire extends SbObjectgroupItem {
+  readonly height: 0,
+  readonly width: 0,
+  polyline:[
+        {x:number, y:number}, 
+        {x:number, y:number}],
+  readonly properties: {},
+}
+
+interface SbStagehand extends SbObjectgroupItem{
+  properties: { stagehand:string },
+}
+
+const TEMPLATE = {
+  SBOBJECT: {
+    name: "",
+    rotation: 0,
+    type: "",
+    visible: true,
+  },
+  SBANCHOR: {
+    height: 8,
+    width: 8,
+    properties: {},
+  },
+  SBENTITY: {
+    height: 8,
+    width: 8,
+  },
+  SBWIRE: {
+    heigth: 0,
+    width: 0,
+    properties: {},
+  },
+} as const;
 
 /**
  * Starbound layer for generic objects (furniture etc)
  */
 interface SbObjectLayer extends SbObjectgroupLayer {
-  readonly name:"objects",
+  readonly name: "objects",
+  objects: SbObject[],
 }
 
 /**
@@ -254,6 +312,13 @@ class SbDungeonChunk{
     return false;
   }
 
+  /**
+   * Adds anchor to anchor layer
+   * @param anchorGid - Glodal Tile ID
+   * @param pngX
+   * @param pngY 
+   * @returns 
+   */
   addAnchorToObjectLayer(anchorGid: number, pngX: number, pngY: number): SbDungeonChunk {
     const layerId: number = this.#initObjectLayer("anchors etc") - 1; //layers in Sb start from 1
     const newAnchor:SbAnchor = {
@@ -264,12 +329,33 @@ class SbDungeonChunk{
       height: 8,
       width: 8,
       rotation: 0,
+      properties: {},
       visible: true,
       x: pngX * 8,
       y: pngY * 8 + 8, //shift coordinates because Sb uses bottom-left corner as zero while normal programs use top-left, shift on Y by height of the tile
     };
     (this.#layers[layerId] as SbAnchorLayer).objects.push(newAnchor);
     this.#nextobjectid = this.#nextobjectid +1;
+    return this;
+  }
+
+  addObjectToObjectLayer(objectGid: number, x: number, Y: number): SbDungeonChunk {
+    //TODO get layerID
+    const newObject: SbObject = {
+      ...TEMPLATE.SBOBJECT,
+      gid: objectGid,
+      id: this.getNextObjectId(),
+      properties: {},
+      height: -1,
+      width: -1,
+      x: -1,
+      y: -1,
+    }
+
+    //TODO write parameters
+    //TODO calc height, width
+    //(this.#layers[layerId] as SbObjectLayer).objects.push(newObject);
+    // this.#nextobjectid = this.#nextobjectid +1;
     return this;
   }
 

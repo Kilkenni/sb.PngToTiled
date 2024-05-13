@@ -1,23 +1,23 @@
 {
-    "compilerOptions": {
-      "target": "ES2021",
-      "module": "es2020",
-      "sourceMap": true,
-      "lib": ["ES2021"],
+  "compilerOptions": {
+    "target": "ES2021",
+    "module": "es2020",
+    "sourceMap": true,
+    "lib": ["ES2021"],
 
-      "strict": true,
-      "moduleDetection": "force",
-      "moduleResolution": "Bundler",
-      "allowJs": true,
-      "rootDir": "./src",
-      "resolveJsonModule": true,
-      "outDir": "./dist",
-      "noEmitOnError": true,
-      "forceConsistentCasingInFileNames": true,
-      // "emitDeclarationOnly":true,
-      // "allowImportingTsExtensions": true,
-      "noImplicitReturns": true
-    },
-    "include": ["./src/**/*.js", "./src/**/*.ts"],
-    "exclude": ["node-modules", "dist", "**/*.spec.ts", "old"]
-  }
+    "strict": true,
+    "moduleDetection": "force",
+    "moduleResolution": "node",
+    "allowJs": true,
+    "rootDir": "./src",
+    "resolveJsonModule": true,
+    "outDir": "./dist",
+    "noEmitOnError": true,
+    "forceConsistentCasingInFileNames": true,
+    // "emitDeclarationOnly":true,
+    // "allowImportingTsExtensions": true,
+    "noImplicitReturns": true
+  },
+  "include": ["./src/**/*.js", "./src/**/*.ts"],
+  "exclude": ["node-modules", "dist", "**/*.spec.ts", "old"]
+}
