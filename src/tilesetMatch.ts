@@ -3,7 +3,7 @@ import * as nodePath from "path";
 import * as zlib from "zlib";
 // import {v4 as uuidv4} from "uuid";
 
-import * as dungeonsFS from "./dungeonsFS.js";
+import * as dungeonsFS from "./dungeonsFStoTS.js";
 import GidFlags from "./GidFlags.js";
 //https://0xacab.org/bidasci/starbound-v1.4.4-source-code/-/blob/no-masters/tiled/properties.txt?ref_type=heads
 
@@ -364,13 +364,28 @@ function getSortedTileset(arrayOfOldTiles: Tile[], log: boolean = false): OldTil
 }
 
 //compares explicitly defined tilelayer-related tiles, like foreground/background, liquid etc
-function matchTilelayer(oldTilesCategoryArray: Tile[], newTilesetJSON: TilesetMatJson | TilesetLiquidJson | TilesetMiscJson, layerName: FrontOrBack, firstgid: number) : (LayerTileMatch|undefined)[]|void {
+function matchTilelayer(oldTilesCategoryArray: Tile[], newTilesetJSON: TilesetJson, layerName: FrontOrBack, firstgid: number) : (LayerTileMatch|undefined)[]|void {
   if (firstgid < 1) {
     throw new Error(`FirstGid is ${firstgid} but it can't be negative!`)
   }
   const matchMap = oldTilesCategoryArray.map((tile : Tile): undefined|LayerTileMatch => {
     const { value, comment, brush, rules }: Tile = tile;
     
+    //TODO Typeguard
+    let newTilesetJsonTyped = newTilesetJSON;
+    switch (newTilesetJSON.name) {
+      case TILESETJSON_NAME.materials:
+      case TILESETJSON_NAME.supports: {
+        newTilesetJsonTyped = newTilesetJSON as TilesetMatJson;
+        break;
+      }
+      case TILESETJSON_NAME.liquids: {
+        newTilesetJsonTyped = newTilesetJSON as TilesetLiquidJson;
+      }
+      case TILESETJSON_NAME.misc: {
+        newTilesetJsonTyped = newTilesetJSON as TilesetMiscJson;
+      }
+    }
     //if we match materials, platforms or liquids
     if(TILESETJSON_NAME.materials === newTilesetJSON.name || TILESETJSON_NAME.supports === newTilesetJSON.name || TILESETJSON_NAME.liquids === newTilesetJSON.name) {
       if (brush === undefined) {
@@ -668,6 +683,9 @@ async function matchAllTilelayers(oldTileset:OldTilesetSorted, log:boolean = fal
     // const tilesetPath = `${tilesetsDir}/${tileset}.json`;
 
     const tilesetJson = await dungeonsFS.getTileset(tileset);
+    if (tilesetJson === undefined) {
+      throw new Error(`Unable to read tileset ${tileset}`);
+    }
 
     const firstgid = tilesetsDesc.find(
       (element) =>
@@ -680,7 +698,7 @@ async function matchAllTilelayers(oldTileset:OldTilesetSorted, log:boolean = fal
 
     const partialBack = matchTilelayer(
       oldTileset.background.concat(oldTileset.specialbackground).concat(oldTileset.special),
-      tilesetJson,
+      tilesetJson as TilesetJson,
       "back",
       firstgid
     );
@@ -690,7 +708,7 @@ async function matchAllTilelayers(oldTileset:OldTilesetSorted, log:boolean = fal
     }
     
 
-    const partialFront = matchTilelayer(oldTileset.foreground.concat(oldTileset.specialforeground).concat(oldTileset.special), tilesetJson, "front", firstgid);
+    const partialFront = matchTilelayer(oldTileset.foreground.concat(oldTileset.specialforeground).concat(oldTileset.special), tilesetJson as TilesetJson, "front", firstgid);
     if(partialFront) {
     fullMatchMap.front = mergeLayerMatchMaps(fullMatchMap.front, partialFront);
     }

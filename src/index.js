@@ -1,8 +1,15 @@
-import * as dungeonsApi from "./dungeonsFS.js";
-// import * as tilesetMatcher from "./tilesetMatch";
+import * as dungeonsFS from "./dungeonsFStoTs.js";
 import * as tilesetMatcher from "./tilesetMatch.js";
 import * as dungeonAssembler from "./dungeonChunkAssembler.js";
-import {getFilename, getExtension, getFilenameFromPath, getDirContents, getDungeons, extractOldTileset, getPixels_test} from "./conversionSteps.js";
+import {
+  getFilename,
+  getExtension,
+  getFilenameFromPath,
+  getDirContents,
+  getDungeons,
+  extractOldTileset,
+  getPixels_test,
+} from "./conversionSteps.js";
 
 import getPixels from "get-pixels";
 
@@ -12,22 +19,23 @@ import yargs from "yargs";
 import { promisify } from "util";
 
 async function convertDungeon() {
-  const ioDir = await dungeonsApi.readDir();
+  const ioDir = await dungeonsFS.readDir();
   // console.table(ioDir);
   let dungeonPath = "";
   try {
-    if(ioDir) {
+    if (ioDir) {
       for (const file of ioDir) {
         if (file.isFile())
           if (getExtension(file.name) === "dungeon") {
             dungeonPath = file.path + "/" + file.name;
             // console.log(dungeonPath);
-            const dungeons = await dungeonsApi.getDungeons(dungeonPath);
+            const dungeons = await dungeonsFS.getDungeons(dungeonPath);
             console.log(
-              `Found .dungeon file: ${dungeons?.metadata?.name || "some weird shit"
+              `Found .dungeon file: ${
+                dungeons?.metadata?.name || "some weird shit"
               }`
             );
-  
+
             //converting dungeon from old SB format into new
             if (dungeons && dungeons.tiles) {
               //
@@ -62,7 +70,7 @@ async function convertDungeon() {
               );
               continue; //next file, please
             }
-            const success = await dungeonsApi.writeConvertedDungeons(dungeons);
+            const success = await dungeonsFS.writeConvertedDungeons(dungeons);
             if (success) {
               console.log(
                 `SUCCESS. ${dungeons.metadata.name} .dungeon file converted. Check I/O directory. Original file intact.`
@@ -91,22 +99,26 @@ async function writeConvertedMap_test(log = false) {
     )}`; //replace everything up to and with "input-output" with .
   }
 
-  const ioDir = await dungeonsApi.readDir();
-  for (const file of ioDir.filter((file) => getExtension(file.name) === "png")) {
+  const ioDir = await dungeonsFS.readDir();
+  for (const file of ioDir.filter(
+    (file) => getExtension(file.name) === "png"
+  )) {
     if (file.isFile()) {
       if (getExtension(file.name) === "png") {
-        if(file.name.includes("objects")) {
+        if (file.name.includes("objects")) {
           continue; //do not convert objects layers as separate files
         }
 
-        const newPath = `${dungeonsApi.ioDirPath}/${getFilename(
+        const newPath = `${dungeonsFS.ioDirPath}/${getFilename(
           file.name
         )}.json`;
         console.log(
           `Detected ${file.name}, writing ${getFilename(file.name)}.json...`
         );
 
-        const convertedChunk = new dungeonAssembler.SbDungeonChunk(newTilesetShapes);
+        const convertedChunk = new dungeonAssembler.SbDungeonChunk(
+          newTilesetShapes
+        );
         const getPixelsPromise = promisify(getPixels); //getPixels originally doesn't support promises
         const oldTileset = await extractOldTileset(log);
         const sortedOldTileset = await tilesetMatcher.getSortedTileset(
@@ -120,7 +132,7 @@ async function writeConvertedMap_test(log = false) {
         //Calculating original chunk
         try {
           pixelsArray = await getPixelsPromise(
-            `${dungeonsApi.ioDirPath}/${file.name}`
+            `${dungeonsFS.ioDirPath}/${file.name}`
           );
         } catch (error) {
           console.error(error);
@@ -130,7 +142,7 @@ async function writeConvertedMap_test(log = false) {
           console.log("  -obtained image shape: ", pixelsArray.shape); //shape = width, height, channels
         }
         //pixelsArray.data is a Uint8Array of (shape.width * shape.height * #channels) elements
-        convertedChunk.setSize(pixelsArray.shape[0], pixelsArray.shape[1]); 
+        convertedChunk.setSize(pixelsArray.shape[0], pixelsArray.shape[1]);
         const RgbaArray = tilesetMatcher.slicePixelsToArray(
           pixelsArray.data,
           ...pixelsArray.shape
@@ -156,36 +168,55 @@ async function writeConvertedMap_test(log = false) {
           return { x, y };
         }
 
-        const miscTileset = await dungeonsApi.getTileset(tilesetMatcher.TILESETJSON_NAME.misc)
-        const anchorsMap = tilesetMatcher.matchAnchors(sortedOldTileset.anchors, miscTileset, convertedChunk.getFirstGid(tilesetMatcher.TILESETJSON_NAME.misc));
+        const miscTileset = await dungeonsFS.getTileset(
+          tilesetMatcher.TILESETJSON_NAME.misc
+        );
+        const anchorsMap = tilesetMatcher.matchAnchors(
+          sortedOldTileset.anchors,
+          miscTileset,
+          convertedChunk.getFirstGid(tilesetMatcher.TILESETJSON_NAME.misc)
+        );
         for (let rgbaN = 0; rgbaN < RgbaArray.length; rgbaN++) {
           for (const match of anchorsMap) {
             if (tilesetMatcher.isRgbaEqual(RgbaArray[rgbaN], match.tileRgba)) {
               const gid = match.tileGid;
-              const { x: anchorX, y: anchorY } = getCoordsFromFlatArray(rgbaN, pixelsArray.shape[0]);
+              const { x: anchorX, y: anchorY } = getCoordsFromFlatArray(
+                rgbaN,
+                pixelsArray.shape[0]
+              );
               convertedChunk.addAnchorToObjectLayer(gid, anchorX, anchorY);
             }
           }
         }
 
         //MERGE OBJECTS TEST
-        if(ioDir) {
-          const pngObjects = ioDir.find((fileObjects) => fileObjects.isFile() && fileObjects.name.includes("-objects") && fileObjects.name.includes(getFilename(file.name)) && getExtension(fileObjects.name) === "png");
-          
-          if(pngObjects) { //if we found name-objects.png file
+        if (ioDir) {
+          const pngObjects = ioDir.find(
+            (fileObjects) =>
+              fileObjects.isFile() &&
+              fileObjects.name.includes("-objects") &&
+              fileObjects.name.includes(getFilename(file.name)) &&
+              getExtension(fileObjects.name) === "png"
+          );
+
+          if (pngObjects) {
+            //if we found name-objects.png file
             try {
               pixelsArray = await getPixelsPromise(
-                `${dungeonsApi.ioDirPath}/${pngObjects.name}`
+                `${dungeonsFS.ioDirPath}/${pngObjects.name}`
               );
             } catch (error) {
               console.error(error);
               return undefined;
             }
             if (log) {
-              console.log("  -Found objects PNG, image shape: ", pixelsArray.shape); //shape = width, height, channels
+              console.log(
+                "  -Found objects PNG, image shape: ",
+                pixelsArray.shape
+              ); //shape = width, height, channels
             }
             //pixelsArray.data is a Uint8Array of (shape.width * shape.height * #channels) elements
-            convertedChunk.setSize(pixelsArray.shape[0], pixelsArray.shape[1]); 
+            convertedChunk.setSize(pixelsArray.shape[0], pixelsArray.shape[1]);
             const RgbaArray = tilesetMatcher.slicePixelsToArray(
               pixelsArray.data,
               ...pixelsArray.shape
@@ -199,11 +230,14 @@ async function writeConvertedMap_test(log = false) {
               RgbaArray,
               fullMatchMap.front
             );
-            convertedChunk.mergeTilelayers(convertedFrontLayer, convertedBackLayer);
+            convertedChunk.mergeTilelayers(
+              convertedFrontLayer,
+              convertedBackLayer
+            );
           }
         }
 
-        const success = await dungeonsApi.writeConvertedMapJson(
+        const success = await dungeonsFS.writeConvertedMapJson(
           newPath,
           convertedChunk
         );
