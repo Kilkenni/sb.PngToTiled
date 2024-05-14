@@ -58,6 +58,7 @@ async function getDungeons(log = false) {
             dungeonPath = file.path + "/" + file.name;
             // console.log(dungeonPath);
             const dungeons = await dungeonsApi.getDungeons(dungeonPath);
+            if(dungeons?.metadata)
             console.log(
               `Found .dungeon file: ${dungeons?.metadata?.name || "some weird shit"
               }`

@@ -1,4 +1,4 @@
-import * as dungeonsFS from "./dungeonsFStoTS.js";
+import * as dungeonsFS from "./dungeonsFS.js";
 import * as tilesetMatcher from "./tilesetMatch.js";
 import * as dungeonAssembler from "./dungeonChunkAssembler.js";
 import {
@@ -230,10 +230,13 @@ async function writeConvertedMap_test(log = false) {
               RgbaArray,
               fullMatchMap.front
             );
-            if(log) {
+            if (log) {
               console.log(`  - merging tilelayers from objects.png...`);
             }
-            convertedChunk.mergeTilelayers(convertedFrontLayer, convertedBackLayer);
+            convertedChunk.mergeTilelayers(
+              convertedFrontLayer,
+              convertedBackLayer
+            );
           }
         }
 

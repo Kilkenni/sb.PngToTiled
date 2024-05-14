@@ -19,6 +19,7 @@
   },
   "devDependencies": {
     "@types/get-pixels": "^3.3.4",
+    "@types/ndarray": "^1.0.14",
     "@types/node": "^20.12.7",
     "@types/uuid": "^9.0.8",
     "nodemon": "^3.1.0",

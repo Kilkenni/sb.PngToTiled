@@ -1,34 +1,38 @@
-import {promises as nodeFileSys} from "fs";
+import {Dirent, promises as nodeFileSys} from "fs";
 import * as nodePath from "path";
-import { v4 as uuidv4 } from "uuid";
 
-// const nodeFileSys = require("fs").promises;
-// const nodePathModule = require("path");
-// const { v4: uuidv4 } = require("uuid");
 import { resolveTilesets } from "./tilesetMatch.js";
+import { SbDungeonChunk } from "./dungeonChunkAssembler.js";
+// import { TILESETJSON_NAME } from "./tilesetMatch.js";
 
-const ioDirPath = nodePath.resolve("./input-output/");
+const ioDirPath: string = nodePath.resolve("./input-output/");
 
-function getExtension(fileName) {
+interface DungeonFile extends Record<string, any> {
+  metadata: {
+    name: string,
+  }
+}
+
+function getExtension(fileName: string) {
   return fileName.substring(fileName.lastIndexOf(".") + 1);
 }
 
-async function readDir() {
+async function readDir():Promise<Dirent[]|undefined> {
   try {
     const ioDir = await nodeFileSys.readdir(ioDirPath, { withFileTypes: true });
     return ioDir;
   } catch (err) {
-    console.error(err.message);
+    console.error(err);
     return undefined;
   }
 }
 
-async function getDungeons(dungeonPath) {
+async function getDungeons(dungeonPath:string):Promise<DungeonFile|undefined> {
   try {
     const dungeonsRaw = await nodeFileSys.readFile(dungeonPath, {
       encoding: "utf-8",
     });
-    const dungeons = JSON.parse(
+    const dungeons:DungeonFile = JSON.parse(
       dungeonsRaw.replace(
         /\\"|"(?:\\"|[^"])*"|(\/\/.*|\/\*[\s\S]*?\*\/)/g,
         (m, g) => (g ? "" : m)
@@ -41,49 +45,54 @@ async function getDungeons(dungeonPath) {
   }
 }
 
-async function writeConvertedDungeons(JsonData) {
+async function writeConvertedDungeons(JsonData: Object): Promise<true|undefined> {
   const ioDir = await readDir();
   let newDungeonPath;
-  for (const file of ioDir) {
-    if (file.isFile()) newDungeonPath = undefined;
-    try {
-      if (getExtension(file.name) === "dungeon") {
-        //for every .dungeon file in I/O dir
-        newDungeonPath = ioDirPath + "/" + file.name + ".new";
+  if (ioDir) {
+    for (const file of ioDir) {
+      if (file.isFile()) {
+        newDungeonPath = undefined;
       }
-      if (newDungeonPath) {
-        try {
-          console.log(`Checking if ${newDungeonPath} is available...`);
-          const accessed = await nodeFileSys.access(
-            newDungeonPath,
-            nodeFileSys.constants.F_OK
-          );
-          console.error(
-            `Output file <${
-              file.name + ".new"
-            }> already exists. Rewriting prohibited. Remove it before running again.`
-          );
-          return undefined;
-        } catch (error) {
-          //this error appears if no .new file is found, i.e. if we can safely write
-          // console.log(error.message);
-          await nodeFileSys.writeFile(
-            newDungeonPath,
-            JSON.stringify(JsonData, null, 2),
-            "utf-8"
-          );
-          // console.log(`Writing ${file.name}.new done.`);
-          return true;
+      try {
+        if (getExtension(file.name) === "dungeon") {
+          //for every .dungeon file in I/O dir
+          newDungeonPath = ioDirPath + "/" + file.name + ".new";
         }
+        if (newDungeonPath) {
+          try {
+            console.log(`Checking if ${newDungeonPath} is available...`);
+            const accessed = await nodeFileSys.access(
+              newDungeonPath,
+              nodeFileSys.constants.F_OK
+            );
+            console.error(
+              `Output file <${
+                file.name + ".new"
+              }> already exists. Rewriting prohibited. Remove it before running again.`
+            );
+            return undefined;
+          } catch (error) {
+            //this error appears if no .new file is found, i.e. if we can safely write
+            // console.log(error.message);
+            await nodeFileSys.writeFile(
+              newDungeonPath,
+              JSON.stringify(JsonData, null, 2),
+              "utf-8"
+            );
+            // console.log(`Writing ${file.name}.new done.`);
+            return true;
+          }
+        }
+      } catch (error) {
+        console.error(error);
+        return undefined;
       }
-    } catch (error) {
-      console.error(error.message);
-      return undefined;
     }
   }
+  return undefined;
 }
 
-async function writeConvertedMapJson(newPath, SbDungeonChunk) {
+async function writeConvertedMapJson(newPath:string, SbDungeonChunk: SbDungeonChunk) {
   // const ioDir = await readDir();
   try {
     console.log(`Checking if ${newPath} is available...`);
@@ -108,12 +117,12 @@ async function writeConvertedMapJson(newPath, SbDungeonChunk) {
   }
 }
 
-async function writeTileMap(path, JsonData) {
+async function writeTileMap(path: string, JsonData: Object) {
   await nodeFileSys.writeFile(path, JSON.stringify(JsonData, null, 2), "utf-8");
   return true;
 }
 
-async function getTileset(tilesetName) {
+async function getTileset(tilesetName: string):Promise<Object|undefined> {
   const tilesetPath = `${resolveTilesets()}/${tilesetName}.json`;
   try {
     if (!tilesetPath || typeof tilesetPath != "string") {

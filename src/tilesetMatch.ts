@@ -3,7 +3,7 @@ import * as nodePath from "path";
 import * as zlib from "zlib";
 // import {v4 as uuidv4} from "uuid";
 
-import * as dungeonsFS from "./dungeonsFStoTS.js";
+import * as dungeonsFS from "./dungeonsFS.js";
 import GidFlags from "./GidFlags.js";
 //https://0xacab.org/bidasci/starbound-v1.4.4-source-code/-/blob/no-masters/tiled/properties.txt?ref_type=heads
 
