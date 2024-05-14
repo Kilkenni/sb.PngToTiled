@@ -5,6 +5,7 @@ import * as zlib from "zlib";
 
 import * as dungeonsFS from "./dungeonsFS.js";
 import GidFlags from "./GidFlags.js";
+import {TilesetShape} from "./dungeonChunkAssembler.js"
 //https://0xacab.org/bidasci/starbound-v1.4.4-source-code/-/blob/no-masters/tiled/properties.txt?ref_type=heads
 
 
@@ -23,20 +24,14 @@ interface TilesetJson extends Record<string,any> {
 //   misc: "miscellaneous",
 // } as const;
 
-enum TILESETJSON_NAME {
+enum TILESETMAT_NAME {
   materials = "materials",
   supports = "supports",
   liquids = "liquids",
   misc = "miscellaneous",
-  //objects
-  objHuge = "huge-objects",
-  objByCat = 1,
-  objByTag = 2,
-  objByRace = 3,
-  objByType = 4,
 } //as const;
 
-const TS_CAT_PATH = "objects-by-category" as const;
+const TS_CAT_PATH = "objects-by-category/" as const;
 enum TSJSON_OBJ_BY_CAT {
   "actionfigure",
   "artifact",
@@ -73,7 +68,7 @@ enum TSJSON_OBJ_BY_CAT {
   "wire",
 }
 
-const TS_COLTAG_PATH = "objects-by-colonytag" as const;
+const TS_COLTAG_PATH = "objects-by-colonytag/" as const;
 enum TSJSON_OBJ_BY_COLTAG {
   "agaran",
   "alien",
@@ -216,7 +211,7 @@ enum TSJSON_OBJ_BY_COLTAG {
   "zen",
 }
 
-const TS_RACE_PATH = "objects-by-race" as const;
+const TS_RACE_PATH = "objects-by-race/" as const;
 enum TSJSON_OBJ_BY_RACE {
   "alpaca",
   "ancient",
@@ -232,15 +227,35 @@ enum TSJSON_OBJ_BY_RACE {
   "tentacle"
 }
 
-const TS_TYPE_PATH = "objects-by-type" as const;
+const TS_TYPE_PATH = "objects-by-type/" as const;
 enum TSJSON_OBJ_BY_TYPE {
   "container",
   "farmable",
   "loungeable",
   "noisy",
   "physics",
-  "teleporter"
+  "teleporter",
 }
+
+const TILESETOBJ_NAME = {
+  objHuge: "huge-objects",
+  byCategory: {
+    pathName: TS_CAT_PATH,
+    tilesets: TSJSON_OBJ_BY_CAT,
+  },
+  byColonyTag: {
+    pathName: TS_COLTAG_PATH,
+    tilesets: TSJSON_OBJ_BY_COLTAG,
+  },
+  byRace: {
+    pathName: TS_RACE_PATH,
+    tilesets: TSJSON_OBJ_BY_RACE, 
+  },
+  byType: {
+    pathName: TS_TYPE_PATH,
+    tilesets: TSJSON_OBJ_BY_TYPE,
+  }
+} as const;
 
 const MISCJSON_MAP = [
   "Air",                               //0 - is it ever used?
@@ -287,25 +302,42 @@ interface TileSolidJson extends TileSubstanceJson {
 }
 
 interface TilesetMatJson extends TilesetJson {
-  name: TILESETJSON_NAME.materials|TILESETJSON_NAME.supports,
+  name: TILESETMAT_NAME.materials|TILESETMAT_NAME.supports,
   tileproperties:{
     [key: string] : TileSolidJson,
   },
 }
 
 interface TilesetLiquidJson extends TilesetJson {
-  name: TILESETJSON_NAME.liquids,
+  name: TILESETMAT_NAME.liquids,
   tileproperties:{
     [key: string] : TileLiquidJson,
   },
 }
 
 interface TilesetObjectJson extends TilesetJson {
-
+  //name
+  //tilecount
+  //tileproperties
+  margin: number,
+  spacing: number,
+  tileheight: number,
+  tilewidth: number,
+  tileproperties: {
+    [key: string]: {
+      "//description": string,
+      "//name": string,
+      "//shortdescription": string,
+      imagePositionX: number,
+      imagePositionY: number,
+      object: string,
+      tilesetDirection: "left" | "right";
+    },
+  }
 }
 
 interface TilesetMiscJson extends TilesetJson {
-  name: TILESETJSON_NAME.misc,
+  name: TILESETMAT_NAME.misc,
   tileproperties: {
     [key: string]: {
       "//description": string,
@@ -399,11 +431,6 @@ type FullTileMatch = {
   back: LayerTileMatch[]
 }
 
-export type TilesetShape = {
-  firstgid: number,
-  source: string,
-};
-
 //determine paths to tilesets for mapping PNG
 function resolveTilesets():string {
   const matPath = nodePath.resolve(
@@ -417,10 +444,10 @@ async function calcNewTilesetShapes(log: boolean = false): Promise<TilesetShape[
   const path: string = resolveTilesets();
   const TILESETS = [
     ///blocks
-    TILESETJSON_NAME.materials,
-    TILESETJSON_NAME.supports,
-    TILESETJSON_NAME.liquids,
-    TILESETJSON_NAME.misc,
+    TILESETMAT_NAME.materials,
+    TILESETMAT_NAME.supports,
+    TILESETMAT_NAME.liquids,
+    TILESETMAT_NAME.misc,
     //TODO other tilesets for objects
   ];
   let startGID: number = 1;
@@ -575,20 +602,20 @@ function matchTilelayer(oldTilesCategoryArray: Tile[], newTilesetJSON: TilesetJs
     //TODO Typeguard
     let newTilesetJsonTyped = newTilesetJSON;
     switch (newTilesetJSON.name) {
-      case TILESETJSON_NAME.materials:
-      case TILESETJSON_NAME.supports: {
+      case TILESETMAT_NAME.materials:
+      case TILESETMAT_NAME.supports: {
         newTilesetJsonTyped = newTilesetJSON as TilesetMatJson;
         break;
       }
-      case TILESETJSON_NAME.liquids: {
+      case TILESETMAT_NAME.liquids: {
         newTilesetJsonTyped = newTilesetJSON as TilesetLiquidJson;
       }
-      case TILESETJSON_NAME.misc: {
+      case TILESETMAT_NAME.misc: {
         newTilesetJsonTyped = newTilesetJSON as TilesetMiscJson;
       }
     }
     //if we match materials, platforms or liquids
-    if(TILESETJSON_NAME.materials === newTilesetJSON.name || TILESETJSON_NAME.supports === newTilesetJSON.name || TILESETJSON_NAME.liquids === newTilesetJSON.name) {
+    if(TILESETMAT_NAME.materials === newTilesetJSON.name || TILESETMAT_NAME.supports === newTilesetJSON.name || TILESETMAT_NAME.liquids === newTilesetJSON.name) {
       if (brush === undefined) {
         return;
         //throw new Error(`Tile brush is ${brush}`);
@@ -607,7 +634,7 @@ function matchTilelayer(oldTilesCategoryArray: Tile[], newTilesetJSON: TilesetJs
           for (const materialIndex in newTilesetJSON.tileproperties) {
             const tileDesc = newTilesetJSON.tileproperties[materialIndex] as TileSubstanceJson;
             let material;
-            if(newTilesetJSON.name === TILESETJSON_NAME.liquids) { // TS Typeguard
+            if(newTilesetJSON.name === TILESETMAT_NAME.liquids) { // TS Typeguard
               material = (tileDesc as TileLiquidJson)["liquid"];  
             }
             else {
@@ -621,7 +648,7 @@ function matchTilelayer(oldTilesCategoryArray: Tile[], newTilesetJSON: TilesetJs
       }
     }
     //Misc tileset
-    else if (newTilesetJSON.name === TILESETJSON_NAME.misc) {
+    else if (newTilesetJSON.name === TILESETMAT_NAME.misc) {
       //if we have bkg tile, but search for front layer, or VV - skip
       if(layerName === "front" && brush && brush.flat(1).includes("surfacebackground") ||
       layerName === "back" && brush && brush.flat(1).includes("surface") && !comment?.toLowerCase().includes("biome tile brush") ) {
@@ -945,6 +972,13 @@ async function matchAllTilelayers(oldTileset:OldTilesetSorted, log:boolean = fal
   return fullMatchMap;
 }
 
+async function findObjectInTileset(object: any, tilesetName: string): Promise<number | undefined> {
+  const tilesetJson = dungeonsFS.getTileset(tilesetName);
+  //TODO
+
+  return undefined;
+}
+
 function slicePixelsToArray(pixelArray: Uint8Array, width: number, height: number, channels: number): RgbaValue[] {
   const pixelCount = width * height;
   const RgbaArray = [];
@@ -967,21 +1001,6 @@ function isRgbaEqual(Rgba1:RgbaValue, Rgba2:RgbaValue):boolean {
   }
   return true;
 }
-
-/*
-function convertPngToGid(RgbaArray:RgbaValue[], tileMatchMap: TileMatch[]):Buffer {
-  const GidBuffer = Buffer.alloc(RgbaArray.length*4);
-  for(let rgbaN = 0; rgbaN < RgbaArray.length; rgbaN++) {
-    for(const conversion of tileMatchMap) {
-      if(isRgbaEqual(RgbaArray[rgbaN], conversion.tileRgba)) {
-        const gid = conversion.tileGid;
-        GidBuffer.writeUInt32LE(gid, rgbaN*4);
-      }
-    }
-  }
-  return GidBuffer;
-}
-*/
 
 function convertPngToGid(RgbaArray:RgbaValue[], tileMatchMap: LayerTileMatch[]):number[] {
   const layerGids = new Array(RgbaArray.length).fill(0);
@@ -1099,7 +1118,9 @@ export {
   slicePixelsToArray,
   convertPngToGid,
   zlibTest,
-  TILESETJSON_NAME,
+  TILESETMAT_NAME,
   TilesetJson,
+  TILESETOBJ_NAME,
+  findObjectInTileset,
   };
   

@@ -10,7 +10,7 @@
 import { getTileset, getTilesetPath } from "./dungeonsFS.js";
 import { TilesetJson } from "./tilesetMatch.js";
 import { getFilenameFromPath } from "./conversionSteps.js";
-import { TILESETJSON_NAME } from "./tilesetMatch.js";
+import { TILESETMAT_NAME } from "./tilesetMatch.js";
 import GidFlags from "./GidFlags.js";
 
 //Tiled JSON format reference: https://doc.mapeditor.org/en/stable/reference/json-map-format/
@@ -264,9 +264,9 @@ class SbDungeonChunk{
       throw new Error(`Cannot merge Tilelayers: size mismatch!`)
     }
 
-    const miscFirstGid = this.getFirstGid(TILESETJSON_NAME.misc);
+    const miscFirstGid = this.getFirstGid(TILESETMAT_NAME.misc);
     if(!miscFirstGid) {
-      throw new Error(`Cannot find ${TILESETJSON_NAME.misc} tileset in chunk tileset shapes`);
+      throw new Error(`Cannot find ${TILESETMAT_NAME.misc} tileset in chunk tileset shapes`);
     }
     const magicPinkBrushGid = GidFlags.apply(miscFirstGid + 1, false, true, false); //MPP is 2nd in tileset + Horiz flip
 
