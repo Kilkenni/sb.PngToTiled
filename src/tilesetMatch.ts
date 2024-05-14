@@ -413,8 +413,8 @@ function resolveTilesets():string {
   return pathToTileset;
 }
 
-async function calcNewTilesetShapes(log:boolean = false):Promise<TilesetShape[]> {
-  const path:string = resolveTilesets();
+async function calcNewTilesetShapes(log: boolean = false): Promise<TilesetShape[]> {
+  const path: string = resolveTilesets();
   const TILESETS = [
     ///blocks
     TILESETJSON_NAME.materials,
@@ -423,16 +423,16 @@ async function calcNewTilesetShapes(log:boolean = false):Promise<TilesetShape[]>
     TILESETJSON_NAME.misc,
     //TODO other tilesets for objects
   ];
-  let startGID:number = 1;
-  const tilesetsArray:TilesetShape[] = [];
+  let startGID: number = 1;
+  const tilesetsArray: TilesetShape[] = [];
   for (const tilesetName of TILESETS) {
-    const currentTsPath:string = `${path}/${tilesetName}.json`;
+    const currentTsPath: string = `${path}/${tilesetName}.json`;
 
-    const tilesetShape:TilesetShape = {
+    const tilesetShape: TilesetShape = {
       firstgid: startGID,
       source: currentTsPath// `${currentTsPath.replace(/\//g, "\/")}`, //RegEx is useless since JSON.stringify either loses backslash or doubles it
     };
-    const currentTileset:TilesetJson = JSON.parse(
+    const currentTileset: TilesetJson = JSON.parse(
       (await nodeFS.readFile(currentTsPath)).toString("utf8")
     );
     // console.log(currentTileset)
@@ -1100,5 +1100,6 @@ export {
   convertPngToGid,
   zlibTest,
   TILESETJSON_NAME,
+  TilesetJson,
   };
   

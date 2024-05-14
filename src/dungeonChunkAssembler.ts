@@ -7,11 +7,18 @@
 
 // import * as dungeonsFS from "./dungeonsFS.js";
 // import * as tilesetMatcher from "./tilesetMatch.js";
-import {TilesetShape} from "./tilesetMatch.js";
+import { getTileset, getTilesetPath } from "./dungeonsFS.js";
+import { TilesetJson } from "./tilesetMatch.js";
+import { getFilenameFromPath } from "./conversionSteps.js";
 import { TILESETJSON_NAME } from "./tilesetMatch.js";
 import GidFlags from "./GidFlags.js";
 
 //Tiled JSON format reference: https://doc.mapeditor.org/en/stable/reference/json-map-format/
+
+type TilesetShape = {
+  firstgid: number,
+  source: string,
+};
 
 interface Layer {
   chunks?: [any],
@@ -186,6 +193,28 @@ class SbDungeonChunk{
   
   constructor(tilesetShapes:TilesetShape[]) {
     this.#tilesets = tilesetShapes;
+  }
+
+  async #getFirstFreeGid(): Promise<number> {
+    if (this.#tilesets.length === 0) {
+      return 1;
+    }
+    const lastTilesetShape: TilesetShape = this.#tilesets[this.#tilesets.length - 1];
+    
+    const lastTileset = await getTileset(getFilenameFromPath(lastTilesetShape.source));
+    if (lastTileset === undefined) {
+      throw new Error(`Unable to resolve tileset ${lastTilesetShape.source}`);
+    }
+    return lastTilesetShape.firstgid + lastTileset.tilecount;
+  }
+
+  async addTilesetShape(tileset: TilesetJson, log = false): Promise<SbDungeonChunk> {
+    const newShape: TilesetShape = {
+      firstgid: await this.#getFirstFreeGid(),
+      source: getTilesetPath(tileset.name),
+    }
+    this.#tilesets.push(newShape);
+    return this;
   }
 
   addUncompressedTileLayer(layerData:number[],layerName:"front"|"back", layerWidth: number, layerHeight: number):SbDungeonChunk {
@@ -394,6 +423,7 @@ class SbDungeonChunk{
 
 export {
   SbDungeonChunk,
+  TilesetShape,
 };
 
 
