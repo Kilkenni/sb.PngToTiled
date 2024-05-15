@@ -169,12 +169,12 @@ async function writeConvertedMap_test(log = false) {
         }
 
         const miscTileset = await dungeonsFS.getTileset(
-          tilesetMatcher.TILESETJSON_NAME.misc
+          tilesetMatcher.TILESETMAT_NAME.misc
         );
         const anchorsMap = tilesetMatcher.matchAnchors(
           sortedOldTileset.anchors,
           miscTileset,
-          convertedChunk.getFirstGid(tilesetMatcher.TILESETJSON_NAME.misc)
+          convertedChunk.getFirstGid(tilesetMatcher.TILESETMAT_NAME.misc)
         );
         for (let rgbaN = 0; rgbaN < RgbaArray.length; rgbaN++) {
           for (const match of anchorsMap) {

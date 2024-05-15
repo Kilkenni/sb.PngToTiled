@@ -6,6 +6,7 @@ import * as zlib from "zlib";
 import * as dungeonsFS from "./dungeonsFS.js";
 import GidFlags from "./GidFlags.js";
 import {TilesetShape} from "./dungeonChunkAssembler.js"
+import { join } from "path";
 //https://0xacab.org/bidasci/starbound-v1.4.4-source-code/-/blob/no-masters/tiled/properties.txt?ref_type=heads
 
 
@@ -31,230 +32,211 @@ enum TILESETMAT_NAME {
   misc = "miscellaneous",
 } //as const;
 
-const TS_CAT_PATH = "objects-by-category/" as const;
-enum TSJSON_OBJ_BY_CAT {
-  "actionfigure",
-  "artifact",
-  "bug",
-  "breakable",
-  "crafting",
-  "decorative",
-  "door",
-  "farmable",
-  "farmbeastegg",
-  "fridgestorage",
-  "furniture",
-  "genboss",
-  "generic",
-  "light",
-  "other",
-  "playerstation",
-  "pot",
-  "rail",
-  "railpoint",
-  "refinery",
-  "sapling",
-  "seed",
-  "shippingcontainer",
-  "spawner",
-  "storage",
-  "techmanagement",
-  "teleporter",
-  "teleportmarker",
-  "terraformer",
-  "tool",
-  "tools",
-  "trap",
-  "wire",
-}
-
-const TS_COLTAG_PATH = "objects-by-colonytag/" as const;
-enum TSJSON_OBJ_BY_COLTAG {
-  "agaran",
-  "alien",
-  "alpaca",
-  "alpine",
-  "ancient",
-  "apexcamp",
-  "apex",
-  "apexmansion",
-  "apexmission1",
-  "apexresearchlab",
-  "apexvillage",
-  "astro",
-  "astronaut",
-  "avianairship",
-  "avian",
-  "aviantemple",
-  "aviantomb",
-  "avianvillage",
-  "bench",
-  "bioluminescence",
-  "bone",
-  "cabin",
-  "cell",
-  "christmas",
-  "colourful",
-  "combat",
-  "commerce",
-  "cooking",
-  "copper",
-  "coral",
-  "crafting",
-  "crystalline",
-  "cultist",
-  "dark",
-  "doom",
-  "door",
-  "egyptian",
-  "electronic",
-  "evil",
-  "executive",
-  "explorer",
-  "eyepatch",
-  "farming",
-  "farm",
-  "fenerox",
-  "flesh",
-  "floranhuntinggrounds",
-  "floran",
-  "floranprison",
-  "floranvillage",
-  "fossil",
-  "foundry",
-  "frozenfire",
-  "geode",
-  "geometric",
-  "giantflower",
-  "glitchcastle",
-  "glitch",
-  "glitchsewer",
-  "glitchvillage",
-  "gnome",
-  "gothic",
-  "hive",
-  "hoard",
-  "humanbunker",
-  "human",
-  "humanprison",
-  "humanvillage",
-  "hylotl",
-  "hylotloceancity",
-  "hylotlvillage",
-  "ice",
-  "industrial",
-  "island",
-  "jungle",
-  "knowledge",
-  "light",
-  "lunarbase",
-  "mechanical",
-  "mech",
-  "medical",
-  "mining",
-  "misc",
-  "mushroompatch",
-  "musical",
-  "naturalcave",
-  "nature",
-  "neon",
-  "novakid",
-  "novakidvillage",
-  "oasis",
-  "ocean",
-  "odd",
-  "office",
-  "opulent",
-  "outdoor",
-  "outpost",
-  "pastel",
-  "peacekeeper",
-  "pretty",
-  "prism",
-  "protectorate",
-  "rails",
-  "retroscifi",
-  "rust",
-  "saloon",
-  "sandstone",
-  "science",
-  "scorched",
-  "sea",
-  "serene",
-  "sign",
-  "slime",
-  "space",
-  "spooky",
-  "spring",
-  "station",
-  "steampunk",
-  "steamspring",
-  "stonecave",
-  "storage",
-  "swamp",
-  "tar",
-  "technology",
-  "tentacle",
-  "tier1",
-  "tier2",
-  "tier3",
-  "tier4",
-  "toxic",
-  "trap",
-  "traveller",
-  "valentines",
-  "valuable",
-  "volcanic",
-  "wave",
-  "wired",
-  "wreck",
-  "zen",
-}
-
-const TS_RACE_PATH = "objects-by-race/" as const;
-enum TSJSON_OBJ_BY_RACE {
-  "alpaca",
-  "ancient",
-  "apex",
-  "avian",
-  "floran",
-  "generic",
-  "glitch",
-  "human",
-  "hylotl",
-  "novakid",
-  "protectorate",
-  "tentacle"
-}
-
-const TS_TYPE_PATH = "objects-by-type/" as const;
-enum TSJSON_OBJ_BY_TYPE {
-  "container",
-  "farmable",
-  "loungeable",
-  "noisy",
-  "physics",
-  "teleporter",
-}
+const TSJSON_OBJ_BY_CAT = [
+  "objects-by-category/actionfigure",
+  "objects-by-category/artifact",
+  "objects-by-category/bug",
+  "objects-by-category/breakable",
+  "objects-by-category/crafting",
+  "objects-by-category/decorative",
+  "objects-by-category/door",
+  "objects-by-category/farmable",
+  "objects-by-category/farmbeastegg",
+  "objects-by-category/fridgestorage",
+  "objects-by-category/furniture",
+  "objects-by-category/genboss",
+  "objects-by-category/generic",
+  "objects-by-category/light",
+  "objects-by-category/other",
+  "objects-by-category/playerstation",
+  "objects-by-category/pot",
+  "objects-by-category/rail",
+  "objects-by-category/railpoint",
+  "objects-by-category/refinery",
+  "objects-by-category/sapling",
+  "objects-by-category/seed",
+  "objects-by-category/shippingcontainer",
+  "objects-by-category/spawner",
+  "objects-by-category/storage",
+  "objects-by-category/techmanagement",
+  "objects-by-category/teleporter",
+  "objects-by-category/teleportmarker",
+  "objects-by-category/terraformer",
+  "objects-by-category/tool",
+  "objects-by-category/tools",
+  "objects-by-category/trap",
+  "objects-by-category/wire",
+] as const;
+const TSJSON_OBJ_BY_COLTAG = [
+  "objects-by-colonytag/agaran",
+  "objects-by-colonytag/alien",
+  "objects-by-colonytag/alpaca",
+  "objects-by-colonytag/alpine",
+  "objects-by-colonytag/ancient",
+  "objects-by-colonytag/apexcamp",
+  "objects-by-colonytag/apex",
+  "objects-by-colonytag/apexmansion",
+  "objects-by-colonytag/apexmission1",
+  "objects-by-colonytag/apexresearchlab",
+  "objects-by-colonytag/apexvillage",
+  "objects-by-colonytag/astro",
+  "objects-by-colonytag/astronaut",
+  "objects-by-colonytag/avianairship",
+  "objects-by-colonytag/avian",
+  "objects-by-colonytag/aviantemple",
+  "objects-by-colonytag/aviantomb",
+  "objects-by-colonytag/avianvillage",
+  "objects-by-colonytag/bench",
+  "objects-by-colonytag/bioluminescence",
+  "objects-by-colonytag/bone",
+  "objects-by-colonytag/cabin",
+  "objects-by-colonytag/cell",
+  "objects-by-colonytag/christmas",
+  "objects-by-colonytag/colourful",
+  "objects-by-colonytag/combat",
+  "objects-by-colonytag/commerce",
+  "objects-by-colonytag/cooking",
+  "objects-by-colonytag/copper",
+  "objects-by-colonytag/coral",
+  "objects-by-colonytag/crafting",
+  "objects-by-colonytag/crystalline",
+  "objects-by-colonytag/cultist",
+  "objects-by-colonytag/dark",
+  "objects-by-colonytag/doom",
+  "objects-by-colonytag/door",
+  "objects-by-colonytag/egyptian",
+  "objects-by-colonytag/electronic",
+  "objects-by-colonytag/evil",
+  "objects-by-colonytag/executive",
+  "objects-by-colonytag/explorer",
+  "objects-by-colonytag/eyepatch",
+  "objects-by-colonytag/farming",
+  "objects-by-colonytag/farm",
+  "objects-by-colonytag/fenerox",
+  "objects-by-colonytag/flesh",
+  "objects-by-colonytag/floranhuntinggrounds",
+  "objects-by-colonytag/floran",
+  "objects-by-colonytag/floranprison",
+  "objects-by-colonytag/floranvillage",
+  "objects-by-colonytag/fossil",
+  "objects-by-colonytag/foundry",
+  "objects-by-colonytag/frozenfire",
+  "objects-by-colonytag/geode",
+  "objects-by-colonytag/geometric",
+  "objects-by-colonytag/giantflower",
+  "objects-by-colonytag/glitchcastle",
+  "objects-by-colonytag/glitch",
+  "objects-by-colonytag/glitchsewer",
+  "objects-by-colonytag/glitchvillage",
+  "objects-by-colonytag/gnome",
+  "objects-by-colonytag/gothic",
+  "objects-by-colonytag/hive",
+  "objects-by-colonytag/hoard",
+  "objects-by-colonytag/humanbunker",
+  "objects-by-colonytag/human",
+  "objects-by-colonytag/humanprison",
+  "objects-by-colonytag/humanvillage",
+  "objects-by-colonytag/hylotl",
+  "objects-by-colonytag/hylotloceancity",
+  "objects-by-colonytag/hylotlvillage",
+  "objects-by-colonytag/ice",
+  "objects-by-colonytag/industrial",
+  "objects-by-colonytag/island",
+  "objects-by-colonytag/jungle",
+  "objects-by-colonytag/knowledge",
+  "objects-by-colonytag/light",
+  "objects-by-colonytag/lunarbase",
+  "objects-by-colonytag/mechanical",
+  "objects-by-colonytag/mech",
+  "objects-by-colonytag/medical",
+  "objects-by-colonytag/mining",
+  "objects-by-colonytag/misc",
+  "objects-by-colonytag/mushroompatch",
+  "objects-by-colonytag/musical",
+  "objects-by-colonytag/naturalcave",
+  "objects-by-colonytag/nature",
+  "objects-by-colonytag/neon",
+  "objects-by-colonytag/novakid",
+  "objects-by-colonytag/novakidvillage",
+  "objects-by-colonytag/oasis",
+  "objects-by-colonytag/ocean",
+  "objects-by-colonytag/odd",
+  "objects-by-colonytag/office",
+  "objects-by-colonytag/opulent",
+  "objects-by-colonytag/outdoor",
+  "objects-by-colonytag/outpost",
+  "objects-by-colonytag/pastel",
+  "objects-by-colonytag/peacekeeper",
+  "objects-by-colonytag/pretty",
+  "objects-by-colonytag/prism",
+  "objects-by-colonytag/protectorate",
+  "objects-by-colonytag/rails",
+  "objects-by-colonytag/retroscifi",
+  "objects-by-colonytag/rust",
+  "objects-by-colonytag/saloon",
+  "objects-by-colonytag/sandstone",
+  "objects-by-colonytag/science",
+  "objects-by-colonytag/scorched",
+  "objects-by-colonytag/sea",
+  "objects-by-colonytag/serene",
+  "objects-by-colonytag/sign",
+  "objects-by-colonytag/slime",
+  "objects-by-colonytag/space",
+  "objects-by-colonytag/spooky",
+  "objects-by-colonytag/spring",
+  "objects-by-colonytag/station",
+  "objects-by-colonytag/steampunk",
+  "objects-by-colonytag/steamspring",
+  "objects-by-colonytag/stonecave",
+  "objects-by-colonytag/storage",
+  "objects-by-colonytag/swamp",
+  "objects-by-colonytag/tar",
+  "objects-by-colonytag/technology",
+  "objects-by-colonytag/tentacle",
+  "objects-by-colonytag/tier1",
+  "objects-by-colonytag/tier2",
+  "objects-by-colonytag/tier3",
+  "objects-by-colonytag/tier4",
+  "objects-by-colonytag/toxic",
+  "objects-by-colonytag/trap",
+  "objects-by-colonytag/traveller",
+  "objects-by-colonytag/valentines",
+  "objects-by-colonytag/valuable",
+  "objects-by-colonytag/volcanic",
+  "objects-by-colonytag/wave",
+  "objects-by-colonytag/wired",
+  "objects-by-colonytag/wreck",
+  "objects-by-colonytag/zen",
+] as const;
+const TSJSON_OBJ_BY_RACE = [
+  "objects-by-race/alpaca",
+  "objects-by-race/ancient",
+  "objects-by-race/apex",
+  "objects-by-race/avian",
+  "objects-by-race/floran",
+  "objects-by-race/generic",
+  "objects-by-race/glitch",
+  "objects-by-race/human",
+  "objects-by-race/hylotl",
+  "objects-by-race/novakid",
+  "objects-by-race/protectorate",
+  "objects-by-race/tentacle"
+] as const;
+const TSJSON_OBJ_BY_TYPE = [
+  "objects-by-type/container",
+  "objects-by-type/farmable",
+  "objects-by-type/loungeable",
+  "objects-by-type/noisy",
+  "objects-by-type/physics",
+  "objects-by-type/teleporter",
+] as const;
 
 const TILESETOBJ_NAME = {
   objHuge: "huge-objects",
-  byCategory: {
-    pathName: TS_CAT_PATH,
-    tilesets: TSJSON_OBJ_BY_CAT,
-  },
-  byColonyTag: {
-    pathName: TS_COLTAG_PATH,
-    tilesets: TSJSON_OBJ_BY_COLTAG,
-  },
-  byRace: {
-    pathName: TS_RACE_PATH,
-    tilesets: TSJSON_OBJ_BY_RACE, 
-  },
-  byType: {
-    pathName: TS_TYPE_PATH,
-    tilesets: TSJSON_OBJ_BY_TYPE,
-  }
+  byCategory: TSJSON_OBJ_BY_CAT,
+  byColonyTag: TSJSON_OBJ_BY_COLTAG,
+  byRace: TSJSON_OBJ_BY_RACE, 
+  byType: TSJSON_OBJ_BY_TYPE,
 } as const;
 
 const MISCJSON_MAP = [
@@ -360,13 +342,6 @@ interface TilesetMiscJson extends TilesetJson {
   }
 }
 
-interface TilesetObjectsJson extends TilesetJson {
-  tilecount: number,
-  tileproperties:{
-    [key: string] : any,
-  }
-}
-
 type AnchorBrush = ["clear"|"surface"|"playerstart"];
 
 type FrontOrBack = "front" | "back";
@@ -376,7 +351,7 @@ type Brush = ["clear"] |
 ["liquid", string] |
 [FrontOrBack, string, string?] |
 AnchorBrush |
-["biometree"|"biomeitems"|"playerstart"|"wire"|"stagehand"|"npc"|"object", any?];
+["biometree" | "biomeitems" | "playerstart" | "wire" | "stagehand" | "npc" | "object", any?, {}?];
 
 type RgbaValue = [number, number, number, number];
 
@@ -402,8 +377,18 @@ interface AnchorTile extends Tile {
   connector? : true,
 }
 
-interface ObjectTile extends Tile {
+type ObjectBrush = ["clear"] |
+["object",
+  string,
+  {
+  direction?: "left"|"right",
+  parameters?: {}
+  },
+];
 
+interface ObjectTile extends Tile {
+  //comment can include "facing left/right"
+  brush:ObjectBrush[],
 }
 
 interface OldTilesetSorted extends Record<string, Tile[]> {
@@ -425,6 +410,17 @@ type LayerTileMatch = {
   tileRgba: RgbaValue,
   tileGid: number
 };
+
+/**
+ * TileId is not Gid but local tileset ID! Requires transforming into Gid before inserting into chunk!
+ */
+type ObjectTileMatch = {
+  tileName: string,
+  tileRgba: RgbaValue,
+  tileId: number, //Not Gid! Needs conversion to Gid!
+  tileset: string,
+  flipHorizontal?: boolean,
+}
 
 type FullTileMatch = {
   front: LayerTileMatch[],
@@ -766,7 +762,7 @@ const MISCJSON_MAP = [
     return matchMap;
 }
 
-function matchAnchors(oldAnchorsArray: AnchorTile[], miscTilesetJSON: TilesetMiscJson, firstgid: number): (LayerTileMatch|undefined)[]|void {
+function matchAnchors(oldAnchorsArray: AnchorTile[], miscTilesetJSON: TilesetMiscJson, firstGid: number): (LayerTileMatch|undefined)[]|void {
   
   function ruleGetName(rule: typeof ANCHOR_RULES[number]): string {
     let ruleName: string = rule;
@@ -789,7 +785,7 @@ function matchAnchors(oldAnchorsArray: AnchorTile[], miscTilesetJSON: TilesetMis
     return undefined;
   }
 
-  if (firstgid < 1) {
+  if (firstGid < 1) {
     return undefined;
   }
   const matchMap = oldAnchorsArray.map((tile: AnchorTile): LayerTileMatch|undefined => {
@@ -812,23 +808,23 @@ function matchAnchors(oldAnchorsArray: AnchorTile[], miscTilesetJSON: TilesetMis
     if(brush){
       for(const brushlayer of brush) {
         if(brushlayer.includes("playerstart")) {
-          return {tileName: "Player Start", tileRgba: value, tileGid: (3 + firstgid )};
+          return {tileName: "Player Start", tileRgba: value, tileGid: (3 + firstGid )};
         }
       }
     }
 
     if(connector) {
       if(comment?.includes("entrance coupler")) {
-        return {tileName: comment + " -> red", tileRgba: value, tileGid: (12 + firstgid )};
+        return {tileName: comment + " -> red", tileRgba: value, tileGid: (12 + firstGid )};
       };
       if(comment?.includes("alternate coupler #2")) {
-        return {tileName: comment + " -> yellow", tileRgba: value, tileGid: (13 + firstgid )};
+        return {tileName: comment + " -> yellow", tileRgba: value, tileGid: (13 + firstGid )};
       };
       if(comment?.includes("alternate coupler #3")) {
-        return {tileName: comment + " -> green", tileRgba: value, tileGid: (14 + firstgid )};
+        return {tileName: comment + " -> green", tileRgba: value, tileGid: (14 + firstGid )};
       }
       else {
-        return {tileName: comment + " -> blue", tileRgba: value, tileGid: (15 + firstgid )};
+        return {tileName: comment + " -> blue", tileRgba: value, tileGid: (15 + firstGid )};
       }
     }
 
@@ -839,7 +835,7 @@ function matchAnchors(oldAnchorsArray: AnchorTile[], miscTilesetJSON: TilesetMis
             for (const materialIndex in miscTilesetJSON.tileproperties) {
               const material = miscTilesetJSON.tileproperties[materialIndex];
               if (Object.keys(material).includes(ruleGetName(rule)) && material.layer === ruleIsBackLayer(rule)) { 
-                return {tileName: material["//shortdescription"], tileRgba: value, tileGid: (parseInt(materialIndex) + firstgid )};
+                return {tileName: material["//shortdescription"], tileRgba: value, tileGid: (parseInt(materialIndex) + firstGid )};
               }            
             }  
           }     
@@ -852,16 +848,71 @@ function matchAnchors(oldAnchorsArray: AnchorTile[], miscTilesetJSON: TilesetMis
   return matchMap;
 }
 
-function matchObjects() {
- //TODO
+function matchObjects(oldObjectsArray: ObjectTile[], tileset: TilesetObjectJson, partialMatchMap: (ObjectTileMatch|undefined)[]): (ObjectTileMatch|undefined)[] {
+  if (partialMatchMap && partialMatchMap.length !== oldObjectsArray.length) {
+    throw new Error(`Partial object matchMap has a length of ${partialMatchMap.length} but be equal to the list of objects, which has ${oldObjectsArray.length}`);
+  }
+  const matchMap = [...partialMatchMap];
+  for (let objectIndex = 0; objectIndex < oldObjectsArray.length; objectIndex++) {
+    if (JSON.stringify(oldObjectsArray[objectIndex].value) === JSON.stringify(matchMap[objectIndex]?.tileRgba)) {
+      //we already have a match for this element, skip it
+      continue;
+    }
+    else { 
+      const { brush:brushArray, comment, value }: ObjectTile = oldObjectsArray[objectIndex];
+      for (const brush of brushArray) {
+        const [brushType, objectName, stats] = brush;
+        if (JSON.stringify(brushType) === "clear") {
+          continue; //skip empty brush
+        }
+        else {
+          if (brushType !== "object") {
+            throw new Error(`Found non-object item at ${objectIndex} in Object Array: ${oldObjectsArray[objectIndex]}`);
+          }
+          else {
+            for (const objIndex in tileset.tileproperties) {
+              const obj = tileset.tileproperties[objIndex];
+              if (obj.object === objectName) { 
+                const objMatch: ObjectTileMatch = { tileName: comment ? comment : objectName, tileRgba: value, tileId: parseInt(objIndex), tileset: tileset.name };
+                matchMap[objectIndex] = objMatch;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  return matchMap;
 }
 
-function matchObjectsBiome(oldObjectsArray: ObjectTile[], miscTilesetJSON: TilesetMiscJson, firstgid: number): (LayerTileMatch|undefined)[]|void {
-  //TODO
-/*
-  "Biome Item",                        //6 --> objects
-  "Biome Tree",                        //7 --> objects
-  */
+function matchObjectsBiome(oldObjectsArray: ObjectTile[], miscTilesetJSON: TilesetMiscJson, partialMatchMap: (ObjectTileMatch | undefined)[]): (ObjectTileMatch | undefined)[] {
+  const newMatchMap = [...partialMatchMap];
+  if (partialMatchMap && partialMatchMap.length !== oldObjectsArray.length) {
+    throw new Error(`Partial object matchMap has a length of ${partialMatchMap.length} but be equal to the list of objects, which has ${oldObjectsArray.length}`);
+  }
+  for (let objectIndex = 0; objectIndex < oldObjectsArray.length; objectIndex++) {
+    if (JSON.stringify(oldObjectsArray[objectIndex].value) === JSON.stringify(newMatchMap[objectIndex]?.tileRgba)) {
+      //we already have a match for this element, skip it
+      continue;
+    }
+    else {
+      /*
+      "Biome Item",                        //6 --> objects
+      "Biome Tree",                        //7 --> objects
+      */
+      const { brush, comment, value } = oldObjectsArray[objectIndex];
+      if (brush.flat().includes("biomeitems")) {
+        newMatchMap[objectIndex] = { tileName: comment ? comment : "Biome Flora", tileRgba: value, tileId: 6, tileset: miscTilesetJSON.name };
+      }
+      else if (brush.flat().includes("biometree")) {
+        newMatchMap[objectIndex] = {tileName: comment?comment:"Biome Tree", tileRgba: value, tileId: 7, tileset: miscTilesetJSON.name};
+      }
+      else {
+        continue;
+      }
+    }
+  }
+  return newMatchMap;
 }
 
 function matchNPCS() {
@@ -970,13 +1021,6 @@ async function matchAllTilelayers(oldTileset:OldTilesetSorted, log:boolean = fal
   // fullMatchMap.back = matchMap;
 
   return fullMatchMap;
-}
-
-async function findObjectInTileset(object: any, tilesetName: string): Promise<number | undefined> {
-  const tilesetJson = dungeonsFS.getTileset(tilesetName);
-  //TODO
-
-  return undefined;
 }
 
 function slicePixelsToArray(pixelArray: Uint8Array, width: number, height: number, channels: number): RgbaValue[] {
@@ -1121,6 +1165,11 @@ export {
   TILESETMAT_NAME,
   TilesetJson,
   TILESETOBJ_NAME,
-  findObjectInTileset,
-  };
+};
+export type {
+  ObjectTile as ObjectTileType,
+  ObjectTileMatch as ObjectTileMatchType,
+  TilesetObjectJson as TilesetObjectJsonType,
+  TilesetMiscJson as TilesetMiscJsonType,
+}
   

@@ -8,9 +8,10 @@
 // import * as dungeonsFS from "./dungeonsFS.js";
 // import * as tilesetMatcher from "./tilesetMatch.js";
 import { getTileset, getTilesetPath } from "./dungeonsFS.js";
-import { TilesetJson } from "./tilesetMatch.js";
+import { TilesetJson, matchObjects, matchObjectsBiome } from "./tilesetMatch.js";
 import { getFilenameFromPath } from "./conversionSteps.js";
-import { TILESETMAT_NAME } from "./tilesetMatch.js";
+import { TILESETMAT_NAME, } from "./tilesetMatch.js";
+import * as dungeonsFS from "./dungeonsFS.js";
 import GidFlags from "./GidFlags.js";
 
 //Tiled JSON format reference: https://doc.mapeditor.org/en/stable/reference/json-map-format/
@@ -343,7 +344,7 @@ class SbDungeonChunk{
 
   /**
    * Adds anchor to anchor layer
-   * @param anchorGid - Glodal Tile ID
+   * @param anchorGid - Global Tile ID
    * @param pngX
    * @param pngY 
    * @returns 
@@ -368,7 +369,7 @@ class SbDungeonChunk{
     return this;
   }
 
-  addObjectToObjectLayer(objectGid: number, x: number, Y: number): SbDungeonChunk {
+  addObjectToObjectLayer(objectGid: number, x: number, y: number): SbDungeonChunk {
     //TODO get layerID
     const newObject: SbObject = {
       ...TEMPLATE.SBOBJECT,
