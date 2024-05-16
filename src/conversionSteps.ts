@@ -1,7 +1,7 @@
 import * as dungeonsFS from "./dungeonsFS.js";
 // import * as tilesetMatcher from "./tilesetMatch.js";
 import * as tilesetMatcher from "./tilesetMatch.js";
-import {ObjectTileType, ObjectTileMatchType, TilesetObjectJsonType, TilesetMiscJsonType } from "./tilesetMatch.js";
+import {ObjectTileType, ObjectTileMatchType, TilesetObjectJsonType, TilesetMiscJsonType, OldTilesetSortedType } from "./tilesetMatch.js";
 import {SbDungeonChunk} from "./dungeonChunkAssembler.js";
 import { promisify } from "util";
 import { NdArray } from "ndarray";
@@ -169,6 +169,11 @@ type FullObjectMap = {
   tilesets: string[],
 }
 
+/**
+ * 
+ * @param arrayOfObjects Builds matchMap of objects
+ * @returns matchMap, number of undefined tiles, list of names of used tilesets
+ */
 async function matchObjects(arrayOfObjects: ObjectTileType[]): Promise<FullObjectMap> {
   function calcUndefined(matchArray: (ObjectTileMatchType | undefined)[]): number {
     let numOfUndefined = 0;
@@ -215,5 +220,6 @@ export {
   extractOldTileset,
   getPixels_test,
   matchObjects,
+  FullObjectMap,
 };
 

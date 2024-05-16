@@ -6,7 +6,6 @@ import * as zlib from "zlib";
 import * as dungeonsFS from "./dungeonsFS.js";
 import GidFlags from "./GidFlags.js";
 import {TilesetShape} from "./dungeonChunkAssembler.js"
-import { join } from "path";
 //https://0xacab.org/bidasci/starbound-v1.4.4-source-code/-/blob/no-masters/tiled/properties.txt?ref_type=heads
 
 
@@ -297,6 +296,16 @@ interface TilesetLiquidJson extends TilesetJson {
   },
 }
 
+interface ObjectJson {
+  "//description": string,
+  "//name": string,
+  "//shortdescription": string,
+  imagePositionX: number,
+  imagePositionY: number,
+  object: string,
+  tilesetDirection: "left" | "right",
+}
+
 interface TilesetObjectJson extends TilesetJson {
   //name
   //tilecount
@@ -306,15 +315,7 @@ interface TilesetObjectJson extends TilesetJson {
   tileheight: number,
   tilewidth: number,
   tileproperties: {
-    [key: string]: {
-      "//description": string,
-      "//name": string,
-      "//shortdescription": string,
-      imagePositionX: number,
-      imagePositionY: number,
-      object: string,
-      tilesetDirection: "left" | "right";
-    },
+    [key: string]: ObjectJson,
   }
 }
 
@@ -915,6 +916,21 @@ function matchObjectsBiome(oldObjectsArray: ObjectTile[], miscTilesetJSON: Tiles
   return newMatchMap;
 }
 
+async function getTilesetTilesize(tilesetName: string):Promise<{ tileheight: number; tilewidth: number; } | undefined> {
+  const {tileheight, tilewidth} = await dungeonsFS.getTileset(tilesetName) as TilesetObjectJson;
+  if (tileheight !== undefined && tilewidth !== undefined) {
+    return {tileheight, tilewidth};
+  }
+  else {
+    return undefined;
+  }
+}
+
+async function getObjectFromTileset(tileMatch: ObjectTileMatch):Promise<ObjectJson> {
+  const tilesetJson = await dungeonsFS.getTileset(tileMatch.tileset) as TilesetObjectJson; //get appropriate tileset
+  return tilesetJson.tileproperties[tileMatch.tileId];
+}
+
 function matchNPCS() {
   //TODO
 }
@@ -1169,7 +1185,9 @@ export {
 export type {
   ObjectTile as ObjectTileType,
   ObjectTileMatch as ObjectTileMatchType,
+  ObjectJson as ObjectJsonType,
   TilesetObjectJson as TilesetObjectJsonType,
   TilesetMiscJson as TilesetMiscJsonType,
+  OldTilesetSorted as OldTilesetSortedType,
 }
   

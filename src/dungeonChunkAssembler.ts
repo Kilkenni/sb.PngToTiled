@@ -8,9 +8,9 @@
 // import * as dungeonsFS from "./dungeonsFS.js";
 // import * as tilesetMatcher from "./tilesetMatch.js";
 import { getTileset, getTilesetPath } from "./dungeonsFS.js";
-import { TilesetJson, matchObjects, matchObjectsBiome } from "./tilesetMatch.js";
-import { getFilenameFromPath } from "./conversionSteps.js";
-import { TILESETMAT_NAME, } from "./tilesetMatch.js";
+import { TilesetJson, matchObjects, matchObjectsBiome, ObjectTileType, TilesetMiscJsonType, ObjectJsonType } from "./tilesetMatch.js";
+import { getFilenameFromPath, FullObjectMap } from "./conversionSteps.js";
+import { TILESETMAT_NAME, TILESETOBJ_NAME, resolveTilesets} from "./tilesetMatch.js";
 import * as dungeonsFS from "./dungeonsFS.js";
 import GidFlags from "./GidFlags.js";
 
@@ -196,6 +196,23 @@ class SbDungeonChunk{
     this.#tilesets = tilesetShapes;
   }
 
+  getTilesetNameFromShape(shapeIndex: number): string | undefined {
+    if (shapeIndex >= this.#tilesets.length) { //tileset index out of bounds
+      return undefined;
+    }
+    const tilesetDir = resolveTilesets();
+    const tilesetName = this.#tilesets[shapeIndex].source.replace(tilesetDir, ``);
+    if ((<any>Object).values(TILESETMAT_NAME).includes(tilesetName) ||
+      TILESETOBJ_NAME.objHuge === tilesetName ||
+      (TILESETOBJ_NAME.byCategory as ReadonlyArray<string>).includes(tilesetName) ||
+      (TILESETOBJ_NAME.byColonyTag as ReadonlyArray<string>).includes(tilesetName) ||
+      (TILESETOBJ_NAME.byRace as ReadonlyArray<string>).includes(tilesetName) ||
+      (TILESETOBJ_NAME.byType as ReadonlyArray<string>).includes(tilesetName) ) {
+      return tilesetName;
+    }
+    return undefined; //tileset name from shapes not found. Technically an error.
+  }
+
   async #getFirstFreeGid(): Promise<number> {
     if (this.#tilesets.length === 0) {
       return 1;
@@ -210,12 +227,26 @@ class SbDungeonChunk{
   }
 
   async addTilesetShape(tileset: TilesetJson, log = false): Promise<SbDungeonChunk> {
+    const tilesetFound = this.#tilesets.find((shape: TilesetShape) => {
+      return tileset.name.includes(getFilenameFromPath(shape.source));
+    })
+    if (tilesetFound !== undefined) { //tileset already exists, skip
+      return this;
+    }
     const newShape: TilesetShape = {
       firstgid: await this.#getFirstFreeGid(),
       source: getTilesetPath(tileset.name),
     }
     this.#tilesets.push(newShape);
     return this;
+  }
+
+  getFirstGid(tilesetName:string):number|undefined {
+    const tsShape = this.#tilesets.find((shape) => shape.source.includes(`${tilesetName}.json`));
+    if(tsShape) {
+      return tsShape.firstgid;
+    }
+    return undefined;
   }
 
   addUncompressedTileLayer(layerData:number[],layerName:"front"|"back", layerWidth: number, layerHeight: number):SbDungeonChunk {
@@ -369,36 +400,79 @@ class SbDungeonChunk{
     return this;
   }
 
-  addObjectToObjectLayer(objectGid: number, x: number, y: number): SbDungeonChunk {
-    //TODO get layerID
-    const newObject: SbObject = {
-      ...TEMPLATE.SBOBJECT,
-      gid: objectGid,
-      id: this.getNextObjectId(),
-      properties: {},
-      height: -1,
-      width: -1,
-      x: -1,
-      y: -1,
-    }
-
-    //TODO write parameters
-    //TODO calc height, width
-    //(this.#layers[layerId] as SbObjectLayer).objects.push(newObject);
-    // this.#nextobjectid = this.#nextobjectid +1;
-    return this;
-  }
-
   getNextObjectId():number {
     return this.#nextobjectid;
   }
 
-  getFirstGid(tilesetName:string):number|undefined {
-    const tsShape = this.#tilesets.find((shape) => shape.source.includes(`${tilesetName}.json`));
-    if(tsShape) {
-      return tsShape.firstgid;
+  /**
+   * 
+   * @param objectGid form Object from loose properties and push to Object Layer
+   * @param height  > 0
+   * @param width > 0
+   * @param x >= 0
+   * @param y >=0
+   * @param properties Object with parameters like loot tables etc
+   * @returns 
+   */
+  addObjectToObjectLayer(objectGid: number, height: number, width: number, x: number, y: number, properties: {} = {}): SbDungeonChunk {
+    const layerId = this.#initObjectLayer("objects");
+
+    const newObject: SbObject = {
+      ...TEMPLATE.SBOBJECT as SbObjectgroupItem,
+      gid: objectGid,
+      id: this.getNextObjectId(),
+      properties: properties,
+      height: height,
+      width: width,
+      x: x,
+      y: y,
+    };
+    
+    (this.#layers[layerId] as SbObjectLayer).objects.push(newObject);
+    this.#nextobjectid = this.#nextobjectid +1;
+    return this;
+  }
+
+  /**
+   * 
+   * @param tilesets Add shapes for object tilesets in SbDungeonChunk
+   * @returns 
+   */
+  async addObjectTilesetShapes(tilesets: string[]): Promise<SbDungeonChunk> {
+    const shapeNames: string[] = [];
+    for (let shapeIndex = 0; shapeIndex < this.#tilesets.length; shapeIndex++) {
+     shapeNames.push(this.getTilesetNameFromShape(shapeIndex) as string);
     }
-    return undefined;
+    for (const tilesetName of tilesets) {
+      if (shapeNames.includes(tilesetName)) {
+        continue; //tileset present in shapes, do nothing
+      }
+      else {
+        const tilesetJson = await getTileset(tilesetName);
+        if (tilesetJson) {
+          this.addTilesetShape(tilesetJson);
+        }
+        else {
+          throw new Error(`Unable to resolve tileset ${tilesetName} to add in DungeonChunk`);
+        }
+      }
+    }
+    return this;
+  }
+
+  async parseAddObjects(oldObjectsArray: ObjectTileType[], objMatchMap: FullObjectMap): Promise<SbDungeonChunk> {
+    //Add shapes for object tilesets in SbDungeonChunk
+    await this.addObjectTilesetShapes(objMatchMap.tilesets)
+  
+    for (const match of objMatchMap.matchMap) {
+      if (match !== undefined) {
+        //TODO write parameters
+        //TODO calc height, width
+        
+        //TODO add object
+      }
+    }
+    return this;
   }
 
   setSize(width:number, height:number):SbDungeonChunk {
