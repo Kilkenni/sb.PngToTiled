@@ -174,7 +174,7 @@ type FullObjectMap = {
  * @param arrayOfObjects Builds matchMap of objects
  * @returns matchMap, number of undefined tiles, list of names of used tilesets
  */
-async function matchObjects(arrayOfObjects: ObjectTileType[]): Promise<FullObjectMap> {
+async function matchAllObjects(arrayOfObjects: ObjectTileType[]): Promise<FullObjectMap> {
   function calcUndefined(matchArray: (ObjectTileMatchType | undefined)[]): number {
     let numOfUndefined = 0;
     for (const match of matchArray) {
@@ -196,7 +196,7 @@ async function matchObjects(arrayOfObjects: ObjectTileType[]): Promise<FullObjec
   const miscTilesetJSON = await dungeonsFS.getTileset(tilesetMatcher.TILESETMAT_NAME.misc) as TilesetMiscJsonType;
   matchMap = tilesetMatcher.matchObjectsBiome(arrayOfObjects, miscTilesetJSON, matchMap);
   let undefinedTiles: number = calcUndefined(matchMap);
-  for (const objTileset in allObjTilesets) {
+  for (const objTileset of allObjTilesets) {
     const tilesetJson: TilesetObjectJsonType = await dungeonsFS.getTileset(objTileset) as TilesetObjectJsonType;
     matchMap = tilesetMatcher.matchObjects(arrayOfObjects, tilesetJson, matchMap);
     if (undefinedTiles > calcUndefined(matchMap)) {
@@ -219,7 +219,7 @@ export {
   getDungeons,
   extractOldTileset,
   getPixels_test,
-  matchObjects,
+  matchAllObjects,
   FullObjectMap,
 };
 

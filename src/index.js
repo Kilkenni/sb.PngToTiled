@@ -9,6 +9,7 @@ import {
   getDungeons,
   extractOldTileset,
   getPixels_test,
+  matchAllObjects,
 } from "./conversionSteps.js";
 
 import getPixels from "get-pixels";
@@ -239,6 +240,8 @@ async function writeConvertedMap_test(log = false) {
             );
           }
         }
+
+        const objectsMap = await matchAllObjects(sortedOldTileset.objects);
 
         const success = await dungeonsFS.writeConvertedMapJson(
           newPath,

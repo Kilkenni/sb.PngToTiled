@@ -863,7 +863,7 @@ function matchObjects(oldObjectsArray: ObjectTile[], tileset: TilesetObjectJson,
       const { brush:brushArray, comment, value }: ObjectTile = oldObjectsArray[objectIndex];
       for (const brush of brushArray) {
         const [brushType, objectName, stats] = brush;
-        if (JSON.stringify(brushType) === "clear") {
+        if (brushType === "clear") {
           continue; //skip empty brush
         }
         else {
