@@ -241,7 +241,14 @@ async function writeConvertedMap_test(log = false) {
           }
         }
 
+        //match object RGB to ID locally, calc required tilesets
         const objectsMap = await matchAllObjects(sortedOldTileset.objects);
+        //Add required tilesets to chunk
+        await convertedChunk.addObjectTilesetShapes(objectsMap.tilesets);
+        // await convertedChunk.parseAddObjects();
+        //convert objectsMap from using Ids to using Gids
+        const objectsGidMap = convertedChunk.convertIdMapToGid(objectsMap);
+        //TODO map PNG to objects using objectsGidMap
 
         const success = await dungeonsFS.writeConvertedMapJson(
           newPath,

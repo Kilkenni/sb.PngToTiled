@@ -1,4 +1,4 @@
-import {Dirent, promises as nodeFileSys} from "fs";
+import {Dirent, promises as nodeFS} from "fs";
 import * as nodePath from "path";
 
 import { resolveTilesets, TilesetJsonType } from "./tilesetMatch";
@@ -19,7 +19,7 @@ function getExtension(fileName: string) {
 
 async function readDir():Promise<Dirent[]|undefined> {
   try {
-    const ioDir = await nodeFileSys.readdir(ioDirPath, { withFileTypes: true });
+    const ioDir = await nodeFS.readdir(ioDirPath, { withFileTypes: true });
     return ioDir;
   } catch (err) {
     console.error(err);
@@ -29,7 +29,7 @@ async function readDir():Promise<Dirent[]|undefined> {
 
 async function getDungeons(dungeonPath:string):Promise<DungeonFile|undefined> {
   try {
-    const dungeonsRaw = await nodeFileSys.readFile(dungeonPath, {
+    const dungeonsRaw = await nodeFS.readFile(dungeonPath, {
       encoding: "utf-8",
     });
     const dungeons:DungeonFile = JSON.parse(
@@ -61,9 +61,9 @@ async function writeConvertedDungeons(JsonData: Object): Promise<true|undefined>
         if (newDungeonPath) {
           try {
             console.log(`Checking if ${newDungeonPath} is available...`);
-            const accessed = await nodeFileSys.access(
+            const accessed = await nodeFS.access(
               newDungeonPath,
-              nodeFileSys.constants.F_OK
+              nodeFS.constants.F_OK
             );
             console.error(
               `Output file <${
@@ -74,7 +74,7 @@ async function writeConvertedDungeons(JsonData: Object): Promise<true|undefined>
           } catch (error) {
             //this error appears if no .new file is found, i.e. if we can safely write
             // console.log(error.message);
-            await nodeFileSys.writeFile(
+            await nodeFS.writeFile(
               newDungeonPath,
               JSON.stringify(JsonData, null, 2),
               "utf-8"
@@ -96,9 +96,9 @@ async function writeConvertedMapJson(newPath:string, SbDungeonChunk: SbDungeonCh
   // const ioDir = await readDir();
   try {
     console.log(`Checking if ${newPath} is available...`);
-    const accessed = await nodeFileSys.access(
+    const accessed = await nodeFS.access(
       newPath,
-      nodeFileSys.constants.F_OK
+      nodeFS.constants.F_OK
     );
     console.error(
       `Output file <${newPath}> already exists. Rewriting prohibited. Remove it before running again.`
@@ -107,7 +107,7 @@ async function writeConvertedMapJson(newPath:string, SbDungeonChunk: SbDungeonCh
   } catch (error) {
     //this error appears if no converted file is found, i.e. if we can safely write
     // console.log(error.message);
-    await nodeFileSys.writeFile(
+    await nodeFS.writeFile(
       newPath,
       JSON.stringify(SbDungeonChunk, null, 2),
       "utf-8"
@@ -118,7 +118,7 @@ async function writeConvertedMapJson(newPath:string, SbDungeonChunk: SbDungeonCh
 }
 
 async function writeTileMap(path: string, JsonData: Object) {
-  await nodeFileSys.writeFile(path, JSON.stringify(JsonData, null, 2), "utf-8");
+  await nodeFS.writeFile(path, JSON.stringify(JsonData, null, 2), "utf-8");
   return true;
 }
 
@@ -126,13 +126,18 @@ function getTilesetPath(tilesetName: string):string {
   return`${resolveTilesets()}/${tilesetName}.json`;
 }
 
-async function getTileset(tilesetName: string):Promise<TilesetJsonType|undefined> {
-  const tilesetPath = `${resolveTilesets()}/${tilesetName}.json`;
+/**
+ * Takes Sb-format tileset name (string) and returns tileset as parsed JSON, comments trimmed
+ * @param tilesetName 
+ * @returns 
+ */
+async function getTileset(tilesetName: string, path?: string):Promise<TilesetJsonType|undefined> {
+  const tilesetPath = path!==undefined ? path:`${resolveTilesets()}/${tilesetName}.json`;
   try {
     if (!tilesetPath || typeof tilesetPath != "string") {
       return undefined; //basic path validation check
     }
-    const tilesetRaw = await nodeFileSys.readFile(tilesetPath, {
+    const tilesetRaw = await nodeFS.readFile(tilesetPath, {
       encoding: "utf-8",
     });
     const tileset: TilesetJsonType = JSON.parse(
@@ -148,6 +153,14 @@ async function getTileset(tilesetName: string):Promise<TilesetJsonType|undefined
   }
 }
 
+async function getTilesetNameFromPath(path: string):Promise<string> {
+  const tileset = await getTileset("", path);
+  if (tileset === undefined) { //no tileset found
+    throw new Error(`Cannot resolve tileset ${path}`);
+  }
+  return tileset.name
+}
+
 export {
   readDir,
   getDungeons,
@@ -156,5 +169,6 @@ export {
   writeTileMap,
   getTilesetPath,
   getTileset,
+  getTilesetNameFromPath,
   ioDirPath,
 };

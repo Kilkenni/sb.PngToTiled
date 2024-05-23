@@ -1183,6 +1183,7 @@ export {
 };
 export type {
   ObjectTile as ObjectTileType,
+  LayerTileMatch as LayerTileMatchType,
   ObjectTileMatch as ObjectTileMatchType,
   ObjectJson as ObjectJsonType,
   TilesetObjectJson as TilesetObjectJsonType,

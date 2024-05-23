@@ -1,5 +1,5 @@
 import * as dungeonsFS from "./dungeonsFS";
-// import * as tilesetMatcher from "./tilesetMatch.js";
+// import * as tilesetMatcher from "./tilesetMatch";
 import * as tilesetMatcher from "./tilesetMatch";
 import {ObjectTileType, ObjectTileMatchType, TilesetObjectJsonType, TilesetMiscJsonType, OldTilesetSortedType } from "./tilesetMatch";
 import {SbDungeonChunk} from "./dungeonChunkAssembler";
