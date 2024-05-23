@@ -1,8 +1,8 @@
 import {Dirent, promises as nodeFileSys} from "fs";
 import * as nodePath from "path";
 
-import { resolveTilesets, TilesetJson } from "./tilesetMatch.js";
-import { SbDungeonChunk } from "./dungeonChunkAssembler.js";
+import { resolveTilesets, TilesetJsonType } from "./tilesetMatch";
+import { SbDungeonChunk } from "./dungeonChunkAssembler";
 // import { TILESETJSON_NAME } from "./tilesetMatch.js";
 
 const ioDirPath: string = nodePath.resolve("./input-output/");
@@ -126,7 +126,7 @@ function getTilesetPath(tilesetName: string):string {
   return`${resolveTilesets()}/${tilesetName}.json`;
 }
 
-async function getTileset(tilesetName: string):Promise<TilesetJson|undefined> {
+async function getTileset(tilesetName: string):Promise<TilesetJsonType|undefined> {
   const tilesetPath = `${resolveTilesets()}/${tilesetName}.json`;
   try {
     if (!tilesetPath || typeof tilesetPath != "string") {
@@ -135,7 +135,7 @@ async function getTileset(tilesetName: string):Promise<TilesetJson|undefined> {
     const tilesetRaw = await nodeFileSys.readFile(tilesetPath, {
       encoding: "utf-8",
     });
-    const tileset: TilesetJson = JSON.parse(
+    const tileset: TilesetJsonType = JSON.parse(
       tilesetRaw.replace(
         /\\"|"(?:\\"|[^"])*"|(\/\/.*|\/\*[\s\S]*?\*\/)/g,
         (m, g) => (g ? "" : m)

@@ -1,6 +1,6 @@
-import * as dungeonsFS from "./dungeonsFS.js";
-import * as tilesetMatcher from "./tilesetMatch.js";
-import * as dungeonAssembler from "./dungeonChunkAssembler.js";
+import * as dungeonsFS from "./dungeonsFS";
+import * as tilesetMatcher from "./tilesetMatch";
+import * as dungeonAssembler from "./dungeonChunkAssembler";
 import {
   getFilename,
   getExtension,
@@ -10,7 +10,7 @@ import {
   extractOldTileset,
   getPixels_test,
   matchAllObjects,
-} from "./conversionSteps.js";
+} from "./conversionSteps";
 
 import getPixels from "get-pixels";
 

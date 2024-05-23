@@ -3,9 +3,9 @@ import * as nodePath from "path";
 import * as zlib from "zlib";
 // import {v4 as uuidv4} from "uuid";
 
-import * as dungeonsFS from "./dungeonsFS.js";
-import GidFlags from "./GidFlags.js";
-import {TilesetShape} from "./dungeonChunkAssembler.js"
+import * as dungeonsFS from "./dungeonsFS";
+import GidFlags from "./GidFlags";
+import {TilesetShape} from "./dungeonChunkAssembler"
 //https://0xacab.org/bidasci/starbound-v1.4.4-source-code/-/blob/no-masters/tiled/properties.txt?ref_type=heads
 
 
@@ -1179,7 +1179,6 @@ export {
   convertPngToGid,
   zlibTest,
   TILESETMAT_NAME,
-  TilesetJson,
   TILESETOBJ_NAME,
 };
 export type {
@@ -1189,5 +1188,6 @@ export type {
   TilesetObjectJson as TilesetObjectJsonType,
   TilesetMiscJson as TilesetMiscJsonType,
   OldTilesetSorted as OldTilesetSortedType,
+  TilesetJson as TilesetJsonType,
 }
   

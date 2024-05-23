@@ -1,8 +1,8 @@
-import * as dungeonsFS from "./dungeonsFS.js";
+import * as dungeonsFS from "./dungeonsFS";
 // import * as tilesetMatcher from "./tilesetMatch.js";
-import * as tilesetMatcher from "./tilesetMatch.js";
-import {ObjectTileType, ObjectTileMatchType, TilesetObjectJsonType, TilesetMiscJsonType, OldTilesetSortedType } from "./tilesetMatch.js";
-import {SbDungeonChunk} from "./dungeonChunkAssembler.js";
+import * as tilesetMatcher from "./tilesetMatch";
+import {ObjectTileType, ObjectTileMatchType, TilesetObjectJsonType, TilesetMiscJsonType, OldTilesetSortedType } from "./tilesetMatch";
+import {SbDungeonChunk} from "./dungeonChunkAssembler";
 import { promisify } from "util";
 import { NdArray } from "ndarray";
 
@@ -220,6 +220,10 @@ export {
   extractOldTileset,
   getPixels_test,
   matchAllObjects,
+  // FullObjectMap,
+};
+
+export type {
   FullObjectMap,
 };
 
