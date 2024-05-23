@@ -507,25 +507,27 @@ class SbDungeonChunk{
     return GidMap;
   }
 
+  /**
+   * Utility function to get X, Y from flattened 2D array knowing its dimensions
+   * @param index - Index of an RgbaValue in array
+   * @param width - horizontal dimension of the array
+   * @returns 
+   */
+  getCoordsFromFlatRgbaArray(index:number, width:number) {
+    const x = index % width;
+    const y = Math.trunc(index / width);
+    return { x, y };
+  }
+
   async parseAddObjects(oldObjects:ObjectTileType[], rgbaArray: RgbaValueType[], objMatchMap: FullObjectMap): Promise<SbDungeonChunk> {
     //Add shapes for object tilesets in SbDungeonChunk
     await this.addObjectTilesetShapes(objMatchMap.tilesets);
     const objGidMap = this.convertIdMapToGid(objMatchMap);
-  
-    /*
-    function convertPngToGid(RgbaArray:RgbaValue[], tileMatchMap: LayerTileMatch[]):number[] {
-  const layerGids = new Array(RgbaArray.length).fill(0);
-  for(let rgbaN = 0; rgbaN < RgbaArray.length; rgbaN++) {
-    for(const conversion of tileMatchMap) {
-      if(isRgbaEqual(RgbaArray[rgbaN], conversion.tileRgba)) {
-        const gid = conversion.tileGid;
-        layerGids[rgbaN] = gid;//layerGids[rgbaN] = gid;
-      }
+    //quick check to ensure size of rgbaArray
+    if (rgbaArray.length !== this.#height * this.#width) {
+      throw new Error(`Unable to add objects from image with ${rgbaArray.length} pixels to a chunk of height ${this.#height} and width ${this.#width}: size mismatch!`)
     }
-  }
-  return layerGids;
-}
-    */
+  
     for (let rgbaN = 0; rgbaN < rgbaArray.length; rgbaN++) {
       for (const match of objGidMap) {
         if (match !== undefined) {
@@ -534,14 +536,15 @@ class SbDungeonChunk{
           }
           const objectData: ObjectJsonType = await getObjectFromTileset(match);
           
-          //TODO write parameters
           //TODO calc height, width
           const height = 8;
           const width = 8;
           //TODO calc x, y from rgbaArray
+          const { x: objX, y: objY } = this.getCoordsFromFlatRgbaArray(rgbaN, this.#width);
+          //TODO write parameters
           
           //TODO add object
-          // this.addObjectToObjectLayer(match.tileGid, height, width)
+          this.addObjectToObjectLayer(match.tileGid, height, width, objX, objY)
         }
       }
     }

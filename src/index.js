@@ -163,12 +163,6 @@ async function writeConvertedMap_test(log = false) {
           pixelsArray.shape[1]
         );
 
-        function getCoordsFromFlatArray(index, width) {
-          const x = index % width;
-          const y = Math.trunc(index / width);
-          return { x, y };
-        }
-
         const miscTileset = await dungeonsFS.getTileset(
           tilesetMatcher.TILESETMAT_NAME.misc
         );
@@ -181,16 +175,17 @@ async function writeConvertedMap_test(log = false) {
           for (const match of anchorsMap) {
             if (tilesetMatcher.isRgbaEqual(RgbaArray[rgbaN], match.tileRgba)) {
               const gid = match.tileGid;
-              const { x: anchorX, y: anchorY } = getCoordsFromFlatArray(
-                rgbaN,
-                pixelsArray.shape[0]
-              );
+              const { x: anchorX, y: anchorY } =
+                convertedChunk.getCoordsFromFlatRgbaArray(
+                  rgbaN,
+                  pixelsArray.shape[0]
+                );
               convertedChunk.addAnchorToObjectLayer(gid, anchorX, anchorY);
             }
           }
         }
 
-        //MERGE OBJECTS TEST
+        //MERGE additional tilelayers from OBJECTS
         if (ioDir) {
           const pngObjects = ioDir.find(
             (fileObjects) =>
@@ -217,7 +212,7 @@ async function writeConvertedMap_test(log = false) {
               ); //shape = width, height, channels
             }
             //pixelsArray.data is a Uint8Array of (shape.width * shape.height * #channels) elements
-            convertedChunk.setSize(pixelsArray.shape[0], pixelsArray.shape[1]);
+            // convertedChunk.setSize(pixelsArray.shape[0], pixelsArray.shape[1]);
             const RgbaArray = tilesetMatcher.slicePixelsToArray(
               pixelsArray.data,
               ...pixelsArray.shape
@@ -248,7 +243,13 @@ async function writeConvertedMap_test(log = false) {
         // await convertedChunk.parseAddObjects();
         //convert objectsMap from using Ids to using Gids
         const objectsGidMap = convertedChunk.convertIdMapToGid(objectsMap);
-        //TODO map PNG to objects using objectsGidMap
+        const objRgbaArray = tilesetMatcher.slicePixelsToArray(
+          pixelsArray.data,
+          ...pixelsArray.shape
+        );
+        //TODO map PNG to objects using objectsGidMap - DEBUG THIS!!!
+        await convertedChunk.parseAddObjects(sortedOldTileset.objects, objRgbaArray, objectsMap);
+        
 
         const success = await dungeonsFS.writeConvertedMapJson(
           newPath,
