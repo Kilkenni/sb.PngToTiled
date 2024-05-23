@@ -423,6 +423,14 @@ type ObjectTileMatch = {
   flipHorizontal?: boolean,
 }
 
+type ObjectFullMatch = {
+  tileName: string,
+  tileRgba: RgbaValue,
+  tileId: number,
+  tileGid: number,
+  tileset: string
+}
+
 type FullTileMatch = {
   front: LayerTileMatch[],
   back: LayerTileMatch[]
@@ -926,7 +934,7 @@ async function getTilesetTilesize(tilesetName: string):Promise<{ tileheight: num
   }
 }
 
-async function getObjectFromTileset(tileMatch: ObjectTileMatch):Promise<ObjectJson> {
+async function getObjectFromTileset(tileMatch: ObjectFullMatch):Promise<ObjectJson> {
   const tilesetJson = await dungeonsFS.getTileset(tileMatch.tileset) as TilesetObjectJson; //get appropriate tileset
   return tilesetJson.tileproperties[tileMatch.tileId];
 }
@@ -1169,6 +1177,7 @@ export {
   matchAllTilelayers,
   matchAnchors,
   matchObjects,
+  getObjectFromTileset,
   matchObjectsBiome,
   matchNPCS,
   matchStagehands,
@@ -1182,9 +1191,11 @@ export {
   TILESETOBJ_NAME,
 };
 export type {
+  RgbaValue as RgbaValueType,
   ObjectTile as ObjectTileType,
   LayerTileMatch as LayerTileMatchType,
   ObjectTileMatch as ObjectTileMatchType,
+  ObjectFullMatch as ObjectFullMatchType,
   ObjectJson as ObjectJsonType,
   TilesetObjectJson as TilesetObjectJsonType,
   TilesetMiscJson as TilesetMiscJsonType,

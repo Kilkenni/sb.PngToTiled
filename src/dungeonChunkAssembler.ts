@@ -8,7 +8,7 @@
 // import * as dungeonsFS from "./dungeonsFS.js";
 // import * as tilesetMatcher from "./tilesetMatch.js";
 import { getTileset, getTilesetPath, getTilesetNameFromPath } from "./dungeonsFS";
-import { TilesetJsonType, matchObjects, matchObjectsBiome, ObjectTileType, LayerTileMatchType, TilesetMiscJsonType, ObjectJsonType } from "./tilesetMatch";
+import { TilesetJsonType, matchObjects, matchObjectsBiome, ObjectTileType, ObjectFullMatchType, getObjectFromTileset, LayerTileMatchType, TilesetMiscJsonType, ObjectJsonType, RgbaValueType, isRgbaEqual } from "./tilesetMatch";
 import { getFilenameFromPath, getFilename, FullObjectMap } from "./conversionSteps";
 import { TILESETMAT_NAME, TILESETOBJ_NAME, resolveTilesets} from "./tilesetMatch";
 // import * as dungeonsFS from "./dungeonsFS";
@@ -477,46 +477,75 @@ class SbDungeonChunk{
     return this;
   }
 
-  convertIdMapToGid(objMatchMap: FullObjectMap):(LayerTileMatchType|undefined)[] {
+  convertIdMapToGid(objMatchMap: FullObjectMap):(ObjectFullMatchType|undefined)[] {
     const idMap = objMatchMap.matchMap;
 
-    const GidMap: (LayerTileMatchType | undefined)[] = idMap.map((idMatch) => {
+    const GidMap: (ObjectFullMatchType | undefined)[] = idMap.map((idMatch) => {
       if (idMatch === undefined) {
         return undefined;
       }
-      try {
+      //try {
         this.getFirstGid(idMatch.tileset);
-      }
+      /*}
       catch (error) {
         const typedError = error as Error;
         if (typedError.message.includes("not present in shapes, can't retrieve firstGid")) {
-          //we are trying to map something
+          //we are trying to map something absent from shapes - it is an error we've already found. Use await for async ops!
         }
-      }
-      const gidMatch: LayerTileMatchType = {
-        tileName: idMatch.tileName,
-        tileRgba: idMatch.tileRgba,
+      }*/
+      const { tileName, tileRgba, tileId, tileset } = idMatch;
+      const gidMatch: ObjectFullMatchType = {
+        tileName,
+        tileRgba,
+        tileId,
         //TODO Apply flips here
         tileGid: (this.getFirstGid(idMatch.tileset)) + idMatch.tileId,
+        tileset,
       };
       return gidMatch;
     });
     return GidMap;
   }
 
-  async parseAddObjects(oldObjectsArray: ObjectTileType[], objMatchMap: FullObjectMap): Promise<SbDungeonChunk> {
+  async parseAddObjects(oldObjects:ObjectTileType[], rgbaArray: RgbaValueType[], objMatchMap: FullObjectMap): Promise<SbDungeonChunk> {
     //Add shapes for object tilesets in SbDungeonChunk
-    await this.addObjectTilesetShapes(objMatchMap.tilesets)
+    await this.addObjectTilesetShapes(objMatchMap.tilesets);
+    const objGidMap = this.convertIdMapToGid(objMatchMap);
   
-    for (const match of objMatchMap.matchMap) {
-      if (match !== undefined) {
-        
-        //TODO write parameters
-        //TODO calc height, width
-        
-        //TODO add object
+    /*
+    function convertPngToGid(RgbaArray:RgbaValue[], tileMatchMap: LayerTileMatch[]):number[] {
+  const layerGids = new Array(RgbaArray.length).fill(0);
+  for(let rgbaN = 0; rgbaN < RgbaArray.length; rgbaN++) {
+    for(const conversion of tileMatchMap) {
+      if(isRgbaEqual(RgbaArray[rgbaN], conversion.tileRgba)) {
+        const gid = conversion.tileGid;
+        layerGids[rgbaN] = gid;//layerGids[rgbaN] = gid;
       }
     }
+  }
+  return layerGids;
+}
+    */
+    for (let rgbaN = 0; rgbaN < rgbaArray.length; rgbaN++) {
+      for (const match of objGidMap) {
+        if (match !== undefined) {
+          if (isRgbaEqual(match.tileRgba, rgbaArray[rgbaN]) === false) {
+            continue; //skip until we find the right match
+          }
+          const objectData: ObjectJsonType = await getObjectFromTileset(match);
+          
+          //TODO write parameters
+          //TODO calc height, width
+          const height = 8;
+          const width = 8;
+          //TODO calc x, y from rgbaArray
+          
+          //TODO add object
+          // this.addObjectToObjectLayer(match.tileGid, height, width)
+        }
+      }
+    }
+    
     return this;
   }
 
