@@ -889,6 +889,9 @@ function matchObjects(oldObjectsArray: ObjectTile[], tileset: TilesetObjectJson,
             for (const objIndex in tileset.tileproperties) {
               const obj = tileset.tileproperties[objIndex];
               if (obj.object === objectName) { 
+                if (obj["//name"].includes("orientation") || obj["//description"].includes("orientation") || obj["//shortdescription"].includes("orientation")) {
+                  continue; //Experimental - try to pick first match ignoring additional variations
+                }
                 //Check if we need horizontal flip
                 let flip:boolean = false;
                 if (stats && stats.direction) {
