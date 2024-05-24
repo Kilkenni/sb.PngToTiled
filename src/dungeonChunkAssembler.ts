@@ -439,7 +439,7 @@ class SbDungeonChunk{
    * @param properties Object with parameters like loot tables etc
    * @returns 
    */
-  addObjectToObjectLayer(objectGid: number, height: number, width: number, x: number, y: number, properties: {} = {}): SbDungeonChunk {
+  addObjectToObjectLayer(objectGid: number, height: number, width: number, x: number, y: number, properties: {parameters:any}|{} = {}): SbDungeonChunk {
     const layerId = this.#initObjectLayer("objects");
 
     const newObject: SbObject = {
@@ -555,15 +555,22 @@ class SbDungeonChunk{
           //exchange width with height b/c of difference in XY coords in Sb and Tiled
           const height = tileSize.tilewidth;
           const width = tileSize.tileheight;
-          //TODO calc x, y from rgbaArray
+          //calc x, y from rgbaArray
           const { x: objX, y: objY } = this.getCoordsFromFlatRgbaArray(rgbaN, this.#width);
-          const name = match.tileName;
-          
-          //TODO write parameters
-          
-          //TODO add object
+
+          //write parameters. Important: parameters should be stringified!
+          const objBrushLayer = oldObjectData?.brush.find((brushLayer) => {
+            return brushLayer[0] === "object";
+          });
+          let params;
+          if(objBrushLayer && objBrushLayer[2] !== undefined && objBrushLayer[2].parameters !== undefined) {
+            params = {
+              parameters: JSON.stringify(objBrushLayer[2].parameters)};
+          }
+                   
+          //Add object
           //Y + 1 because of difference in coords in Sb and Tiled (coords of pixel are shifted by 1)
-          this.addObjectToObjectLayer(match.tileGid, height, width, (objX*this.tilewidth + parseInt(objectData.imagePositionX)), ((objY + 1)*this.tileheight + parseInt(objectData.imagePositionY)));
+          this.addObjectToObjectLayer(match.tileGid, height, width, (objX*this.tilewidth + parseInt(objectData.imagePositionX)), ((objY + 1)*this.tileheight + parseInt(objectData.imagePositionY)), params);
         }
       }
     }
