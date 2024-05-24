@@ -5,7 +5,9 @@ import * as zlib from "zlib";
 
 import * as dungeonsFS from "./dungeonsFS";
 import GidFlags from "./GidFlags";
-import {TilesetShape} from "./dungeonChunkAssembler"
+import { TilesetShape } from "./dungeonChunkAssembler";
+import { promisify } from "util";
+import getPixels from "get-pixels";
 //https://0xacab.org/bidasci/starbound-v1.4.4-source-code/-/blob/no-masters/tiled/properties.txt?ref_type=heads
 
 
@@ -300,8 +302,8 @@ interface ObjectJson {
   "//description": string,
   "//name": string,
   "//shortdescription": string,
-  imagePositionX: number,
-  imagePositionY: number,
+  imagePositionX: string,
+  imagePositionY: string,
   object: string,
   tilesetDirection: "left" | "right",
 }
@@ -316,6 +318,11 @@ interface TilesetObjectJson extends TilesetJson {
   tilewidth: number,
   tileproperties: {
     [key: string]: ObjectJson,
+  },
+  tiles: {
+    [key: string]: {
+      image: string,
+    },
   }
 }
 
@@ -882,7 +889,13 @@ function matchObjects(oldObjectsArray: ObjectTile[], tileset: TilesetObjectJson,
             for (const objIndex in tileset.tileproperties) {
               const obj = tileset.tileproperties[objIndex];
               if (obj.object === objectName) { 
-                const objMatch: ObjectTileMatch = { tileName: comment ? comment : objectName, tileRgba: value, tileId: parseInt(objIndex), tileset: tileset.name };
+                //Check if we need horizontal flip
+                let flip:boolean = false;
+                if (stats && stats.direction) {
+                  flip = obj.tilesetDirection !== stats.direction;
+                };
+
+                const objMatch: ObjectTileMatch = { tileName: comment ? comment : objectName, tileRgba: value, tileId: parseInt(objIndex), tileset: tileset.name, flipHorizontal: flip || undefined };
                 matchMap[objectIndex] = objMatch;
               }
             }
@@ -937,6 +950,20 @@ async function getTilesetTilesize(tilesetName: string):Promise<{ tileheight: num
 async function getObjectFromTileset(tileMatch: ObjectFullMatch):Promise<ObjectJson> {
   const tilesetJson = await dungeonsFS.getTileset(tileMatch.tileset) as TilesetObjectJson; //get appropriate tileset
   return tilesetJson.tileproperties[tileMatch.tileId];
+}
+
+async function getTileSizeFromTileset(tileMatch: ObjectFullMatch): Promise<{tileheight:number, tilewidth:number}> {
+  const tilesetJson: TilesetObjectJson = await dungeonsFS.getTileset(tileMatch.tileset) as TilesetObjectJson; //get appropriate tileset
+  const { tileheight, tilewidth } = tilesetJson;
+  if (tileheight === 8 && tilewidth === 8) {
+    return { tileheight, tilewidth };
+  }
+  const getPixelsPromise = promisify(getPixels); //getPixels originally doesn't support promises
+  const pngPath = tilesetJson.tiles[tileMatch.tileId].image;
+  const relPngPath = `${dungeonsFS.ioDirPath}/${pngPath.substring(pngPath.indexOf("tiled"))}`;
+  //pixelsArray.data is a Uint8Array of (shape.width * shape.height * #channels) elements
+  let pixelsArray = await getPixelsPromise(relPngPath, "");
+  return {tileheight: pixelsArray.shape[0], tilewidth: pixelsArray.shape[1]}; //shape = width, height, channels
 }
 
 function matchNPCS() {
@@ -1178,6 +1205,7 @@ export {
   matchAnchors,
   matchObjects,
   getObjectFromTileset,
+  getTileSizeFromTileset,
   matchObjectsBiome,
   matchNPCS,
   matchStagehands,
@@ -1194,6 +1222,7 @@ export type {
   RgbaValue as RgbaValueType,
   ObjectTile as ObjectTileType,
   LayerTileMatch as LayerTileMatchType,
+  ObjectBrush as ObjectBrushType,
   ObjectTileMatch as ObjectTileMatchType,
   ObjectFullMatch as ObjectFullMatchType,
   ObjectJson as ObjectJsonType,

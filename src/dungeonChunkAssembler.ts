@@ -8,7 +8,7 @@
 // import * as dungeonsFS from "./dungeonsFS.js";
 // import * as tilesetMatcher from "./tilesetMatch.js";
 import { getTileset, getTilesetPath, getTilesetNameFromPath } from "./dungeonsFS";
-import { TilesetJsonType, matchObjects, matchObjectsBiome, ObjectTileType, ObjectFullMatchType, getObjectFromTileset, LayerTileMatchType, TilesetMiscJsonType, ObjectJsonType, RgbaValueType, isRgbaEqual } from "./tilesetMatch";
+import { TilesetJsonType, matchObjects, matchObjectsBiome, ObjectTileType, ObjectFullMatchType, getObjectFromTileset, getTileSizeFromTileset, LayerTileMatchType, TilesetMiscJsonType, ObjectJsonType, RgbaValueType, isRgbaEqual, ObjectBrushType } from "./tilesetMatch";
 import { getFilenameFromPath, getFilename, FullObjectMap } from "./conversionSteps";
 import { TILESETMAT_NAME, TILESETOBJ_NAME, resolveTilesets} from "./tilesetMatch";
 // import * as dungeonsFS from "./dungeonsFS";
@@ -443,7 +443,8 @@ class SbDungeonChunk{
       y: y,
     };
     
-    (this.#layers[layerId] as SbObjectLayer).objects.push(newObject);
+    const objLayer: SbObjectLayer = this.#layers.find((layer) => { return layer.id === layerId }) as SbObjectLayer;
+    objLayer.objects.push(newObject);
     this.#nextobjectid = this.#nextobjectid +1;
     return this;
   }
@@ -498,8 +499,8 @@ class SbDungeonChunk{
         tileName,
         tileRgba,
         tileId,
-        //TODO Apply flips here
-        tileGid: (this.getFirstGid(idMatch.tileset)) + idMatch.tileId,
+        //Apply flip here if present
+        tileGid: GidFlags.apply((this.getFirstGid(idMatch.tileset)) + idMatch.tileId, false, idMatch.flipHorizontal || false, false),
         tileset,
       };
       return gidMatch;
@@ -535,16 +536,23 @@ class SbDungeonChunk{
             continue; //skip until we find the right match
           }
           const objectData: ObjectJsonType = await getObjectFromTileset(match);
+          const oldObjectData = oldObjects.find((objData) => {
+            return isRgbaEqual(match.tileRgba, objData.value);
+          });
           
+          const tileSize = await getTileSizeFromTileset(match);
           //TODO calc height, width
-          const height = 8;
-          const width = 8;
+          //exchange width with height b/c of difference in XY coords in Sb and Tiled
+          const height = tileSize.tilewidth;
+          const width = tileSize.tileheight;
           //TODO calc x, y from rgbaArray
           const { x: objX, y: objY } = this.getCoordsFromFlatRgbaArray(rgbaN, this.#width);
+          
           //TODO write parameters
           
           //TODO add object
-          this.addObjectToObjectLayer(match.tileGid, height, width, objX, objY)
+          //Y + 1 because of difference in coords in Sb and Tiled (coords of pixel are shifted by 1)
+          this.addObjectToObjectLayer(match.tileGid, height, width, (objX*this.tilewidth + parseInt(objectData.imagePositionX)), ((objY + 1)*this.tileheight + parseInt(objectData.imagePositionY)));
         }
       }
     }
