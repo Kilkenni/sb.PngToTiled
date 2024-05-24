@@ -320,19 +320,19 @@ class SbDungeonChunk{
     //caution! Front layer can have 0-s, which is "no tile" value
     for(let pixelN = 0; pixelN < baseLayerData.length; pixelN++) {
       if(baseLayerData[pixelN] === magicPinkBrushGid || baseLayerData[pixelN] === 0) {
-        if (mergeLayerData[pixelN] === baseLayerData[pixelN] && mergeLayerData[pixelN] !== 0) {
-          continue; //both layers have MPP or 0 in pixel, skip
+        if (mergeLayerData[pixelN] === baseLayerData[pixelN] || mergeLayerData[pixelN] === magicPinkBrushGid) {
+          continue; //both layers have MPP or 0 in pixel, or mergeLayer has MPP - skip
         }
         else {
           //debug
           const p1 = baseLayerData[pixelN];
           const p2 = mergeLayerData[pixelN];
           const coords = this.getCoordsFromFlatRgbaArray(pixelN, this.#width);
-          if (mergeLayerData[pixelN] === 0) {
-            //additional condition: if mergeLayer Gid === 0 (happens when we have an object which is not a tile block and is nor recognized at this stage) - reset this tile to transparent in baseLayer
+          /*if (mergeLayerData[pixelN] === 0) {
+            //additional condition: if mergeLayer Gid === 0 (happens when we have an object which is not a tile block and is not recognized at this stage) - reset this tile to transparent in baseLayer
             baseLayerData[pixelN] = magicPinkBrushGid;
           }
-          else {
+          else*/ {
             baseLayerData[pixelN] = mergeLayerData[pixelN]; //merge
           }
         }
