@@ -10,7 +10,7 @@ Current state:
 
 3a. Recognizes sprite flips with exception (below)
 
-3b. TODO: properties (loot tables for containers etc)
+3b. properties (loot tables for containers etc)
 
 4. TODO: NPCs
 5. TODO: Wiring
