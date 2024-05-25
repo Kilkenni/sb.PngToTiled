@@ -443,6 +443,50 @@ type FullTileMatch = {
   back: LayerTileMatch[]
 }
 
+type NPCBrush = ["npc",
+  {
+    kind: "monster",
+    typeName: string, //monster name
+    seed?: "stable";
+    parameters?: {
+      aggressive?: boolean;
+    },
+  },
+]|["npc",
+  {
+    kind: "npc",
+    typeName: string, //ex: villager, merchant, villageguard, villageguardcaptain
+    species: string; //ex: glitch
+    parameters?: {
+      scriptConfig?: {
+        // merchant?: {
+        //   categories?: {},
+        //   numItems?: number,
+        //   priceVarianceRange?: [number, number]
+        //   storeRadius?: number,
+        // },
+        // noticePlayersRadius?: number,
+        // sit?: { searchRadius: number };
+        // sleep?: { searchRadius: number };
+      };
+    },
+  },
+];
+
+
+interface NpcTile extends Tile {
+  brush: NPCBrush[],
+  connector: undefined,
+}
+
+type NpcMatch = {
+  tileRgba: RgbaValue,
+  npcKey: "monster" | "npc",
+  npcValue: string, //species or monster name
+  typeName?: string, //type of NPC, only for NPC
+  parameters: string, //JSON.stringified
+}
+
 //determine paths to tilesets for mapping PNG
 function resolveTilesets():string {
   const matPath = nodePath.resolve(
@@ -969,8 +1013,59 @@ async function getTileSizeFromTileset(tileMatch: ObjectFullMatch): Promise<{tile
   return {tileheight: pixelsArray.shape[0], tilewidth: pixelsArray.shape[1]}; //shape = width, height, channels
 }
 
-function matchNPCS() {
+function matchNPCS(oldNpcsArray: NpcTile[]): NpcMatch[] {
+  const matchMap: NpcMatch[] = oldNpcsArray.map((npcTile) => {
+    const newNpc: NpcMatch = {
+
+    };
+    return newNpc;
+  });
   //TODO
+  /*
+  function matchObjects(oldObjectsArray: ObjectTile[], tileset: TilesetObjectJson, partialMatchMap: (ObjectTileMatch|undefined)[]): (ObjectTileMatch|undefined)[] {
+  if (partialMatchMap && partialMatchMap.length !== oldObjectsArray.length) {
+    throw new Error(`Partial object matchMap has a length of ${partialMatchMap.length} but be equal to the list of objects, which has ${oldObjectsArray.length}`);
+  }
+  const matchMap = [...partialMatchMap];
+  for (let objectIndex = 0; objectIndex < oldObjectsArray.length; objectIndex++) {
+    if (JSON.stringify(oldObjectsArray[objectIndex].value) === JSON.stringify(matchMap[objectIndex]?.tileRgba)) {
+      //we already have a match for this element, skip it
+      continue;
+    }
+    else { 
+      const { brush:brushArray, comment, value }: ObjectTile = oldObjectsArray[objectIndex];
+      for (const brush of brushArray) {
+        const [brushType, objectName, stats] = brush;
+        if (brushType === "clear") {
+          continue; //skip empty brush
+        }
+        else {
+          if (brushType !== "object") {
+            throw new Error(`Found non-object item at ${objectIndex} in Object Array: ${oldObjectsArray[objectIndex]}`);
+          }
+          else {
+            for (const objIndex in tileset.tileproperties) {
+              const obj = tileset.tileproperties[objIndex];
+              if (obj.object === objectName) { 
+                if (obj["//name"].includes("orientation") || obj["//description"].includes("orientation") || obj["//shortdescription"].includes("orientation")) {
+                  continue; //Experimental - try to pick first match ignoring additional variations
+                }
+                //Check if we need horizontal flip
+                let flip:boolean = false;
+                if (stats && stats.direction) {
+                  flip = obj.tilesetDirection !== stats.direction;
+                };
+
+                const objMatch: ObjectTileMatch = { tileName: comment ? comment : objectName, tileRgba: value, tileId: parseInt(objIndex), tileset: tileset.name, flipHorizontal: flip || undefined };
+                matchMap[objectIndex] = objMatch;
+              }
+            }
+          }
+        }
+      }
+    }
+  }*/
+  return matchMap;
 }
 
 function matchStagehands() {

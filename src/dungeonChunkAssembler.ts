@@ -328,13 +328,7 @@ class SbDungeonChunk{
           const p1 = baseLayerData[pixelN];
           const p2 = mergeLayerData[pixelN];
           const coords = this.getCoordsFromFlatRgbaArray(pixelN, this.#width);
-          /*if (mergeLayerData[pixelN] === 0) {
-            //additional condition: if mergeLayer Gid === 0 (happens when we have an object which is not a tile block and is not recognized at this stage) - reset this tile to transparent in baseLayer
-            baseLayerData[pixelN] = magicPinkBrushGid;
-          }
-          else*/ {
-            baseLayerData[pixelN] = mergeLayerData[pixelN]; //merge
-          }
+          baseLayerData[pixelN] = mergeLayerData[pixelN]; //merge
         }
       }
       else {
