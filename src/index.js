@@ -248,8 +248,15 @@ async function writeConvertedMap_test(log = false) {
           ...pixelsArray.shape
         );
         //TODO map PNG to objects using objectsGidMap - DEBUG THIS!!!
-        await convertedChunk.parseAddObjects(sortedOldTileset.objects, objRgbaArray, objectsMap);
-        
+        await convertedChunk.parseAddObjects(
+          sortedOldTileset.objects,
+          objRgbaArray,
+          objectsMap
+        );
+
+        const npcMap = await tilesetMatcher.matchNPCS(sortedOldTileset.npcs);
+
+        convertedChunk.parseAddNpcs(objRgbaArray, npcMap);
 
         const success = await dungeonsFS.writeConvertedMapJson(
           newPath,

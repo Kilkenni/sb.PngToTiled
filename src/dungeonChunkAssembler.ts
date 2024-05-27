@@ -8,7 +8,8 @@
 // import * as dungeonsFS from "./dungeonsFS.js";
 // import * as tilesetMatcher from "./tilesetMatch.js";
 import { getTileset, getTilesetPath, getTilesetNameFromPath } from "./dungeonsFS";
-import { TilesetJsonType, matchObjects, matchObjectsBiome, ObjectTileType, ObjectFullMatchType, getObjectFromTileset, getTileSizeFromTileset, LayerTileMatchType, TilesetMiscJsonType, ObjectJsonType, RgbaValueType, isRgbaEqual, ObjectBrushType } from "./tilesetMatch";
+import { matchObjects, matchObjectsBiome, getObjectFromTileset, getTileSizeFromTileset, isRgbaEqual } from "./tilesetMatch";
+import { TilesetJsonType, ObjectTileType, ObjectFullMatchType, LayerTileMatchType, TilesetMiscJsonType, ObjectJsonType, RgbaValueType, ObjectBrushType, NpcMatchType } from "./tilesetMatch";
 import { getFilenameFromPath, getFilename, FullObjectMap } from "./conversionSteps";
 import { TILESETMAT_NAME, TILESETOBJ_NAME, resolveTilesets} from "./tilesetMatch";
 // import * as dungeonsFS from "./dungeonsFS";
@@ -85,6 +86,7 @@ interface SbObjectgroupItem {
 }
 
 interface SbObjectgroupLayer extends Layer {
+  color?: string; //HEX color
   readonly draworder: "topdown", //topdown (default) or index.
   readonly type: "objectgroup",
   name: typeof OBJECTLAYERS[number],
@@ -114,12 +116,14 @@ interface SbObject extends SbObjectgroupItem {
   },
 }
 
-interface SbEntity extends SbObjectgroupItem{
+interface SbNpc extends SbObjectgroupItem {
   readonly height: 8, 
   readonly width:8,
   properties: {
-    npc: string,
-    typeName:string,
+    npc?: string,
+    monster?: string,
+    typeName?: string,
+    parameters?: string,
   },
 }
 
@@ -148,7 +152,7 @@ const TEMPLATE = {
     width: 8,
     properties: {},
   },
-  SBENTITY: {
+  SBNPC: {
     height: 8,
     width: 8,
   },
@@ -165,6 +169,11 @@ const TEMPLATE = {
 interface SbObjectLayer extends SbObjectgroupLayer {
   readonly name: "objects",
   objects: SbObject[],
+}
+
+interface SbNpcLayer extends SbObjectgroupLayer {
+  readonly name: "monsters & npcs",
+  objects: SbNpc[],
 }
 
 /**
@@ -366,7 +375,32 @@ class SbDungeonChunk{
     if(layerId != false){
       return layerId; //already initiated
     }
-    const newObjectLayer:SbObjectgroupLayer = {
+
+    let color;
+    switch (layerName) {
+      case "monsters & npcs": {
+        color = "#ff0000"; //red
+        break;
+      }
+      case "wiring - lights & guns": {
+        color = "#ffff00"; //yellow
+        break;
+      }
+      case "wiring - locked door": {
+        color = "#00ffff"; //light blue
+        break;
+      }
+      case "mods": {
+        color = "#5555ff"; //purple
+        break;
+      }
+      default: {
+        color = undefined;
+        }
+    };
+
+    const newObjectLayer: SbObjectgroupLayer = {
+      color,
       draworder: "topdown",
       name: layerName,
       id: this.#nextlayerid,
@@ -433,7 +467,7 @@ class SbDungeonChunk{
    * @param properties Object with parameters like loot tables etc
    * @returns 
    */
-  addObjectToObjectLayer(objectGid: number, height: number, width: number, x: number, y: number, properties: {parameters:any}|{} = {}): SbDungeonChunk {
+  addObjectToObjectLayer(objectGid: number, height: number, width: number, x: number, y: number, properties: {parameters:any}|{} = {}): number {
     const layerId = this.#initObjectLayer("objects");
 
     const newObject: SbObject = {
@@ -450,7 +484,7 @@ class SbDungeonChunk{
     const objLayer: SbObjectLayer = this.#layers.find((layer) => { return layer.id === layerId }) as SbObjectLayer;
     objLayer.objects.push(newObject);
     this.#nextobjectid = this.#nextobjectid +1;
-    return this;
+    return layerId;
   }
 
   /**
@@ -565,6 +599,52 @@ class SbDungeonChunk{
           //Add object
           //Y + 1 because of difference in coords in Sb and Tiled (coords of pixel are shifted by 1)
           this.addObjectToObjectLayer(match.tileGid, height, width, (objX*this.tilewidth + parseInt(objectData.imagePositionX)), ((objY + 1)*this.tileheight + parseInt(objectData.imagePositionY)), params);
+        }
+      }
+    }
+    
+    return this;
+  }
+
+  addNpcToLayer(npc: NpcMatchType, x: number, y: number): number {
+    const layerId = this.#initObjectLayer("monsters & npcs");
+
+    const newNpc: SbNpc = {
+      ...TEMPLATE.SBNPC as SbNpc,
+      id: this.getNextObjectId(),
+      properties: {
+        [npc.npcKey]: npc.npcValue,
+        typeName: npc.npcKey === "npc" ? npc.typeName : undefined,
+        parameters: npc.parameters,
+      },
+      x,
+      y,
+    };
+    
+    const npcLayer: SbNpcLayer = this.#layers.find((layer) => { return layer.id === layerId }) as SbNpcLayer;
+    npcLayer.objects.push(newNpc);
+    this.#nextobjectid = this.#nextobjectid +1;
+    return layerId;
+  }
+
+  parseAddNpcs(rgbaArray: RgbaValueType[], npcMap: NpcMatchType[]): SbDungeonChunk {
+    //quick check to ensure size of rgbaArray
+    if (rgbaArray.length !== this.#height * this.#width) {
+      throw new Error(`Unable to add objects from image with ${rgbaArray.length} pixels to a chunk of height ${this.#height} and width ${this.#width}: size mismatch!`)
+    }
+  
+    for (let rgbaN = 0; rgbaN < rgbaArray.length; rgbaN++) {
+      for (const match of npcMap) {
+        if (match !== undefined) {
+          if (isRgbaEqual(match.tileRgba, rgbaArray[rgbaN]) === false) {
+            continue; //skip until we find the right match
+          }
+          //calc x, y from rgbaArray
+          const { x: objX, y: objY } = this.getCoordsFromFlatRgbaArray(rgbaN, this.#width);
+                   
+          //Add MPC or monster
+          //Y + 1 because of difference in coords in Sb and Tiled (coords of pixel are shifted by 1)
+          this.addNpcToLayer(match, (objX*this.tilewidth), ((objY + 1)*this.tileheight));
         }
       }
     }

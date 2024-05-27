@@ -475,16 +475,21 @@ type NPCBrush = ["npc",
 
 
 interface NpcTile extends Tile {
-  brush: NPCBrush[],
+  brush: [NPCBrush],
   connector: undefined,
 }
 
+/**
+ * npcValue - species or monster name
+ * typeName - type of NPC, only for NPC
+ * parameters - JSON.stringified
+ */
 type NpcMatch = {
   tileRgba: RgbaValue,
   npcKey: "monster" | "npc",
-  npcValue: string, //species or monster name
-  typeName?: string, //type of NPC, only for NPC
-  parameters: string, //JSON.stringified
+  npcValue: string,
+  typeName?: string,
+  parameters: string,
 }
 
 //determine paths to tilesets for mapping PNG
@@ -1015,8 +1020,13 @@ async function getTileSizeFromTileset(tileMatch: ObjectFullMatch): Promise<{tile
 
 function matchNPCS(oldNpcsArray: NpcTile[]): NpcMatch[] {
   const matchMap: NpcMatch[] = oldNpcsArray.map((npcTile) => {
+    const {brush } = npcTile;
     const newNpc: NpcMatch = {
-
+      tileRgba: npcTile.value,
+      npcKey: brush[0][1].kind,
+      npcValue: brush[0][1].kind === "npc" ? brush[0][1].species : brush[0][1].typeName,
+      typeName: brush[0][1].kind === "npc" ? brush[0][1].typeName : undefined,
+      parameters: JSON.stringify(brush[0][1].parameters),
     };
     return newNpc;
   });
@@ -1328,5 +1338,6 @@ export type {
   TilesetMiscJson as TilesetMiscJsonType,
   OldTilesetSorted as OldTilesetSortedType,
   TilesetJson as TilesetJsonType,
+  NpcMatch as NpcMatchType,
 }
   
