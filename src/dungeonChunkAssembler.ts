@@ -643,8 +643,8 @@ class SbDungeonChunk{
           const { x: objX, y: objY } = this.getCoordsFromFlatRgbaArray(rgbaN, this.#width);
                    
           //Add MPC or monster
-          //Y + 1 because of difference in coords in Sb and Tiled (coords of pixel are shifted by 1)
-          this.addNpcToLayer(match, (objX*this.tilewidth), ((objY + 1)*this.tileheight));
+          //Y + 1 because of difference in coords in Sb and Tiled (Y unchanged to make NPCs spawn 1 block up in the air)
+          this.addNpcToLayer(match, (objX*this.tilewidth), (objY*this.tileheight));
         }
       }
     }
