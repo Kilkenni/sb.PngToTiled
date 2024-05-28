@@ -9,7 +9,7 @@
 // import * as tilesetMatcher from "./tilesetMatch.js";
 import { getTileset, getTilesetPath, getTilesetNameFromPath } from "./dungeonsFS";
 import { matchObjects, matchObjectsBiome, getObjectFromTileset, getTileSizeFromTileset, isRgbaEqual } from "./tilesetMatch";
-import { TilesetJsonType, ObjectTileType, ObjectFullMatchType, LayerTileMatchType, TilesetMiscJsonType, ObjectJsonType, RgbaValueType, ObjectBrushType, NpcMatchType } from "./tilesetMatch";
+import { TilesetJsonType, ObjectTileType, ObjectFullMatchType, LayerTileMatchType, TilesetMiscJsonType, ObjectJsonType, RgbaValueType, ObjectBrushType, NpcMatchType, ModMatchType } from "./tilesetMatch";
 import { getFilenameFromPath, getFilename, FullObjectMap } from "./conversionSteps";
 import { TILESETMAT_NAME, TILESETOBJ_NAME, resolveTilesets} from "./tilesetMatch";
 // import * as dungeonsFS from "./dungeonsFS";
@@ -127,12 +127,21 @@ interface SbNpc extends SbObjectgroupItem {
   },
 }
 
+interface SbMod extends SbObjectgroupItem {
+  readonly height: 8,
+  properties: {
+    mod: string, //name of mod to apply to tile
+    surface: number, //surfaceGid of underlying tile
+  },
+}
+
 interface SbWire extends SbObjectgroupItem {
   readonly height: 0,
   readonly width: 0,
   polyline:[
-        {x:number, y:number}, 
-        {x:number, y:number}],
+    { x: number, y: number }, 
+    { x: number, y: number }
+  ],
   readonly properties: {},
 }
 
@@ -174,6 +183,11 @@ interface SbObjectLayer extends SbObjectgroupLayer {
 interface SbNpcLayer extends SbObjectgroupLayer {
   readonly name: "monsters & npcs",
   objects: SbNpc[],
+}
+
+interface SbModLayer extends SbObjectgroupLayer {
+  readonly name: "mods",
+  objects: SbMod[],
 }
 
 /**
@@ -610,7 +624,8 @@ class SbDungeonChunk{
     const layerId = this.#initObjectLayer("monsters & npcs");
 
     const newNpc: SbNpc = {
-      ...TEMPLATE.SBNPC as SbNpc,
+      ...TEMPLATE.SBOBJECT,
+      ...TEMPLATE.SBNPC,
       id: this.getNextObjectId(),
       properties: {
         [npc.npcKey]: npc.npcValue,
@@ -630,7 +645,7 @@ class SbDungeonChunk{
   parseAddNpcs(rgbaArray: RgbaValueType[], npcMap: NpcMatchType[]): SbDungeonChunk {
     //quick check to ensure size of rgbaArray
     if (rgbaArray.length !== this.#height * this.#width) {
-      throw new Error(`Unable to add objects from image with ${rgbaArray.length} pixels to a chunk of height ${this.#height} and width ${this.#width}: size mismatch!`)
+      throw new Error(`Unable to parse image with ${rgbaArray.length} pixels to a chunk of height ${this.#height} and width ${this.#width}: size mismatch!`)
     }
   
     for (let rgbaN = 0; rgbaN < rgbaArray.length; rgbaN++) {
@@ -642,13 +657,58 @@ class SbDungeonChunk{
           //calc x, y from rgbaArray
           const { x: objX, y: objY } = this.getCoordsFromFlatRgbaArray(rgbaN, this.#width);
                    
-          //Add MPC or monster
+          //Add NPC or monster
           //Y + 1 because of difference in coords in Sb and Tiled (Y unchanged to make NPCs spawn 1 block up in the air)
           this.addNpcToLayer(match, (objX*this.tilewidth), (objY*this.tileheight));
         }
       }
     }
+    return this;
+  }
+
+  addModToLayer(mod: ModMatchType, x: number, y: number): number {
+    const layerId = this.#initObjectLayer("mods");
+
+    const newMod: SbMod = {
+      ...TEMPLATE.SBOBJECT,
+      id: this.getNextObjectId(),
+      height: 8,
+      width: 8, //change to merge mods horizontally!
+      properties: {
+        mod: mod.mod,
+        surface: mod.tileGid,
+      },
+      x,
+      y,
+    };
     
+    const modLayer: SbModLayer = this.#layers.find((layer) => { return layer.id === layerId }) as SbModLayer;
+    modLayer.objects.push(newMod);
+    this.#nextobjectid = this.#nextobjectid +1;
+    return layerId;
+  }
+
+  parseMods(rgbaArray: RgbaValueType[], modMap: ModMatchType[]): SbDungeonChunk {
+    if (rgbaArray.length !== this.#height * this.#width) {
+      throw new Error(`Unable to parse image with ${rgbaArray.length} pixels to a chunk of height ${this.#height} and width ${this.#width}: size mismatch!`)
+    }
+
+    for (let rgbaN = 0; rgbaN < rgbaArray.length; rgbaN++) {
+      for (const match of modMap) {
+        if (match !== undefined) {
+          if (isRgbaEqual(match.tileRgba, rgbaArray[rgbaN]) === false) {
+            continue; //skip until we find the right match
+          }
+          //calc x, y from rgbaArray
+          const { x: objX, y: objY } = this.getCoordsFromFlatRgbaArray(rgbaN, this.#width);
+                   
+          //Add mod
+          // //Y + 1 because of difference in coords in Sb and Tiled 
+          this.addModToLayer(match, (objX*this.tilewidth), ((objY+1)*this.tileheight));
+        }
+      }
+    }
+
     return this;
   }
 

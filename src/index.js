@@ -260,6 +260,7 @@ async function writeConvertedMap_test(log = false) {
         //ground tile mods
         const modMap = tilesetMatcher.matchMods(sortedOldTileset.foreground);
         //TODO add mods to chunk here
+        convertedChunk.parseMods(objRgbaArray, modMap);
 
         const success = await dungeonsFS.writeConvertedMapJson(
           newPath,

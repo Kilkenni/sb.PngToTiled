@@ -419,7 +419,7 @@ type LayerTileMatch = {
   tileGid: number,
 };
 
-type LayerModMatch = LayerTileMatch & {
+type ModMatch = LayerTileMatch & {
   mod: string,
 }
 
@@ -1045,19 +1045,19 @@ function matchWires() {
   //TODO
 }
 
-function matchMods(oldTilesCategoryArray: Tile[]): LayerModMatch[] {
-  const modMap: LayerModMatch[] = [];
+function matchMods(oldTilesCategoryArray: Tile[]): ModMatch[] {
+  const modMap: ModMatch[] = [];
   oldTilesCategoryArray.forEach((tile) => {
     const { brush } = tile;
     if (brush !== undefined) {
       for (const brushLayer of brush) {
-        if (brushLayer[0] === "back" && brushLayer.length > 2) {
-          throw new Error(`Tile ${tile.value} contains some mods in bakcground layer! TODO: write processing this case!`)
+        if (brushLayer[0] !== "front" && brushLayer.length > 2) {
+          throw new Error(`Tile ${tile.value} contains some mods in unknown layer: ${brushLayer[0]}! TODO: write processing this case!`)
         }
         if (brushLayer[0] === "front" && brushLayer.length > 2) {
           //we found mod for front tile!
           const [brushType, brushMaterial, brushMod] = brushLayer;
-          const modMatch: LayerModMatch = {
+          const modMatch: ModMatch = {
             tileName: tile.comment || brushMaterial,
             tileRgba: tile.value,
             tileGid: 0, //simply apply mod to any tile under it, ignore material
@@ -1314,11 +1314,13 @@ export type {
   ObjectBrush as ObjectBrushType,
   ObjectTileMatch as ObjectTileMatchType,
   ObjectFullMatch as ObjectFullMatchType,
+  NpcMatch as NpcMatchType,
+  ModMatch as ModMatchType,
+
   ObjectJson as ObjectJsonType,
   TilesetObjectJson as TilesetObjectJsonType,
   TilesetMiscJson as TilesetMiscJsonType,
   OldTilesetSorted as OldTilesetSortedType,
   TilesetJson as TilesetJsonType,
-  NpcMatch as NpcMatchType,
 }
   
