@@ -254,9 +254,12 @@ async function writeConvertedMap_test(log = false) {
           objectsMap
         );
 
-        const npcMap = await tilesetMatcher.matchNPCS(sortedOldTileset.npcs);
-
+        //NPCs
+        const npcMap = tilesetMatcher.matchNPCS(sortedOldTileset.npcs);
         convertedChunk.parseAddNpcs(objRgbaArray, npcMap);
+        //ground tile mods
+        const modMap = tilesetMatcher.matchMods(sortedOldTileset.foreground);
+        //TODO add mods to chunk here
 
         const success = await dungeonsFS.writeConvertedMapJson(
           newPath,

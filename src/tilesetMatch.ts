@@ -416,8 +416,12 @@ interface OldTilesetSorted extends Record<string, Tile[]> {
 type LayerTileMatch = {
   tileName: string,
   tileRgba: RgbaValue,
-  tileGid: number
+  tileGid: number,
 };
+
+type LayerModMatch = LayerTileMatch & {
+  mod: string,
+}
 
 /**
  * TileId is not Gid but local tileset ID! Requires transforming into Gid before inserting into chunk!
@@ -1030,51 +1034,6 @@ function matchNPCS(oldNpcsArray: NpcTile[]): NpcMatch[] {
     };
     return newNpc;
   });
-  //TODO
-  /*
-  function matchObjects(oldObjectsArray: ObjectTile[], tileset: TilesetObjectJson, partialMatchMap: (ObjectTileMatch|undefined)[]): (ObjectTileMatch|undefined)[] {
-  if (partialMatchMap && partialMatchMap.length !== oldObjectsArray.length) {
-    throw new Error(`Partial object matchMap has a length of ${partialMatchMap.length} but be equal to the list of objects, which has ${oldObjectsArray.length}`);
-  }
-  const matchMap = [...partialMatchMap];
-  for (let objectIndex = 0; objectIndex < oldObjectsArray.length; objectIndex++) {
-    if (JSON.stringify(oldObjectsArray[objectIndex].value) === JSON.stringify(matchMap[objectIndex]?.tileRgba)) {
-      //we already have a match for this element, skip it
-      continue;
-    }
-    else { 
-      const { brush:brushArray, comment, value }: ObjectTile = oldObjectsArray[objectIndex];
-      for (const brush of brushArray) {
-        const [brushType, objectName, stats] = brush;
-        if (brushType === "clear") {
-          continue; //skip empty brush
-        }
-        else {
-          if (brushType !== "object") {
-            throw new Error(`Found non-object item at ${objectIndex} in Object Array: ${oldObjectsArray[objectIndex]}`);
-          }
-          else {
-            for (const objIndex in tileset.tileproperties) {
-              const obj = tileset.tileproperties[objIndex];
-              if (obj.object === objectName) { 
-                if (obj["//name"].includes("orientation") || obj["//description"].includes("orientation") || obj["//shortdescription"].includes("orientation")) {
-                  continue; //Experimental - try to pick first match ignoring additional variations
-                }
-                //Check if we need horizontal flip
-                let flip:boolean = false;
-                if (stats && stats.direction) {
-                  flip = obj.tilesetDirection !== stats.direction;
-                };
-
-                const objMatch: ObjectTileMatch = { tileName: comment ? comment : objectName, tileRgba: value, tileId: parseInt(objIndex), tileset: tileset.name, flipHorizontal: flip || undefined };
-                matchMap[objectIndex] = objMatch;
-              }
-            }
-          }
-        }
-      }
-    }
-  }*/
   return matchMap;
 }
 
@@ -1086,8 +1045,30 @@ function matchWires() {
   //TODO
 }
 
-function matchMods() {
-  //TODO
+function matchMods(oldTilesCategoryArray: Tile[]): LayerModMatch[] {
+  const modMap: LayerModMatch[] = [];
+  oldTilesCategoryArray.forEach((tile) => {
+    const { brush } = tile;
+    if (brush !== undefined) {
+      for (const brushLayer of brush) {
+        if (brushLayer[0] === "back" && brushLayer.length > 2) {
+          throw new Error(`Tile ${tile.value} contains some mods in bakcground layer! TODO: write processing this case!`)
+        }
+        if (brushLayer[0] === "front" && brushLayer.length > 2) {
+          //we found mod for front tile!
+          const [brushType, brushMaterial, brushMod] = brushLayer;
+          const modMatch: LayerModMatch = {
+            tileName: tile.comment || brushMaterial,
+            tileRgba: tile.value,
+            tileGid: 0, //simply apply mod to any tile under it, ignore material
+            mod: brushMod as string, 
+          }
+          modMap.push(modMatch);
+        }
+      }
+    }
+  });
+  return modMap;
 }
 
 //merge two match maps with non-intersecting values and return new map
