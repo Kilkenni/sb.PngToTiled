@@ -9,7 +9,7 @@
 // import * as tilesetMatcher from "./tilesetMatch.js";
 import { getTileset, getTilesetPath, getTilesetNameFromPath } from "./dungeonsFS";
 import { matchObjects, matchObjectsBiome, getObjectFromTileset, getTileSizeFromTileset, isRgbaEqual } from "./tilesetMatch";
-import { TilesetJsonType, ObjectTileType, ObjectFullMatchType, LayerTileMatchType, TilesetMiscJsonType, ObjectJsonType, RgbaValueType, ObjectBrushType, NpcMatchType, ModMatchType } from "./tilesetMatch";
+import { TilesetJsonType, ObjectTileType, ObjectFullMatchType, LayerTileMatchType, TilesetMiscJsonType, ObjectJsonType, RgbaValueType, ObjectBrushType, NpcMatchType, ModMatchType, StagehandMatchType } from "./tilesetMatch";
 import { getFilenameFromPath, getFilename, FullObjectMap } from "./conversionSteps";
 import { TILESETMAT_NAME, TILESETOBJ_NAME, resolveTilesets} from "./tilesetMatch";
 // import * as dungeonsFS from "./dungeonsFS";
@@ -69,7 +69,8 @@ const OBJECTLAYERS = [
   "monsters & npcs",
   "wiring - lights & guns",
   "objects",
-  "mods"
+  "mods",
+  "stagehands",
 ] as const;
 
 interface SbObjectgroupItem {
@@ -135,6 +136,13 @@ interface SbMod extends SbObjectgroupItem {
   },
 }
 
+interface SbStagehand extends SbObjectgroupItem {
+  properties: {
+    stagehand: "questlocation"|"objecttracker",
+    parameters?: string, //{locationType:"%LocationRefForQuest%"}
+  }
+}
+
 interface SbWire extends SbObjectgroupItem {
   readonly height: 0,
   readonly width: 0,
@@ -143,10 +151,6 @@ interface SbWire extends SbObjectgroupItem {
     { x: number, y: number }
   ],
   readonly properties: {},
-}
-
-interface SbStagehand extends SbObjectgroupItem{
-  properties: { stagehand:string },
 }
 
 const TEMPLATE = {
@@ -188,6 +192,11 @@ interface SbNpcLayer extends SbObjectgroupLayer {
 interface SbModLayer extends SbObjectgroupLayer {
   readonly name: "mods",
   objects: SbMod[],
+}
+
+interface SbStagehandLayer extends SbObjectgroupLayer {
+  readonly name: "stagehands",
+  objects: SbStagehand[],
 }
 
 /**
@@ -741,9 +750,54 @@ class SbDungeonChunk{
     return this;
   }
 
+  #addStagehand(stagehand: StagehandMatchType, x: number, y: number): number {
+    const layerId = this.#initObjectLayer("stagehands");
+    const stagehandLayer: SbStagehandLayer = this.#layers.find((layer) => { return layer.id === layerId }) as SbStagehandLayer;
+
+    const newStagehand: SbStagehand = {
+      ...TEMPLATE.SBOBJECT,
+      id: this.getNextObjectId(),
+      height: stagehand.height*this.tileheight,
+      width: stagehand.width*this.tilewidth,
+      properties: {
+        stagehand: stagehand.stagehand,
+        parameters: stagehand.nameParam?JSON.stringify(stagehand.nameParam):undefined,
+      },
+      x: (x - stagehand.width * this.tilewidth/2),
+      y: (y - stagehand.height * this.tileheight/2),
+    };
+    
+    stagehandLayer.objects.push(newStagehand);
+    this.#nextobjectid = this.#nextobjectid +1;
+    return layerId;
+  }
+
   setSize(width:number, height:number):SbDungeonChunk {
     this.#height = height;
     this.#width = width;
+    return this;
+  }
+
+  parseStagehands(rgbaArray: RgbaValueType[], stagehandMap: StagehandMatchType[]): SbDungeonChunk {
+    if (rgbaArray.length !== this.#height * this.#width) {
+      throw new Error(`Unable to parse image with ${rgbaArray.length} pixels to a chunk of height ${this.#height} and width ${this.#width}: size mismatch!`)
+    }
+
+    for (let rgbaN = 0; rgbaN < rgbaArray.length; rgbaN++) {
+      for (const match of stagehandMap) {
+        if (match !== undefined) {
+          if (isRgbaEqual(match.tileRgba, rgbaArray[rgbaN]) === false) {
+            continue; //skip until we find the right match
+          }
+          //calc x, y from rgbaArray
+          const { x: objX, y: objY } = this.getCoordsFromFlatRgbaArray(rgbaN, this.#width);
+                   
+          //Add mod
+          this.#addStagehand(match, (objX*this.tilewidth), (objY*this.tileheight));
+        }
+      }
+    }
+
     return this;
   }
 

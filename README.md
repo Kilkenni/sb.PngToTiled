@@ -12,10 +12,10 @@ Current state:
 
 3b. properties (loot tables for containers etc)
 
-4. TODO: NPCs
-5. TODO: Wiring
-6. TODO: Stagehands
-7. TODO: Tilelayer modifications
+4. NPCs
+5. Stagehands
+6. Tilelayer modifications
+7. TODO: Wiring
 
 Has several bottlenecks which require post-conversion manual QA:
 
@@ -26,6 +26,10 @@ Solution: Manually check background layer at anchor locations, paint similar to 
 - Objects that have separate sprites for different placements (as opposed to simply flipping single sprite horizontally) use tile with default orientation after conversion. Meaning they can possibly lack mount points, hang in the air or overlap solid blocks, leading to log errors when spawning in-game.
 
 Solution: Manually check such objects and replace with appropriate `_orientationN` versions from the same tileset. Most common cases include light sources (example: glitch torches), diagonal supports (example: wooden, foundry etc), signs (example: glitch village signs).
+
+- Old dungeon chunks use a limited number of preset stagehands. Meaning that, for example, "objectrracker" stagehands (used for tracking player stealing blocks from villages) are bigger/smaller than needed (usually bigger).
+
+Solution: Manually adjust size of stagehands after conversion to include required constructions but exclude unnecessary space.
 
 ## Usage
 
@@ -48,15 +52,6 @@ To use under Linux:
 - can't properly convert base64 string and gzip.inflate to get value similar to decompressed files from Tiled. Mismatch happens only with back tilelayer, resulting GIDs for tiles with flags in code are lower than real ones from the file by 7. Reason unknown - probably Magic Pink Brush involved.
 - Front tilelayer seems to be decompressing OK
 
-- rough algo to get conversion done:
-
-1. Debug Tiled JSON decompression to make it work.
-2. Map PNG with tile definitions extracted from old .dungeons file.
-   a) RBG > Tile
-   b) Tile > Tile GID from Tileset. Tilesets available in packed/tilesets/packed
-3. Form reference to tilesets for resulting JSON. Note the paths, as those should point to tilesets from 2b relative of original PNG location in assets (assuming we want to place JSON in the same location)
-4. Process associated PNGs (original SB format splits layers into separate files, Tiled keeps map info in layers inside a single file). Note the flip flags!
-
 ## Useful links
 
 [Tiled JSON file documentation](https://doc.mapeditor.org/en/latest/reference/json-map-format)
@@ -67,7 +62,7 @@ To use under Linux:
 
 [JavaScript bitwise operations](https://www.w3schools.com/js/js_bitwise.asp)
 
-I *do not* provide Starbound assets or unpacker. Please use those found in the copy that you own.
+I _do not_ provide Starbound assets or unpacker. Please use those found in the copy that you own.
 
 ## Credits
 

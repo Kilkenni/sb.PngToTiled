@@ -394,9 +394,30 @@ type ObjectBrush = ["clear"] |
   },
 ];
 
+/**
+ * broadcast area is leftX, leftY, rightX, rightY
+ */
+type StagehandBrush = [
+  "stagehand",
+  {
+    type: "objecttracker"|"questlocation",
+    parameters: {
+      broadcastArea: [number, number, number, number]; //offsets of area from coords - use to cals size
+      locationType?: string, //for quest locations only - ref to string describing the location
+    },
+  },
+];
+
+interface StagehandTile extends Tile {
+  rules: undefined,
+  connector: undefined,
+  brush: [StagehandBrush],
+}
+
 interface ObjectTile extends Tile {
   //comment can include "facing left/right"
-  brush:ObjectBrush[],
+  brush: ObjectBrush[],
+  connector: undefined,
 }
 
 interface OldTilesetSorted extends Record<string, Tile[]> {
@@ -421,6 +442,16 @@ type LayerTileMatch = {
 
 type ModMatch = LayerTileMatch & {
   mod: string,
+}
+
+type StagehandMatch = LayerTileMatch & {
+  tileGid: 0,
+  stagehand: "questlocation"|"objecttracker",
+  nameParam?: {
+    locationType: string,
+  },
+  width: number,
+  height: number,
 }
 
 /**
@@ -1037,8 +1068,24 @@ function matchNPCS(oldNpcsArray: NpcTile[]): NpcMatch[] {
   return matchMap;
 }
 
-function matchStagehands() {
+function matchStagehands(oldTilesCategoryArray: StagehandTile[]): StagehandMatch[] {
+  const stagehandMap: StagehandMatch[] = [];
   //TODO
+  oldTilesCategoryArray.forEach((tile) => {
+    const [_, shParams] = tile.brush[0];
+    const stagehand: StagehandMatch = {
+      tileName: tile.comment || "",
+      tileGid: 0,
+      tileRgba: tile.value,
+      stagehand: shParams.type,
+      nameParam: shParams.parameters.locationType? { locationType: shParams.parameters.locationType }:undefined,
+      width: (shParams.parameters.broadcastArea[2] - shParams.parameters.broadcastArea[0]),
+      height: (shParams.parameters.broadcastArea[3] - shParams.parameters.broadcastArea[1]),
+    };
+    stagehandMap.push(stagehand);
+  });
+
+  return stagehandMap;
 }
 
 function matchWires() {
@@ -1316,6 +1363,7 @@ export type {
   ObjectFullMatch as ObjectFullMatchType,
   NpcMatch as NpcMatchType,
   ModMatch as ModMatchType,
+  StagehandMatch as StagehandMatchType,
 
   ObjectJson as ObjectJsonType,
   TilesetObjectJson as TilesetObjectJsonType,
