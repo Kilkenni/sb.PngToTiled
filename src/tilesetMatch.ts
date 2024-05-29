@@ -1233,15 +1233,24 @@ function isRgbaEqual(Rgba1:RgbaValue, Rgba2:RgbaValue):boolean {
   return true;
 }
 
-function convertPngToGid(RgbaArray:RgbaValue[], tileMatchMap: LayerTileMatch[]):number[] {
+function convertPngToGid(RgbaArray:RgbaValue[], tileMatchMap: (LayerTileMatch|undefined)[]):number[] {
   const layerGids = new Array(RgbaArray.length).fill(0);
+  let undefinedMatches = false;
   for(let rgbaN = 0; rgbaN < RgbaArray.length; rgbaN++) {
-    for(const conversion of tileMatchMap) {
-      if(isRgbaEqual(RgbaArray[rgbaN], conversion.tileRgba)) {
-        const gid = conversion.tileGid;
-        layerGids[rgbaN] = gid;//layerGids[rgbaN] = gid;
+    for (const conversion of tileMatchMap) {
+      if (conversion !== undefined) {
+         if(isRgbaEqual(RgbaArray[rgbaN], conversion.tileRgba)) {
+          const gid = conversion.tileGid;
+          layerGids[rgbaN] = gid;//layerGids[rgbaN] = gid;
+        }
+      }
+      else {
+        undefinedMatches = true;
       }
     }
+  }
+  if (undefinedMatches) {
+    console.log(`WARNING: Conversion will be incomplete, undefined matches found!`)
   }
   return layerGids;
 }
