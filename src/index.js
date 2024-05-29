@@ -121,7 +121,7 @@ async function writeConvertedMap_test(log = false) {
           newTilesetShapes
         );
         const getPixelsPromise = promisify(getPixels); //getPixels originally doesn't support promises
-        const oldTileset = await extractOldTileset(log);
+        const oldTileset = await extractOldTileset(false);
         const sortedOldTileset = await tilesetMatcher.getSortedTileset(
           oldTileset
         );
@@ -237,52 +237,55 @@ async function writeConvertedMap_test(log = false) {
           }
         }
 
-        //match object RGB to ID locally, calc required tilesets
-        const objectsMap = await matchAllObjects(sortedOldTileset.objects);
-        //Add required tilesets to chunk
-        if (log) {
-          console.log(`  - injecting object tilesets...`);
-        }
-        await convertedChunk.addObjectTilesetShapes(objectsMap.tilesets);
-        // await convertedChunk.parseAddObjects();
-        //convert objectsMap from using Ids to using Gids
-        const objectsGidMap = convertedChunk.convertIdMapToGid(objectsMap);
-        const objRgbaArray = tilesetMatcher.slicePixelsToArray(
-          pixelsObjArray.data,
-          ...pixelsObjArray.shape
-        );
-        //map PNG to objects using objectsGidMap
-        if (log) {
-          console.log(`  - adding objects...`);
-        }
-        await convertedChunk.parseAddObjects(
-          sortedOldTileset.objects,
-          objRgbaArray,
-          objectsMap
-        );
+        if(pixelsObjArray !== undefined) {
+          //match object RGB to ID locally, calc required tilesets
+          const objectsMap = await matchAllObjects(sortedOldTileset.objects);
+          //Add required tilesets to chunk
+          if (log) {
+            console.log(`  - injecting object tilesets...`);
+          }
+          await convertedChunk.addObjectTilesetShapes(objectsMap.tilesets);
+          // await convertedChunk.parseAddObjects();
+          //convert objectsMap from using Ids to using Gids
+          const objectsGidMap = convertedChunk.convertIdMapToGid(objectsMap);
+          const objRgbaArray = tilesetMatcher.slicePixelsToArray(
+            pixelsObjArray.data,
+            ...pixelsObjArray.shape
+          );
+          //map PNG to objects using objectsGidMap
+          if (log) {
+            console.log(`  - adding objects...`);
+          }
+          await convertedChunk.parseAddObjects(
+            sortedOldTileset.objects,
+            objRgbaArray,
+            objectsMap
+          );
 
-        //NPCs
-        const npcMap = tilesetMatcher.matchNPCS(sortedOldTileset.npcs);
-        if (log) {
-          console.log(`  - adding NPCs...`);
-        }
-        convertedChunk.parseAddNpcs(objRgbaArray, npcMap);
-        //ground tile mods
-        const modMap = tilesetMatcher.matchMods(sortedOldTileset.foreground);
-        //add mods to chunk
-        if (log) {
-          console.log(`  - adding modded terrain regions...`);
-        }
-        convertedChunk.parseMods(RgbaArray, modMap);
-        convertedChunk.parseMods(objRgbaArray, modMap);
+          //NPCs
+          const npcMap = tilesetMatcher.matchNPCS(sortedOldTileset.npcs);
+          if (log) {
+            console.log(`  - adding NPCs...`);
+          }
+          convertedChunk.parseAddNpcs(objRgbaArray, npcMap);
+          //ground tile mods
+          const modMap = tilesetMatcher.matchMods(sortedOldTileset.foreground);
+          //add mods to chunk
+          if (log) {
+            console.log(`  - adding modded terrain regions...`);
+          }
+          convertedChunk.parseMods(RgbaArray, modMap);
+          convertedChunk.parseMods(objRgbaArray, modMap);
 
-        const stagehandMap = tilesetMatcher.matchStagehands(
-          sortedOldTileset.stagehands
-        );
-        if (log) {
-          console.log(`  - adding stagehands...`);
+          const stagehandMap = tilesetMatcher.matchStagehands(
+            sortedOldTileset.stagehands
+          );
+          if (log) {
+            console.log(`  - adding stagehands...`);
+          }
+          convertedChunk.parseStagehands(objRgbaArray, stagehandMap);
         }
-        convertedChunk.parseStagehands(objRgbaArray, stagehandMap);
+        
 
         const success = await dungeonsFS.writeConvertedMapJson(
           newPath,

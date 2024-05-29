@@ -450,8 +450,7 @@ type StagehandMatch = LayerTileMatch & {
   nameParam?: {
     locationType: string,
   },
-  width: number,
-  height: number,
+  broadcastArea: [number, number, number, number],
 }
 
 /**
@@ -1079,8 +1078,7 @@ function matchStagehands(oldTilesCategoryArray: StagehandTile[]): StagehandMatch
       tileRgba: tile.value,
       stagehand: shParams.type,
       nameParam: shParams.parameters.locationType? { locationType: shParams.parameters.locationType }:undefined,
-      width: (shParams.parameters.broadcastArea[2] - shParams.parameters.broadcastArea[0]),
-      height: (shParams.parameters.broadcastArea[3] - shParams.parameters.broadcastArea[1]),
+      broadcastArea: shParams.parameters.broadcastArea,
     };
     stagehandMap.push(stagehand);
   });
