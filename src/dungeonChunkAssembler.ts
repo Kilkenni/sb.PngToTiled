@@ -620,7 +620,7 @@ class SbDungeonChunk{
     return this;
   }
 
-  addNpcToLayer(npc: NpcMatchType, x: number, y: number): number {
+  #addNpcToLayer(npc: NpcMatchType, x: number, y: number): number {
     const layerId = this.#initObjectLayer("monsters & npcs");
 
     const newNpc: SbNpc = {
@@ -659,15 +659,39 @@ class SbDungeonChunk{
                    
           //Add NPC or monster
           //Y + 1 because of difference in coords in Sb and Tiled (Y unchanged to make NPCs spawn 1 block up in the air)
-          this.addNpcToLayer(match, (objX*this.tilewidth), (objY*this.tileheight));
+          this.#addNpcToLayer(match, (objX*this.tilewidth), (objY*this.tileheight));
         }
       }
     }
     return this;
   }
 
-  addModToLayer(mod: ModMatchType, x: number, y: number): number {
+  /**
+   * Util function to try and find previous mod at this row (i.e. with the same y and 0 < ??? < x)
+   * Returns undefined only when there are no mods of ANY kind to the left of x
+   * @param x - max position at row until which to search
+   * @param y - coord of row
+   * @returns 
+   */
+  #findPrevModAtLayer(x: number, y: number): SbMod|undefined {
     const layerId = this.#initObjectLayer("mods");
+    const modLayer: SbModLayer = this.#layers.find((layer) => { return layer.id === layerId }) as SbModLayer;
+    
+    for (let tileNum = x; tileNum >= 0; tileNum = tileNum-this.tilewidth) {
+      const foundMod = modLayer.objects.find((mod) => {
+        return (mod.x === tileNum && mod.y === y);
+      });
+      if (foundMod !== undefined) {
+        return foundMod;
+      }
+    }
+
+    return undefined;
+  }
+
+  #addModToLayer(mod: ModMatchType, x: number, y: number): number {
+    const layerId = this.#initObjectLayer("mods");
+    const modLayer: SbModLayer = this.#layers.find((layer) => { return layer.id === layerId }) as SbModLayer;
 
     const newMod: SbMod = {
       ...TEMPLATE.SBOBJECT,
@@ -682,10 +706,16 @@ class SbDungeonChunk{
       y,
     };
     
-    const modLayer: SbModLayer = this.#layers.find((layer) => { return layer.id === layerId }) as SbModLayer;
-    modLayer.objects.push(newMod);
-    this.#nextobjectid = this.#nextobjectid +1;
-    return layerId;
+    const modAtLeft = this.#findPrevModAtLayer(x - this.tilewidth, y);
+    if (modAtLeft !== undefined && modAtLeft.properties.mod === newMod.properties.mod && (modAtLeft.x + modAtLeft.width === newMod.x)) {
+      modAtLeft.width = modAtLeft.width + this.tilewidth; //if mod to the left is the same -simply increase its width by 1 tilewidth
+      return layerId;
+    }
+    else {
+      modLayer.objects.push(newMod);
+      this.#nextobjectid = this.#nextobjectid +1;
+      return layerId;
+    }
   }
 
   parseMods(rgbaArray: RgbaValueType[], modMap: ModMatchType[]): SbDungeonChunk {
@@ -703,8 +733,7 @@ class SbDungeonChunk{
           const { x: objX, y: objY } = this.getCoordsFromFlatRgbaArray(rgbaN, this.#width);
                    
           //Add mod
-          // //Y + 1 because of difference in coords in Sb and Tiled 
-          this.addModToLayer(match, (objX*this.tilewidth), ((objY+1)*this.tileheight));
+          this.#addModToLayer(match, (objX*this.tilewidth), (objY*this.tileheight));
         }
       }
     }

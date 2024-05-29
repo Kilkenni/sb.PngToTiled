@@ -185,6 +185,7 @@ async function writeConvertedMap_test(log = false) {
           }
         }
 
+        let pixelsObjArray;
         //MERGE additional tilelayers from OBJECTS
         if (ioDir) {
           const pngObjects = ioDir.find(
@@ -198,7 +199,7 @@ async function writeConvertedMap_test(log = false) {
           if (pngObjects) {
             //if we found name-objects.png file
             try {
-              pixelsArray = await getPixelsPromise(
+              pixelsObjArray = await getPixelsPromise(
                 `${dungeonsFS.ioDirPath}/${pngObjects.name}`
               );
             } catch (error) {
@@ -208,14 +209,14 @@ async function writeConvertedMap_test(log = false) {
             if (log) {
               console.log(
                 "  -Found objects PNG, image shape: ",
-                pixelsArray.shape
+                pixelsObjArray.shape
               ); //shape = width, height, channels
             }
-            //pixelsArray.data is a Uint8Array of (shape.width * shape.height * #channels) elements
-            // convertedChunk.setSize(pixelsArray.shape[0], pixelsArray.shape[1]);
+            //pixelsObjArray.data is a Uint8Array of (shape.width * shape.height * #channels) elements
+            // convertedChunk.setSize(pixelsObjArray.shape[0], pixelsObjArray.shape[1]);
             const RgbaArray = tilesetMatcher.slicePixelsToArray(
-              pixelsArray.data,
-              ...pixelsArray.shape
+              pixelsObjArray.data,
+              ...pixelsObjArray.shape
             );
             //we use the same MatchMap since it's still the same dungeon - tilesets didn't change
             const convertedBackLayer = tilesetMatcher.convertPngToGid(
@@ -244,8 +245,8 @@ async function writeConvertedMap_test(log = false) {
         //convert objectsMap from using Ids to using Gids
         const objectsGidMap = convertedChunk.convertIdMapToGid(objectsMap);
         const objRgbaArray = tilesetMatcher.slicePixelsToArray(
-          pixelsArray.data,
-          ...pixelsArray.shape
+          pixelsObjArray.data,
+          ...pixelsObjArray.shape
         );
         //TODO map PNG to objects using objectsGidMap - DEBUG THIS!!!
         await convertedChunk.parseAddObjects(
@@ -260,6 +261,7 @@ async function writeConvertedMap_test(log = false) {
         //ground tile mods
         const modMap = tilesetMatcher.matchMods(sortedOldTileset.foreground);
         //TODO add mods to chunk here
+        convertedChunk.parseMods(RgbaArray, modMap);
         convertedChunk.parseMods(objRgbaArray, modMap);
 
         const success = await dungeonsFS.writeConvertedMapJson(
