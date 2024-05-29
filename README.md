@@ -31,6 +31,10 @@ Solution: Manually check such objects and replace with appropriate `_orientation
 
 Solution: Manually adjust size of stagehands after conversion to include required constructions but exclude unnecessary space.
 
+- Biome trees and biome items (always?) tend to have a width of 2 blocks (16 pixels), but are often placed at adjacent blocks in old dungeon chunks. This will obviously lead to some of them being always unable to spawn exactly as painter in the chunk.
+
+Solution: Manually remove some of BTs/BIs after conversion to eliminate spawn overlaps. Needs manual experimenting on models to figure out optimal strategy. You're welcome to share your findings :)
+
 ## Usage
 
 To use under Linux:
