@@ -10,41 +10,6 @@ import * as tilesetMatcher from "./tilesetMatch";
 import {Tile, ObjectTile, ObjectTileMatchType, TilesetObjectJson, TilesetMiscJson, OldTilesetSorted } from "./tilesetMatch";
 import { SbDungeonChunk } from "./dungeonChunkAssembler";
 
-async function extractOldTileset(log = false):Promise<Tile[]> {
-  const ioDir = await dungeonsFS.readDir();
-  // console.table(ioDir);
-  let dungeonPath:string = "";
-  if(ioDir) {
-    for (const file of ioDir) {
-      if (file.isFile())
-        if (dungeonsFS.getExtension(file.name) === "dungeon") {
-          dungeonPath = dungeonsFS.ioDirPath + "/" + file.name;
-          break; //break on first dungeon found!
-        }
-    }
-  }
-  let dungeons:DungeonFile|undefined;
-
-  dungeons = await dungeonsFS.getDungeons(dungeonPath);
-  console.log(
-    `Found .dungeon file: ${dungeons?.metadata?.name || "some weird shit"}`
-  );
- 
-  let tileMap;
-  if (dungeons?.tiles) {
-    tileMap = dungeons.tiles;
-  }
-  else {
-    throw new Error(`${dungeonPath} does not contain <tiles> map. New SB .dungeon files cannot be used.`)
-  }
-
-  if (log) {
-    dungeonsFS.writeTileMap(`${dungeonsFS.getFilename(dungeonPath) + ".TILES"}`, tileMap); //debug file
-    console.log(`${dungeonsFS.getFilename(dungeonPath) + ".TILES"} saved to I/O dir`);
-  }
-  return tileMap;
-}
-
 type FullObjectMap = {
   matchMap: (ObjectTileMatchType | undefined)[],
   undefinedTiles: number,
@@ -264,7 +229,11 @@ async function convertChunk(chunk: Dirent, chunk_objects?: Dirent, log = false):
 
       const getPixelsPromise = promisify(getPixels); //getPixels originally doesn't support promises
 
-      const oldTileset = await extractOldTileset(false);
+      const ioDirContents = await dungeonsFS.readDir();
+      if(ioDirContents === undefined) {
+        throw new Error(`Can't read i/o dir`);
+      }
+      const oldTileset = await dungeonsFS.extractOldTileset(ioDirContents, false);
       const sortedOldTileset = await tilesetMatcher.getSortedTileset(oldTileset);
       const fullMatchMap = await tilesetMatcher.matchAllTilelayers(sortedOldTileset); //fo4r debug
 
@@ -326,7 +295,7 @@ async function writeConvertedMap_test(log = false) {
             newTilesetShapes
           );
           const getPixelsPromise = promisify(getPixels); //getPixels originally doesn't support promises
-          const oldTileset = await extractOldTileset(false);
+          const oldTileset = await dungeonsFS.extractOldTileset(ioDir, false);
           if (oldTileset === undefined) {
             return -1;
           }
@@ -519,7 +488,6 @@ async function writeConvertedMap_test(log = false) {
 }
 
 export {
-  extractOldTileset,
   matchAllObjects,
   convertChunk,
   writeConvertedMap_test,

@@ -70,32 +70,61 @@ function getFilename(fileName:string) {
 return fileName.substring(0, fileName.lastIndexOf("."));
 }
 
-async function readDir():Promise<Dirent[]|undefined> {
-  try {
-    const ioDir = await nodeFS.readdir(ioDirPath, { withFileTypes: true });
-    return ioDir;
-  } catch (err) {
-    console.error(err);
-    return undefined;
-  }
+async function readDir():Promise<Dirent[]> {
+  const ioDir = await nodeFS.readdir(ioDirPath, { withFileTypes: true });
+
+  return ioDir;
 }
 
-async function getDungeons(dungeonPath:string):Promise<DungeonFile|undefined> {
-  try {
-    const dungeonsRaw = await nodeFS.readFile(dungeonPath, {
-      encoding: "utf-8",
-    });
-    const dungeons:DungeonFile = JSON.parse(
-      dungeonsRaw.replace(
-        /\\"|"(?:\\"|[^"])*"|(\/\/.*|\/\*[\s\S]*?\*\/)/g,
-        (m, g) => (g ? "" : m)
-      )
-    ); //magic RegEx string to remove comments from JSON
-    return dungeons;
-  } catch (error) {
-    console.error(error);
-    return undefined;
+async function getDungeons(ioFiles: Dirent[], log = false):Promise<DungeonFile> {
+  // console.table(ioDir);
+  let dungeonPath:string = "";
+
+  for (const file of ioFiles) {
+    if (file.isFile())
+      if (getExtension(file.name) === "dungeon") {
+        dungeonPath = ioDirPath + "/" + file.name;
+        break; //break on first dungeon found!
+      }
   }
+
+  if(dungeonPath === "") {
+    throw new Error(`Unable to find .dungeon file`);
+  }
+
+  /*
+  throw new Error(`${dungeonPath} does not contain <tiles> map. New SB .dungeon files cannot be used.`)
+  */
+
+  const dungeonsRaw = await nodeFS.readFile(dungeonPath, {
+    encoding: "utf-8",
+  });
+  const dungeons:DungeonFile = JSON.parse(
+    dungeonsRaw.replace(
+      /\\"|"(?:\\"|[^"])*"|(\/\/.*|\/\*[\s\S]*?\*\/)/g,
+      (m, g) => (g ? "" : m)
+    )
+  ); //magic RegEx string to remove comments from JSON
+  console.log(
+    `Found .dungeon file: ${dungeons.metadata.name || "some weird shit"}`
+  );
+  return dungeons;
+}
+
+
+async function extractOldTileset(ioFiles: Dirent[], log = false):Promise<Tile[]> {
+  const dungeons = await getDungeons(ioFiles);
+ 
+  const tileMap = dungeons.tiles;
+  if(tileMap === undefined) {
+    throw new Error(`Dungeon file does not contain <tiles> map. New SB .dungeon files cannot be used.`)
+  }
+  
+  if (log) {
+    writeTileMap(`${ioDirPath + "OLDTILESET.TILES"}`, tileMap); //debug file
+    console.log(`Old tileset extracted and saved as OLDTILESET.TILES to I/O dir`);
+  }
+  return tileMap;
 }
 
 async function parseChunkConnections(ioFiles: Dirent[], dungeonFile: DungeonFile):Promise<DungeonPartTodo[]> {
@@ -114,6 +143,16 @@ async function parseChunkConnections(ioFiles: Dirent[], dungeonFile: DungeonFile
   })
   
     return dungeonTodo;
+}
+
+async function verifyChunkConnections() {
+  const ioDir = await readDir();
+  if (ioDir === undefined) {
+    throw new Error(`Can't get access to ${ioDirPath}`);
+  }
+
+
+  //TODO
 }
 
 // async function cacheTilesets(tilesetPaths: string[]) {
@@ -236,18 +275,20 @@ async function getTilesetNameFromPath(path: string):Promise<string> {
 }
 
 export {
-  readDir,
-  getDungeons,
-  parseChunkConnections,
+  ioDirPath,
   getFilename,
   getExtension,
+  readDir,
+  getDungeons,
+  extractOldTileset,
+  //parseChunkConnections,
+  verifyChunkConnections,
   writeConvertedDungeons,
   writeConvertedMapJson,
   writeTileMap,
   getTilesetPath,
   getTileset,
   getTilesetNameFromPath,
-  ioDirPath,
 };
   
 export type {

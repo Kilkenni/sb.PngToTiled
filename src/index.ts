@@ -3,7 +3,6 @@ import * as tilesetMatcher from "./tilesetMatch";
 import * as compressor from "./compression";
 import { SbDungeonChunk } from "./dungeonChunkAssembler";
 import {
-  extractOldTileset,
   matchAllObjects,
   writeConvertedMap_test
 } from "./conversionSteps";
@@ -32,7 +31,7 @@ async function convertDungeon() {
           if (dungeonsFS.getExtension(file.name) === "dungeon") {
             dungeonPath = file.path + "/" + file.name;
             // console.log(dungeonPath);
-            const dungeons = await dungeonsFS.getDungeons(dungeonPath);
+            const dungeons = await dungeonsFS.getDungeons(ioDir, true);
             console.log(
               `Found .dungeon file: ${
                 dungeons?.metadata?.name || "some weird shit"
@@ -61,7 +60,7 @@ async function convertDungeon() {
                     if (part.def[0] === "image") {
                       partPairs.push(part.def[1]); //let's save related parts in a nice table
                       // console.log(`    Processing dungeon part ${part.def[1][0]}`);
-                      part.def[1] = part.def[1][0]; //parts past 0 are objects, items etc. located in separate PNGs. TMX format should only have one JSON file, so user will need to superimpose those "partials" manually later. For now we leave in the registry only the main one
+                      //part.def[1] = part.def[1][0]; //parts past 0 are objects, items etc. located in separate PNGs. TMX format should only have one JSON file, so user will need to superimpose those "partials" manually later. For now we leave in the registry only the main one
                     }
                   } catch (error) {
                     console.error(error);
@@ -116,7 +115,9 @@ function invokeAction(argv: { [key: string]: unknown }) {
       compressor.zlibTest();
       break;
     case "extractoldtileset":
-      extractOldTileset(true);
+      dungeonsFS.readDir().then( (ioDir) =>
+        dungeonsFS.extractOldTileset(ioDir , true)
+      )
       break;
     case "writeconverted_test":
       writeConvertedMap_test(true);
