@@ -1,16 +1,32 @@
 import {Dirent, promises as nodeFS} from "fs";
 import * as nodePath from "path";
 
-import { resolveTilesets, TilesetJsonType } from "./tilesetMatch";
+import { Tile, resolveTilesets, TilesetJsonType } from "./tilesetMatch";
 import { SbDungeonChunk } from "./dungeonChunkAssembler";
 // import { TILESETJSON_NAME } from "./tilesetMatch.js";
 
 const ioDirPath: string = nodePath.resolve("./input-output/");
 
+interface DungeonPart {
+  name: string,
+  rules?: any[],
+  def: any[],
+}
+
 interface DungeonFile extends Record<string, any> {
   metadata: {
     name: string,
-  }
+    species?: string,
+    rules: any[],
+    anchor: string[],
+    gravity: number,
+    maxRadius: number,
+    maxParts: number,
+    extendSurfaceFreeSpace?: number,
+    protected?: boolean,
+  },
+  tiles?: Tile[],
+  parts?: DungeonPart[],
 }
 
 function getExtension(fileName: string) {
@@ -171,4 +187,9 @@ export {
   getTileset,
   getTilesetNameFromPath,
   ioDirPath,
+};
+  
+export type {
+  DungeonFile,
+  DungeonPart,
 };

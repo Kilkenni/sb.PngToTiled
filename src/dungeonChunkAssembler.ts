@@ -9,7 +9,7 @@
 // import * as tilesetMatcher from "./tilesetMatch.js";
 import { getTileset, getTilesetPath, getTilesetNameFromPath } from "./dungeonsFS";
 import { matchObjects, matchObjectsBiome, getObjectFromTileset, getTileSizeFromTileset, isRgbaEqual } from "./tilesetMatch";
-import { TilesetJsonType, ObjectTileType, ObjectFullMatchType, LayerTileMatchType, TilesetMiscJsonType, ObjectJsonType, RgbaValueType, ObjectBrushType, NpcMatchType, ModMatchType, StagehandMatchType } from "./tilesetMatch";
+import { TilesetJsonType, ObjectTile, ObjectFullMatchType, LayerTileMatchType, TilesetMiscJsonType, ObjectJsonType, RgbaValueType, ObjectBrushType, NpcMatchType, ModMatchType, StagehandMatchType } from "./tilesetMatch";
 import { getFilenameFromPath, getFilename, FullObjectMap } from "./conversionSteps";
 import { TILESETMAT_NAME, TILESETOBJ_NAME, resolveTilesets} from "./tilesetMatch";
 // import * as dungeonsFS from "./dungeonsFS";
@@ -581,7 +581,7 @@ class SbDungeonChunk{
     return { x, y };
   }
 
-  async parseAddObjects(oldObjects:ObjectTileType[], rgbaArray: RgbaValueType[], objMatchMap: FullObjectMap): Promise<SbDungeonChunk> {
+  async parseAddObjects(oldObjects:ObjectTile[], rgbaArray: RgbaValueType[], objMatchMap: FullObjectMap): Promise<SbDungeonChunk> {
     //Add shapes for object tilesets in SbDungeonChunk
     await this.addObjectTilesetShapes(objMatchMap.tilesets);
     const objGidMap = this.convertIdMapToGid(objMatchMap);

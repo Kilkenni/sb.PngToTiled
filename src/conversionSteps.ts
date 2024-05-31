@@ -1,7 +1,7 @@
 import * as dungeonsFS from "./dungeonsFS";
 // import * as tilesetMatcher from "./tilesetMatch";
 import * as tilesetMatcher from "./tilesetMatch";
-import {ObjectTileType, ObjectTileMatchType, TilesetObjectJsonType, TilesetMiscJsonType, OldTilesetSortedType } from "./tilesetMatch";
+import {Tile, ObjectTile, ObjectTileMatchType, TilesetObjectJsonType, TilesetMiscJsonType, OldTilesetSortedType } from "./tilesetMatch";
 import {SbDungeonChunk} from "./dungeonChunkAssembler";
 import { promisify } from "util";
 import { NdArray } from "ndarray";
@@ -74,7 +74,7 @@ async function getDungeons(log = false) {
   return 2;
 }
 
-async function extractOldTileset(log = false) {
+async function extractOldTileset(log = false):Promise<tilesetMatcher.Tile[]|undefined> {
   const ioDir = await dungeonsFS.readDir();
   // console.table(ioDir);
   let dungeonPath:string = "";
@@ -88,20 +88,16 @@ async function extractOldTileset(log = false) {
     }
   }
   let dungeons;
-  try {
-    dungeons = await dungeonsFS.getDungeons(dungeonPath);
-    console.log(
-      `Found .dungeon file: ${dungeons?.metadata?.name || "some weird shit"}`
-    );
-  } catch (error:any) {
-    if(error) {
-      console.error(error);
-    }
-    
-    return undefined;
-  }
+
+  dungeons = await dungeonsFS.getDungeons(dungeonPath);
+  console.log(
+    `Found .dungeon file: ${dungeons?.metadata?.name || "some weird shit"}`
+  );
+ 
   let tileMap;
-  if (dungeons?.tiles) tileMap = dungeons.tiles;
+  if (dungeons?.tiles) {
+    tileMap = dungeons.tiles;
+  }
   else {
     console.error(
       `${dungeonPath} does not contain <tiles> map. New SB .dungeon files cannot be used.`
@@ -174,7 +170,7 @@ type FullObjectMap = {
  * @param arrayOfObjects Builds matchMap of objects
  * @returns matchMap, number of undefined tiles, list of names of used tilesets
  */
-async function matchAllObjects(arrayOfObjects: ObjectTileType[]): Promise<FullObjectMap> {
+async function matchAllObjects(arrayOfObjects: ObjectTile[]): Promise<FullObjectMap> {
   function calcUndefined(matchArray: (ObjectTileMatchType | undefined)[]): number {
     let numOfUndefined = 0;
     for (const match of matchArray) {

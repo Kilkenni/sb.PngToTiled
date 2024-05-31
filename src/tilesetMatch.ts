@@ -862,7 +862,7 @@ const MISCJSON_MAP = [
     return matchMap;
 }
 
-function matchAnchors(oldAnchorsArray: AnchorTile[], miscTilesetJSON: TilesetMiscJson, firstGid: number): (LayerTileMatch|undefined)[]|void {
+function matchAnchors(oldAnchorsArray: AnchorTile[], miscTilesetJSON: TilesetMiscJson, firstGid: number): (LayerTileMatch|undefined)[] {
   
   function ruleGetName(rule: typeof ANCHOR_RULES[number]): string {
     let ruleName: string = rule;
@@ -886,7 +886,7 @@ function matchAnchors(oldAnchorsArray: AnchorTile[], miscTilesetJSON: TilesetMis
   }
 
   if (firstGid < 1) {
-    return undefined;
+    throw new Error (`firstGid is ${firstGid} but must be positive!`);
   }
   const matchMap = oldAnchorsArray.map((tile: AnchorTile): LayerTileMatch|undefined => {
     const { value, comment, brush, rules, connector }: AnchorTile = tile;
@@ -1364,8 +1364,13 @@ export {
   TILESETOBJ_NAME,
 };
 export type {
+  Tile,
+  AnchorTile,
+  ObjectTile,
+  StagehandTile,
+  NpcTile,
+
   RgbaValue as RgbaValueType,
-  ObjectTile as ObjectTileType,
   LayerTileMatch as LayerTileMatchType,
   ObjectBrush as ObjectBrushType,
   ObjectTileMatch as ObjectTileMatchType,

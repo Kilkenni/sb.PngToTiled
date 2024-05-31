@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2021",
-    "module": "es2020",
+    "module": "ES2020",
     "sourceMap": true,
     "lib": ["ES2021"],
     "strict": true,
