@@ -1,6 +1,6 @@
 # sb.PngToTiled
 
-An attempt to build a small (lol) JS script to convert old Starbound dungeon assets in PNG layers into new format (multilayered Tiled JSONs), which is used in post-release versions.
+A small (lol) ~~JS~~ pile of Typescript to convert old Starbound dungeon assets in PNG layers into new format (multilayered Tiled JSONs), which is used in post-release versions.
 
 Current state:
 
@@ -21,7 +21,7 @@ Has several bottlenecks which require post-conversion manual QA:
 
 - Anchors occasionally have empty blocks behind them in tilelayer, as original level designers sometimes included them in tilelayer, not in objects (thus tilelayer has no info for these blocks).
 
-Solution: Manually check background layer at anchor locations, paint similar to neighbouring tiles in necessary.
+Solution: Manually check background layer at anchor locations, paint similar to neighbouring tiles if necessary.
 
 - Objects that have separate sprites for different placements (as opposed to simply flipping single sprite horizontally) use tile with default orientation after conversion. Meaning they can possibly lack mount points, hang in the air or overlap solid blocks, leading to log errors when spawning in-game.
 
@@ -31,26 +31,34 @@ Solution: Manually check such objects and replace with appropriate `_orientation
 
 Solution: Manually adjust size of stagehands after conversion to include required constructions but exclude unnecessary space.
 
+- Biome trees and biome items (always?) tend to have a width of 2 blocks (16 pixels), but are often placed at adjacent blocks in old dungeon chunks. This will obviously lead to some of them being always unable to spawn exactly as painter in the chunk.
+
+Solution: Manually remove some of BTs/BIs after conversion to eliminate spawn overlaps. Needs manual experimenting on models to figure out optimal strategy. You're welcome to share your findings :)
+
 ## Usage
 
 To use under Linux:
 
-- Install Node
-  Converter script was written under Node 20, but any modern version will do, hopefully
+- Install Node.
+  Converter script was written under Node 20. Current TS settings require at least Node 16, so there's that. Hopefully, any modern version will do.
 - Clone this repo locally
 - `npm install` in terminal inside repo directory to install dependencies
 - TODO: `npx tsx src/index.js --help`
 - Converter has (partially) migrated onto TS to ensure type checks. ~~Remember to `npm run build` before you run anything with node~~ No need to transpile into JS any more, uses TSX out of the box.
-- Place files in /input-output/ . You will need at least one .dungeon file or a .dungeon and .png file.
+- Place files in /input-output/ . You will need at least one .dungeon file or a .dungeon and .png file. If a name_objects.png exists, place it there as well. Objects will be parsed and merged into the parent dungeon chunk.
 - Place tilesets/packed in /input-output/. This is a set of .json files describing Starbound tilesets for Tiled. PNG files will be remapped relative to these tilesets.
 - Place tiled/packed in /input-output/. This is a set of .png files containing tiles for Tiled. Required to correctly calculate size of object sprites. Can be found in unpacked game assets.
 - `npx tsx src/index.js --action COMMAND` to start converting (list of available commands can be found at the end of index.js)
+
 - TODO: If you try to use converted dungeons in the game, remember to change their internal tileset paths relative to their actual location in Starbound assets!
 
-## TODO + ISSUES
+## KNOWN ISSUES
 
 - can't properly convert base64 string and gzip.inflate to get value similar to decompressed files from Tiled. Mismatch happens only with back tilelayer, resulting GIDs for tiles with flags in code are lower than real ones from the file by 7. Reason unknown - probably Magic Pink Brush involved.
+
 - Front tilelayer seems to be decompressing OK
+
+- Consequently, output file is currently NOT compressed. You can re-save it from Tiled after enabling compression. Automating this step is already in my backlog.
 
 ## Useful links
 

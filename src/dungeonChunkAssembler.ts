@@ -619,9 +619,18 @@ class SbDungeonChunk{
               parameters: JSON.stringify(objBrushLayer[2].parameters)};
           }
                    
+          const spriteShiftX:number = isNaN(parseInt(objectData.imagePositionX))? 0 : parseInt(objectData.imagePositionX);
+          const spriteShiftY:number = isNaN(parseInt(objectData.imagePositionY))? 0 : parseInt(objectData.imagePositionY);
           //Add object
           //Y + 1 because of difference in coords in Sb and Tiled (coords of pixel are shifted by 1)
-          this.addObjectToObjectLayer(match.tileGid, height, width, (objX*this.tilewidth + parseInt(objectData.imagePositionX)), ((objY + 1)*this.tileheight + parseInt(objectData.imagePositionY)), params);
+          //also remove shift by Y due to reversed axis
+          this.addObjectToObjectLayer(
+            match.tileGid, 
+            height, 
+            width, 
+            (objX*this.tilewidth + spriteShiftX), 
+            ((objY + 1)*this.tileheight - spriteShiftY), 
+            params);
         }
       }
     }
@@ -754,17 +763,18 @@ class SbDungeonChunk{
     const layerId = this.#initObjectLayer("stagehands");
     const stagehandLayer: SbStagehandLayer = this.#layers.find((layer) => { return layer.id === layerId }) as SbStagehandLayer;
 
+    //remove shift by Y due to reversed axis
     const newStagehand: SbStagehand = {
       ...TEMPLATE.SBOBJECT,
       id: this.getNextObjectId(),
-      height: stagehand.height*this.tileheight,
-      width: stagehand.width*this.tilewidth,
+      height: (stagehand.broadcastArea[3] - stagehand.broadcastArea[1])*this.tileheight,
+      width: (stagehand.broadcastArea[2] - stagehand.broadcastArea[0])*this.tilewidth,
       properties: {
         stagehand: stagehand.stagehand,
         parameters: stagehand.nameParam?JSON.stringify(stagehand.nameParam):undefined,
       },
-      x: (x - stagehand.width * this.tilewidth/2),
-      y: (y - stagehand.height * this.tileheight/2),
+      x: (x + stagehand.broadcastArea[0] * this.tilewidth),
+      y: (y - stagehand.broadcastArea[3] * this.tileheight),
     };
     
     stagehandLayer.objects.push(newStagehand);
