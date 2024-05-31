@@ -296,8 +296,6 @@ async function convertChunk(chunk: Dirent, chunk_objects?: Dirent, log = false):
   }
 }
 
-
-
 async function writeConvertedMap_test(log = false) {
   const newTilesetShapes = await tilesetMatcher.calcNewTilesetShapes();
   //convert absolute paths to relative

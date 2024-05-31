@@ -7,18 +7,33 @@ import { SbDungeonChunk } from "./dungeonChunkAssembler";
 
 const ioDirPath: string = nodePath.resolve("./input-output/");
 
+type RuleNoCombine = [
+  "doNotCombineWith",
+  string[], //names of parts
+];
+type RuleNoConnect = [
+  "doNotConnectToPart",
+  string[], //names of parts
+];
+type RuleMaxSpawn = [
+  "maxSpawnCount",
+  [number]
+];
+type RuleIgnoreMax = ["ignorePartMaximumRule"];
+
 interface DungeonPart {
-  name: string,
-  rules?: any[],
-  def: any[],
-}
+  name: string, //unique across the same dungeon
+  rules?: (RuleNoCombine|RuleNoConnect|RuleMaxSpawn|RuleIgnoreMax)[],
+  def: ["image", string[]]|["tmx", string],
+  chance?: number, //cannot be negative
+};
 
 interface DungeonFile extends Record<string, any> {
   metadata: {
     name: string,
-    species?: string,
+    species: string,
     rules: any[],
-    anchor: string[],
+    anchor: string[], //names of parts serving as anchors
     gravity: number,
     maxRadius: number,
     maxParts: number,
@@ -26,7 +41,15 @@ interface DungeonFile extends Record<string, any> {
     protected?: boolean,
   },
   tiles?: Tile[],
-  parts?: DungeonPart[],
+  parts: DungeonPart[],
+};
+
+interface DungeonPartTodo {
+  extension: "png"|"json",
+  mainPartName: string,
+  addPartNames: string[]|undefined,
+  targetName: string,
+  finished: boolean,
 }
 
 /**
@@ -73,6 +96,24 @@ async function getDungeons(dungeonPath:string):Promise<DungeonFile|undefined> {
     console.error(error);
     return undefined;
   }
+}
+
+async function parseChunkConnections(ioFiles: Dirent[], dungeonFile: DungeonFile):Promise<DungeonPartTodo[]> {
+  const dungeonTodo:DungeonPartTodo[] = dungeonFile.parts.map((part) => {
+    const todo:DungeonPartTodo = {
+      extension: part.def[0].toLowerCase() === "tmx"? "json" : "png",
+      mainPartName: typeof part.def[1]==="string"? part.def[1]: part.def[1][0],
+      targetName: typeof part.def[1]==="string"? part.def[1] : getFilename(part.def[1][0])+".json",
+      addPartNames: typeof part.def[1]==="string"? undefined : part.def[1].filter((_, partIndex) => {
+        partIndex !== 0;
+      }),
+      finished: part.def[0].toLowerCase() === "tmx"? true : false,
+    };
+
+    return todo;
+  })
+  
+    return dungeonTodo;
 }
 
 // async function cacheTilesets(tilesetPaths: string[]) {
@@ -129,7 +170,6 @@ async function writeConvertedDungeons(JsonData: Object): Promise<true|undefined>
 async function writeConvertedMapJson(newPath:string, DungeonChunk: SbDungeonChunk) {
   // const ioDir = await readDir();
   try {
-    console.log(`Checking if ${newPath} is available...`);
     const accessed = await nodeFS.access(
       newPath,
       nodeFS.constants.F_OK
@@ -140,7 +180,6 @@ async function writeConvertedMapJson(newPath:string, DungeonChunk: SbDungeonChun
     return undefined;
   } catch (error) {
     //this error appears if no converted file is found, i.e. if we can safely write
-    // console.log(error.message);
     await nodeFS.writeFile(
       newPath,
       JSON.stringify(DungeonChunk, null, 2),
@@ -151,6 +190,7 @@ async function writeConvertedMapJson(newPath:string, DungeonChunk: SbDungeonChun
   }
 }
 
+//For debug and logging only. Required map is always stored in memory.
 async function writeTileMap(path: string, JsonData: Object) {
   await nodeFS.writeFile(path, JSON.stringify(JsonData, null, 2), "utf-8");
   return true;
@@ -198,6 +238,7 @@ async function getTilesetNameFromPath(path: string):Promise<string> {
 export {
   readDir,
   getDungeons,
+  parseChunkConnections,
   getFilename,
   getExtension,
   writeConvertedDungeons,
