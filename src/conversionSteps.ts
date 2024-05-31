@@ -1,16 +1,16 @@
+import nodePath from "path";
+import { promisify } from "util";
+import { NdArray } from "ndarray";
+import getPixels from "get-pixels";
+import { Dirent } from "fs";
+
 import * as dungeonsFS from "./dungeonsFS";
-// import * as tilesetMatcher from "./tilesetMatch";
+import {DungeonFile } from "./dungeonsFS";
 import * as tilesetMatcher from "./tilesetMatch";
 import {Tile, ObjectTile, ObjectTileMatchType, TilesetObjectJson, TilesetMiscJson, OldTilesetSorted } from "./tilesetMatch";
 import { SbDungeonChunk } from "./dungeonChunkAssembler";
-import { promisify } from "util";
-import { NdArray } from "ndarray";
 
-import getPixels from "get-pixels";
-
-import nodePath from "path";
-
-async function extractOldTileset(log = false):Promise<Tile[]|undefined> {
+async function extractOldTileset(log = false):Promise<Tile[]> {
   const ioDir = await dungeonsFS.readDir();
   // console.table(ioDir);
   let dungeonPath:string = "";
@@ -23,7 +23,7 @@ async function extractOldTileset(log = false):Promise<Tile[]|undefined> {
         }
     }
   }
-  let dungeons;
+  let dungeons:DungeonFile|undefined;
 
   dungeons = await dungeonsFS.getDungeons(dungeonPath);
   console.log(
@@ -35,10 +35,7 @@ async function extractOldTileset(log = false):Promise<Tile[]|undefined> {
     tileMap = dungeons.tiles;
   }
   else {
-    console.error(
-      `${dungeonPath} does not contain <tiles> map. New SB .dungeon files cannot be used.`
-    );
-    return undefined;
+    throw new Error(`${dungeonPath} does not contain <tiles> map. New SB .dungeon files cannot be used.`)
   }
 
   if (log) {
@@ -163,14 +160,13 @@ async function generateDungeonChunk(tilePixels: NdArray<Uint8Array>, objPixels: 
     }
   }
 
-  let pixelsObjArray = objPixels;
   //MERGE additional tilelayers from OBJECTS
 
-  if (pixelsObjArray !== undefined) {
+  if (objPixels !== undefined) {
     //if we found name-objects.png file
     // convertedChunk.setSize(pixelsObjArray.shape[0], pixelsObjArray.shape[1]);
     const RgbaArray = tilesetMatcher.slicePixelsToArray(
-      pixelsObjArray.data,
+      objPixels.data,
       tilePixels.shape[0],
       tilePixels.shape[1],
       tilePixels.shape[2]
@@ -204,9 +200,9 @@ async function generateDungeonChunk(tilePixels: NdArray<Uint8Array>, objPixels: 
   // await convertedChunk.parseAddObjects();
   //convert objectsMap from using Ids to using Gids
   const objectsGidMap = convertedChunk.convertIdMapToGid(objectsMap);
-  if (pixelsObjArray !== undefined) {
+  if (objPixels !== undefined) {
     const objRgbaArray = tilesetMatcher.slicePixelsToArray(
-      pixelsObjArray.data,
+      objPixels.data,
       tilePixels.shape[0],
       tilePixels.shape[1],
       tilePixels.shape[2]
@@ -247,6 +243,208 @@ async function generateDungeonChunk(tilePixels: NdArray<Uint8Array>, objPixels: 
   
   return convertedChunk;
 
+}
+
+async function convertChunk(chunk: Dirent, chunk_object?: Dirent, log = false): Promise<void> {
+  if (chunk.isFile() === false || (chunk_object!== undefined && chunk_object.isFile() === false)) {
+    throw new Error(`All layers of ${chunk} must be .png files`)
+  }
+  else {
+    if (dungeonsFS.getExtension(chunk.name) === "png") {
+      if (chunk.name.includes("objects")||chunk.name.includes("wires")) {
+        throw new Error(`${chunk} must be a main .png for the chunk`); //do not convert objects layers as separate files
+      }
+
+      const newChunkPath = `${dungeonsFS.ioDirPath}/${dungeonsFS.getFilename(chunk.name)}.json`;
+      console.log(
+        `Detected ${chunk.name}, writing ${dungeonsFS.getFilename(chunk.name)}.json...`
+      );
+
+      const getPixelsPromise = promisify(getPixels); //getPixels originally doesn't support promises
+
+      const oldTileset = await extractOldTileset(false);
+      const sortedOldTileset = await tilesetMatcher.getSortedTileset(oldTileset);
+      const fullMatchMap = await tilesetMatcher.matchAllTilelayers(sortedOldTileset);
+
+      let pixelsArray:NdArray<Uint8Array> = await getPixelsPromise(
+          `${dungeonsFS.ioDirPath}/${chunk.name}`
+        , "image/png"); //arg2 is MIMEtype, only for Buffers (we can skip it here);
+      if (log) {
+        console.log("  -obtained image shape: ", pixelsArray.shape); //shape = width, height, channels
+      }
+      //pixelsArray.data is a Uint8Array of (shape.width * shape.height * #channels) elements
+
+      const RgbaArray:tilesetMatcher.RgbaValueType[] = tilesetMatcher.slicePixelsToArray(
+        pixelsArray.data,
+        pixelsArray.shape[0], pixelsArray.shape[1], pixelsArray.shape[2]
+      );
+
+      //Calculating original chunk
+      const convertedChunk: SbDungeonChunk = await generateDungeonChunk();
+      
+      
+      
+      
+      const convertedBackLayer = tilesetMatcher.convertPngToGid(
+        RgbaArray,
+        fullMatchMap.back
+      );
+      const convertedFrontLayer = tilesetMatcher.convertPngToGid(
+        RgbaArray,
+        fullMatchMap.front
+      );
+      convertedChunk.addBothTilelayers(
+        convertedFrontLayer,
+        convertedBackLayer,
+        pixelsArray.shape[0],
+        pixelsArray.shape[1]
+      );
+
+      const miscTileset = await dungeonsFS.getTileset(
+        tilesetMatcher.TILESETMAT_NAME.misc
+      );
+      if (miscTileset === undefined) {
+        throw new Error(`Cannot resolve tileset: ${tilesetMatcher.TILESETMAT_NAME.misc}`);
+      }
+      const anchorsMap = tilesetMatcher.matchAnchors(
+        sortedOldTileset.anchors as tilesetMatcher.AnchorTile[],
+        miscTileset as tilesetMatcher.TilesetMiscJson,
+        convertedChunk.getFirstGid(tilesetMatcher.TILESETMAT_NAME.misc)
+      );
+      for (let rgbaN = 0; rgbaN < RgbaArray.length; rgbaN++) {
+        for (const match of anchorsMap) {
+          if (match!== undefined && tilesetMatcher.isRgbaEqual(RgbaArray[rgbaN], match.tileRgba)) {
+            const gid = match.tileGid;
+            const { x: anchorX, y: anchorY } =
+              convertedChunk.getCoordsFromFlatRgbaArray(
+                rgbaN,
+                pixelsArray.shape[0]
+              );
+            convertedChunk.addAnchorToObjectLayer(gid, anchorX, anchorY);
+          }
+        }
+      }
+
+      let pixelsObjArray;
+      //MERGE additional tilelayers from OBJECTS
+      if (ioDir) {
+        const pngObjects = ioDir.find(
+          (fileObjects) =>
+            fileObjects.isFile() &&
+            fileObjects.name.includes("-objects") &&
+            fileObjects.name.includes(dungeonsFS.getFilename(file.name)) &&
+            dungeonsFS.getExtension(fileObjects.name) === "png"
+        );
+
+        if (pngObjects) {
+          //if we found name-objects.png file
+          try {
+            pixelsObjArray = await getPixelsPromise(`${dungeonsFS.ioDirPath}/${pngObjects.name}`, "image/png");
+          } catch (error) {
+            console.error(error);
+            return undefined;
+          }
+          if (log) {
+            console.log(
+              "  -Found objects PNG, image shape: ",
+              pixelsObjArray.shape
+            ); //shape = width, height, channels
+          }
+          //pixelsObjArray.data is a Uint8Array of (shape.width * shape.height * #channels) elements
+          // convertedChunk.setSize(pixelsObjArray.shape[0], pixelsObjArray.shape[1]);
+          const RgbaArray = tilesetMatcher.slicePixelsToArray(
+            pixelsObjArray.data,
+            pixelsArray.shape[0],
+            pixelsArray.shape[1],
+            pixelsArray.shape[2]
+          );
+          //we use the same MatchMap since it's still the same dungeon - tilesets didn't change
+          const convertedBackLayer = tilesetMatcher.convertPngToGid(
+            RgbaArray,
+            fullMatchMap.back
+          );
+          const convertedFrontLayer = tilesetMatcher.convertPngToGid(
+            RgbaArray,
+            fullMatchMap.front
+          );
+          if (log) {
+            console.log(`  - merging tilelayers from objects.png...`);
+          }
+          convertedChunk.mergeTilelayers(
+            convertedFrontLayer,
+            convertedBackLayer
+          );
+        }
+      }
+
+      //match object RGB to ID locally, calc required tilesets
+      const objectsMap = await matchAllObjects(sortedOldTileset.objects as tilesetMatcher.ObjectTile[]);
+      //Add required tilesets to chunk
+      if (log) {
+        console.log(`  - injecting object tilesets...`);
+      }
+      await convertedChunk.addObjectTilesetShapes(objectsMap.tilesets);
+      // await convertedChunk.parseAddObjects();
+      //convert objectsMap from using Ids to using Gids
+      const objectsGidMap = convertedChunk.convertIdMapToGid(objectsMap);
+      if (pixelsObjArray !== undefined) {
+        const objRgbaArray = tilesetMatcher.slicePixelsToArray(
+          pixelsObjArray.data,
+          pixelsArray.shape[0],
+          pixelsArray.shape[1],
+          pixelsArray.shape[2]
+        );
+        //map PNG to objects using objectsGidMap
+        if (log) {
+          console.log(`  - adding objects...`);
+        }
+        await convertedChunk.parseAddObjects(
+          sortedOldTileset.objects as tilesetMatcher.ObjectTile[],
+          objRgbaArray,
+          objectsMap
+        );
+
+        //NPCs
+        const npcMap = tilesetMatcher.matchNPCS(sortedOldTileset.npcs as tilesetMatcher.NpcTile[]);
+        if (log) {
+          console.log(`  - adding NPCs...`);
+        }
+        convertedChunk.parseAddNpcs(objRgbaArray, npcMap);
+        //ground tile mods
+        const modMap = tilesetMatcher.matchMods(sortedOldTileset.foreground);
+        //add mods to chunk
+        if (log) {
+          console.log(`  - adding modded terrain regions...`);
+        }
+        convertedChunk.parseMods(RgbaArray, modMap);
+        convertedChunk.parseMods(objRgbaArray, modMap);
+
+        const stagehandMap = tilesetMatcher.matchStagehands(
+          sortedOldTileset.stagehands as tilesetMatcher.StagehandTile[]
+        );
+        if (log) {
+          console.log(`  - adding stagehands...`);
+        }
+        convertedChunk.parseStagehands(objRgbaArray, stagehandMap);
+      }
+      
+      
+
+      const success = await dungeonsFS.writeConvertedMapJson(
+        newChunkPath,
+        convertedChunk
+      );
+      if (success) {
+        console.log(`SUCCESS! ${dungeonsFS.getFilename(file.name)}.json saved.`);
+      }
+
+      //return 4; //TEMP - return on first PNG converted
+    }
+  }
+  
+  
+  
+  return 4;
 }
 
 async function writeConvertedMap_test(log = false) {
@@ -295,7 +493,7 @@ async function writeConvertedMap_test(log = false) {
           try {
             pixelsArray = await getPixelsPromise(
               `${dungeonsFS.ioDirPath}/${file.name}`
-            , ""); //arg2 is MIMEtype, only for Buffers (we can skip it here)
+            , "image/png"); //arg2 is MIMEtype, only for Buffers (we can skip it here)
           } catch (error) {
             console.error(error);
             return undefined;
@@ -363,7 +561,7 @@ async function writeConvertedMap_test(log = false) {
             if (pngObjects) {
               //if we found name-objects.png file
               try {
-                pixelsObjArray = await getPixelsPromise(`${dungeonsFS.ioDirPath}/${pngObjects.name}`, "");
+                pixelsObjArray = await getPixelsPromise(`${dungeonsFS.ioDirPath}/${pngObjects.name}`, "image/png");
               } catch (error) {
                 console.error(error);
                 return undefined;
@@ -474,6 +672,7 @@ async function writeConvertedMap_test(log = false) {
 export {
   extractOldTileset,
   matchAllObjects,
+  convertChunk,
   writeConvertedMap_test,
   // FullObjectMap,
 };

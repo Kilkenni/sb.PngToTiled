@@ -75,6 +75,10 @@ async function getDungeons(dungeonPath:string):Promise<DungeonFile|undefined> {
   }
 }
 
+// async function cacheTilesets(tilesetPaths: string[]) {
+  //TODO
+// }
+
 async function writeConvertedDungeons(JsonData: Object): Promise<true|undefined> {
   const ioDir = await readDir();
   let newDungeonPath;

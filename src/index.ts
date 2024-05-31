@@ -1,5 +1,6 @@
 import * as dungeonsFS from "./dungeonsFS";
 import * as tilesetMatcher from "./tilesetMatch";
+import * as compressor from "./compression";
 import { SbDungeonChunk } from "./dungeonChunkAssembler";
 import {
   extractOldTileset,
@@ -112,7 +113,7 @@ function invokeAction(argv: { [key: string]: unknown }) {
       convertDungeon();
       break;
     case "zlib_test":
-      tilesetMatcher.zlibTest();
+      compressor.zlibTest();
       break;
     case "extractoldtileset":
       extractOldTileset(true);
