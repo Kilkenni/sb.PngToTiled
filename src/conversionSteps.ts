@@ -245,6 +245,8 @@ async function generateDungeonChunk(tilePixels: NdArray<Uint8Array>, objPixels: 
 
 }
 
+/*
+
 async function convertChunk(chunk: Dirent, chunk_object?: Dirent, log = false): Promise<void> {
   if (chunk.isFile() === false || (chunk_object!== undefined && chunk_object.isFile() === false)) {
     throw new Error(`All layers of ${chunk} must be .png files`)
@@ -446,6 +448,8 @@ async function convertChunk(chunk: Dirent, chunk_object?: Dirent, log = false): 
   
   return 4;
 }
+
+*/
 
 async function writeConvertedMap_test(log = false) {
   const newTilesetShapes = await tilesetMatcher.calcNewTilesetShapes();
@@ -672,7 +676,7 @@ async function writeConvertedMap_test(log = false) {
 export {
   extractOldTileset,
   matchAllObjects,
-  convertChunk,
+  //convertChunk,
   writeConvertedMap_test,
   // FullObjectMap,
 };
