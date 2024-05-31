@@ -1377,10 +1377,10 @@ export type {
   ModMatch as ModMatchType,
   StagehandMatch as StagehandMatchType,
 
-  ObjectJson as ObjectJsonType,
-  TilesetObjectJson as TilesetObjectJsonType,
-  TilesetMiscJson as TilesetMiscJsonType,
-  OldTilesetSorted as OldTilesetSortedType,
-  TilesetJson as TilesetJsonType,
+  ObjectJson,
+  TilesetObjectJson,
+  TilesetMiscJson,
+  OldTilesetSorted,
+  TilesetJson,
 }
   

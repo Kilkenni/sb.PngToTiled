@@ -7,10 +7,10 @@
 
 // import * as dungeonsFS from "./dungeonsFS.js";
 // import * as tilesetMatcher from "./tilesetMatch.js";
-import { getTileset, getTilesetPath, getTilesetNameFromPath } from "./dungeonsFS";
+import { getFilename, getTileset, getTilesetPath, getTilesetNameFromPath } from "./dungeonsFS";
 import { matchObjects, matchObjectsBiome, getObjectFromTileset, getTileSizeFromTileset, isRgbaEqual } from "./tilesetMatch";
-import { TilesetJsonType, ObjectTile, ObjectFullMatchType, LayerTileMatchType, TilesetMiscJsonType, ObjectJsonType, RgbaValueType, ObjectBrushType, NpcMatchType, ModMatchType, StagehandMatchType } from "./tilesetMatch";
-import { getFilenameFromPath, getFilename, FullObjectMap } from "./conversionSteps";
+import { TilesetJson, ObjectTile, ObjectFullMatchType, LayerTileMatchType, TilesetMiscJson, ObjectJson, RgbaValueType, ObjectBrushType, NpcMatchType, ModMatchType, StagehandMatchType } from "./tilesetMatch";
+import { FullObjectMap } from "./conversionSteps";
 import { TILESETMAT_NAME, TILESETOBJ_NAME, resolveTilesets} from "./tilesetMatch";
 // import * as dungeonsFS from "./dungeonsFS";
 import GidFlags from "./GidFlags";
@@ -273,7 +273,7 @@ class SbDungeonChunk{
    * @param log - enables posting limited debug info in console. default: false.
    * @returns 
    */
-  async addTilesetShape(tileset: TilesetJsonType, log = false): Promise<SbDungeonChunk> {
+  async addTilesetShape(tileset: TilesetJson, log = false): Promise<SbDungeonChunk> {
     const tilesetFound = this.#tilesets.find((shape: TilesetShape, shapeIndex: number) => {
       return tileset.name.includes(this.getTilesetNameFromShape(shapeIndex) as string);
     })
@@ -596,7 +596,7 @@ class SbDungeonChunk{
           if (isRgbaEqual(match.tileRgba, rgbaArray[rgbaN]) === false) {
             continue; //skip until we find the right match
           }
-          const objectData: ObjectJsonType = await getObjectFromTileset(match);
+          const objectData: ObjectJson = await getObjectFromTileset(match);
           const oldObjectData = oldObjects.find((objData) => {
             return isRgbaEqual(match.tileRgba, objData.value);
           });
