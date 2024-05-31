@@ -123,7 +123,7 @@ async function writeConvertedMap_test(log = false) {
             newTilesetShapes
           );
           const getPixelsPromise = promisify(getPixels); //getPixels originally doesn't support promises
-          const oldTileset = await extractOldTileset(log);
+          const oldTileset = await extractOldTileset(false);
           if (oldTileset === undefined) {
             return -1;
           }
