@@ -3,7 +3,8 @@ import * as tilesetMatcher from "./tilesetMatch";
 import * as compressor from "./compression";
 import { SbDungeonChunk } from "./dungeonChunkAssembler";
 import {
-  matchAllObjects,
+  //matchAllObjects,
+  convertAllChunks,
   writeConvertedMap_test
 } from "./conversionSteps";
 import {
@@ -120,7 +121,8 @@ function invokeAction(argv: { [key: string]: unknown }) {
       )
       break;
     case "writeconverted_test":
-      writeConvertedMap_test(true);
+      //writeConvertedMap_test(true);
+      convertAllChunks(true);
       break;
     default:
       console.warn(`\x1B[31m Unknown action type: ${action}!`);

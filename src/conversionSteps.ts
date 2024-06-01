@@ -189,15 +189,20 @@ async function convertChunk(chunkTodo: DungeonPartTodo, oldTileset:OldTilesetSor
 async function convertAllChunks(log = false):Promise<void> {
   const ioFiles:Dirent[] = await dungeonsFS.readDir();
   const dungeonFile:DungeonJson = await dungeonsFS.getDungeon(ioFiles, log);
-  const chunkTodos:DungeonPartTodo[] = dungeonsFS.verifyChunkConnections(ioFiles, dungeonFile, true, log);
+  const chunkTodos:DungeonPartTodo[] = dungeonsFS.verifyChunkConnections(ioFiles, dungeonFile, false, log);
   const oldTileset = await dungeonsFS.extractOldTileset(ioFiles, log);
   const sortedOldTileset = tilesetMatcher.getSortedTileset(oldTileset);
+  let unfinished = 0;
 
   for(const todo of chunkTodos) {
-    //TODO
+    if(todo.finished === false) {
+      unfinished++;
+    }
   }
 
-  chunkTodos[0].finished = await convertChunk(chunkTodos[0], sortedOldTileset, log);
+  const doIt = chunkTodos.findIndex((todo) => todo.finished === false);
+  if(doIt > -1)
+    chunkTodos[doIt].finished = await convertChunk(chunkTodos[doIt], sortedOldTileset, log);
   //TODO check finished status
 }
 
@@ -424,6 +429,7 @@ async function writeConvertedMap_test(log = false) {
 export {
   matchAllObjects,
   convertChunk,
+  convertAllChunks,
   writeConvertedMap_test,
   // FullObjectMap,
 };

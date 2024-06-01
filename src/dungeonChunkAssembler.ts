@@ -589,7 +589,7 @@ class SbDungeonChunk{
 
   async parseAddObjects(oldObjects:ObjectTile[], rgbaArray: RgbaValueType[], objMatchMap: FullObjectMap, log = false): Promise<SbDungeonChunk> {
     if (log) {
-      console.log(`  - adding objects...`);
+      console.log(`  - adding objects`);
     }
 
     //Add shapes for object tilesets in SbDungeonChunk

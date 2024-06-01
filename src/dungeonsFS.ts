@@ -48,6 +48,7 @@ interface DungeonJson extends Record<string, any> {
 };
 
 interface DungeonPartTodo {
+  name: string, //unique across the same dungeon
   extension: "png"|"json",
   mainPartName: string,
   optPartNames: string[]|undefined,
@@ -189,11 +190,12 @@ async function extractOldTileset(ioFiles: Dirent[], log = false): Promise<Tile[]
 function parseChunkConnections(/*ioFiles: Dirent[],*/ dungeonFile: DungeonJson):DungeonPartTodo[] {
   const dungeonTodo:DungeonPartTodo[] = dungeonFile.parts.map((part) => {
     const todo:DungeonPartTodo = {
+      name: part.name,
       extension: part.def[0].toLowerCase() === "tmx"? "json" : "png",
       mainPartName: typeof part.def[1]==="string"? part.def[1]: part.def[1][0],
       targetName: typeof part.def[1]==="string"? part.def[1] : getFilename(part.def[1][0])+".json",
       optPartNames: typeof part.def[1]==="string"? undefined : part.def[1].filter((_, partIndex) => {
-        partIndex !== 0;
+        return partIndex !== 0;
       }),
       finished: part.def[0].toLowerCase() === "tmx"? true : false,
     };
@@ -226,26 +228,30 @@ function verifyChunkConnections(ioFiles: Dirent[], dungeonFile:DungeonJson, stri
   //   throw new Error(`Input folder must contain exactly one .dungeon file but found ${dungeonsAmount}`);
   // };
   // const dungeonFile: DungeonFile = await getDungeon(dungeonEntry);
+  log = false; //TODO
+
 
   //validate dungeon file
   const dungeonTodos: DungeonPartTodo[] = parseChunkConnections(dungeonFile);
   if (dungeonTodos.some((todo) => { return todo.extension === "png"; }) === false) {
-    throw new Error(`${dungeonFile.name}.dungeon does not contain any "image" parts. Nothing to convert. Wrong .dungeon file?`)
+    throw new Error(`${dungeonFile.metadata.name}.dungeon does not contain any "image" parts. Nothing to convert. Wrong .dungeon file?`)
   }
   if (dungeonFile.tiles === undefined) {
-    throw new Error(`${dungeonFile.name}.dungeon is missing tileset for "image" parts. Broken .dungeon file?`);
+    throw new Error(`${dungeonFile.metadata.name}.dungeon is missing tileset for "image" parts. Broken .dungeon file?`);
   }
 
   //resolve chunks
   for (const todo of dungeonTodos.filter((todo) => todo.extension === "png")) {
-    const todoIndex = dungeonTodos.findIndex((curTodo) => curTodo.mainPartName === todo.mainPartName);
+    const todoIndex = dungeonTodos.findIndex((curTodo) => curTodo.name === todo.name);
     if (ioFiles.find((fileEntry) => todo.mainPartName === fileEntry.name) === undefined) {
       if (strict) {
-        throw new Error(`${dungeonFile.name}.dungeon lists ${todo.mainPartName} but it cannot be resolved in I/O folder.`);
+        throw new Error(`${dungeonFile.metadata.name}.dungeon lists ${todo.mainPartName} but it cannot be resolved in I/O folder.`);
       }
       else {
-        console.log(`${dungeonFile.name}.dungeon lists ${todo.mainPartName} but it cannot be resolved in I/O folder. It will be skipped`);
-        dungeonTodos[todoIndex].finished === true;
+        if(log) {
+          console.log(`${dungeonFile.metadata.name}.dungeon lists ${todo.mainPartName} but it cannot be resolved in I/O folder. It will be skipped`);
+        }
+        dungeonTodos[todoIndex].finished = true;
         continue;
       }
     }
@@ -253,10 +259,10 @@ function verifyChunkConnections(ioFiles: Dirent[], dungeonFile:DungeonJson, stri
       for (const chunkPart of todo.optPartNames) {
         if (ioFiles.find((fileEntry) => chunkPart === fileEntry.name) === undefined) {
           if (strict) {
-            throw new Error(`${dungeonFile.name} lists ${todo.mainPartName} but its dependency ${chunkPart} cannot be resolved in I/O folder.`);
+            throw new Error(`${dungeonFile.metadata.name} lists ${todo.mainPartName} but its dependency ${chunkPart} cannot be resolved in I/O folder.`);
           }
           else {
-            console.log(`${dungeonFile.name}.dungeon lists ${todo.mainPartName} but its dependency ${chunkPart} cannot be resolved in I/O folder. Conversion will be incomplete!`);
+            console.log(`${dungeonFile.metadata.name}.dungeon lists ${todo.mainPartName} but its dependency ${chunkPart} cannot be resolved in I/O folder. Conversion will be incomplete!`);
             dungeonTodos[todoIndex].optPartNames = todo.optPartNames.filter((chunk) => chunk !== chunkPart); //ignore part
             if (dungeonTodos[todoIndex].optPartNames?.length === 0) {
               dungeonTodos[todoIndex].optPartNames = undefined; //if no parts remain, wipe array
