@@ -31,7 +31,7 @@ async function convertDungeon() {
           if (dungeonsFS.getExtension(file.name) === "dungeon") {
             dungeonPath = file.path + "/" + file.name;
             // console.log(dungeonPath);
-            const dungeons = await dungeonsFS.getDungeons(ioDir, true);
+            const dungeons = await dungeonsFS.getDungeon(ioDir, true);
             console.log(
               `Found .dungeon file: ${
                 dungeons?.metadata?.name || "some weird shit"

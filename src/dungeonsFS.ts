@@ -75,7 +75,7 @@ return fileName.toLowerCase().substring(0, fileName.lastIndexOf("."));
 
 /**
  * 
- * @returns contents of I/O folder, only .png and .dungeon files
+ * @returns contents of I/O folder, filtered by .png and .dungeon files only
  */
 async function readDir():Promise<Dirent[]> {
   const ioDir = await nodeFS.readdir(ioDirPath, { withFileTypes: true });
@@ -96,6 +96,7 @@ async function getPixelsFromPngFile(name: string):Promise<NdArray<Uint8Array>> {
   return pixels;
 }
 
+/*
 async function getDungeons(ioFiles: Dirent[], log = false):Promise<DungeonJson> {
   // console.table(ioDir);
   let dungeonPath:string = "";
@@ -112,10 +113,6 @@ async function getDungeons(ioFiles: Dirent[], log = false):Promise<DungeonJson> 
     throw new Error(`Unable to find .dungeon file`);
   }
 
-  /*
-  throw new Error(`${dungeonPath} does not contain <tiles> map. New SB .dungeon files cannot be used.`)
-  */
-
   const dungeonsRaw = await nodeFS.readFile(dungeonPath, {
     encoding: "utf-8",
   });
@@ -130,6 +127,7 @@ async function getDungeons(ioFiles: Dirent[], log = false):Promise<DungeonJson> 
   );
   return dungeons;
 }
+*/
 
 /**
  * Returns .dungeon file parsed as JSON, trims comments
@@ -162,7 +160,6 @@ async function getDungeon(ioFiles:Dirent[], log = false): Promise<DungeonJson> {
   ); //magic RegEx string to remove comments from JSON
   return dungeons;
 }
-
 
 async function extractOldTileset(ioFiles: Dirent[], log = false): Promise<Tile[]> {
   const dungeonEntry = ioFiles.find((fileEntry) => {
@@ -404,7 +401,7 @@ export {
   getFilename,
   getExtension,
   readDir,
-  getDungeons,
+  getDungeon,
   extractOldTileset,
   //parseChunkConnections,
   verifyChunkConnections,
