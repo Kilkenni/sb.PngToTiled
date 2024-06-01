@@ -3,9 +3,7 @@ import * as tilesetMatcher from "./tilesetMatch";
 import * as compressor from "./compression";
 import { SbDungeonChunk } from "./dungeonChunkAssembler";
 import {
-  //matchAllObjects,
   convertAllChunks,
-  writeConvertedMap_test
 } from "./conversionSteps";
 import {
   getFilenameFromPath,
@@ -14,12 +12,9 @@ import {
   getPixels_test,
 } from "./legacy";
 
-import getPixels from "get-pixels";
-
 // import * as nodePath from "path";
 
 import yargs from "yargs";
-import { promisify } from "util";
 
 async function convertDungeon() {
   const ioDir = await dungeonsFS.readDir();
@@ -122,7 +117,7 @@ function invokeAction(argv: { [key: string]: unknown }) {
       break;
     case "writeconverted_test":
       //writeConvertedMap_test(true);
-      convertAllChunks(true);
+      convertAllChunks(false, true);
       break;
     default:
       console.warn(`\x1B[31m Unknown action type: ${action}!`);

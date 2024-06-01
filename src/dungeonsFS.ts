@@ -50,10 +50,10 @@ interface DungeonJson extends Record<string, any> {
 interface DungeonPartTodo {
   name: string, //unique across the same dungeon
   extension: "png"|"json",
+  finished: boolean,
   mainPartName: string,
   optPartNames: string[]|undefined,
   targetName: string,
-  finished: boolean,
 }
 
 /**
@@ -181,8 +181,8 @@ async function extractOldTileset(ioFiles: Dirent[], log = false): Promise<Tile[]
   }
   
   if (log) {
-    writeTileMap(`${ioDirPath + "OLDTILESET.TILES"}`, tileMap); //debug file
-    console.log(`Old tileset extracted and saved as OLDTILESET.TILES to I/O dir`);
+    writeTileMap(`${ioDirPath + "/OLDTILESET.TILES"}`, tileMap); //debug file
+    console.log(`Old tileset extracted and saved as OLDTILESET.TILES to I/O dir for debug. It can be safely deleted later.`);
   }
   return tileMap;
 }

@@ -186,26 +186,27 @@ async function convertChunk(chunkTodo: DungeonPartTodo, oldTileset:OldTilesetSor
   return success;
 }
 
-async function convertAllChunks(log = false):Promise<void> {
+/**
+ * Bulk conversion routine. Does not change .dungeon file
+ * @param strict if false, skips pngs in a .dungeon file that it cannot resolve. If true, throws errors instead.
+ * @param log 
+ */
+async function convertAllChunks(strict = false, log = false):Promise<void> {
   const ioFiles:Dirent[] = await dungeonsFS.readDir();
   const dungeonFile:DungeonJson = await dungeonsFS.getDungeon(ioFiles, log);
-  const chunkTodos:DungeonPartTodo[] = dungeonsFS.verifyChunkConnections(ioFiles, dungeonFile, false, log);
+  const chunkTodos:DungeonPartTodo[] = dungeonsFS.verifyChunkConnections(ioFiles, dungeonFile, strict, log);
   const oldTileset = await dungeonsFS.extractOldTileset(ioFiles, log);
   const sortedOldTileset = tilesetMatcher.getSortedTileset(oldTileset);
-  let unfinished = 0;
-
   for(const todo of chunkTodos) {
     if(todo.finished === false) {
-      unfinished++;
+     todo.finished = await convertChunk(todo, sortedOldTileset, log);
     }
   }
-
-  const doIt = chunkTodos.findIndex((todo) => todo.finished === false);
-  if(doIt > -1)
-    chunkTodos[doIt].finished = await convertChunk(chunkTodos[doIt], sortedOldTileset, log);
+    
   //TODO check finished status
 }
 
+/*
 async function writeConvertedMap_test(log = false) {
   const newTilesetShapes = await tilesetMatcher.calcNewTilesetShapes();
   //convert absolute paths to relative
@@ -425,12 +426,13 @@ async function writeConvertedMap_test(log = false) {
   
   return 4;
 }
+*/
 
 export {
   matchAllObjects,
   convertChunk,
   convertAllChunks,
-  writeConvertedMap_test,
+  //writeConvertedMap_test,
   // FullObjectMap,
 };
 
