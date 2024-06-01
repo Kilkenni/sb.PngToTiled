@@ -5,7 +5,7 @@ import getPixels from "get-pixels";
 import { Dirent } from "fs";
 
 import * as dungeonsFS from "./dungeonsFS";
-// import {DungeonFile } from "./dungeonsFS";
+import { DungeonPartTodo } from "./dungeonsFS";
 import * as tilesetMatcher from "./tilesetMatch";
 import {Tile, ObjectTile, ObjectTileMatchType, TilesetObjectJson, TilesetMiscJson, OldTilesetSorted } from "./tilesetMatch";
 import { SbDungeonChunk } from "./dungeonChunkAssembler";
@@ -65,7 +65,7 @@ async function matchAllObjects(arrayOfObjects: ObjectTile[]): Promise<FullObject
  * @param oldTileset old dungeon tileset, sorted by categories. Common for all dungeon chunks in a set.
  * @returns 
  */
-async function generateDungeonChunk(tilePixels: NdArray<Uint8Array>, objPixels: NdArray<Uint8Array>|undefined, oldTileset: tilesetMatcher.OldTilesetSorted, log = false):Promise<SbDungeonChunk> {
+async function generateDungeonChunk(tilePixels: NdArray<Uint8Array>, objPixels: NdArray<Uint8Array>[]|undefined, oldTileset: tilesetMatcher.OldTilesetSorted, log = false):Promise<SbDungeonChunk> {
   const newTilesetShapes = await tilesetMatcher.calcNewTilesetShapes();
   //convert absolute paths to relative
   for (const tilesetShape of newTilesetShapes) {
@@ -131,7 +131,7 @@ async function generateDungeonChunk(tilePixels: NdArray<Uint8Array>, objPixels: 
     //if we found name-objects.png file
     // convertedChunk.setSize(pixelsObjArray.shape[0], pixelsObjArray.shape[1]);
     const RgbaArray = tilesetMatcher.slicePixelsToArray(
-      objPixels.data,
+      objPixels[0].data,
       tilePixels.shape[0],
       tilePixels.shape[1],
       tilePixels.shape[2]
@@ -166,7 +166,7 @@ async function generateDungeonChunk(tilePixels: NdArray<Uint8Array>, objPixels: 
   const objectsGidMap = convertedChunk.convertIdMapToGid(objectsMap);
   if (objPixels !== undefined) {
     const objRgbaArray = tilesetMatcher.slicePixelsToArray(
-      objPixels.data,
+      objPixels[0].data,
       tilePixels.shape[0],
       tilePixels.shape[1],
       tilePixels.shape[2]
@@ -208,61 +208,45 @@ async function generateDungeonChunk(tilePixels: NdArray<Uint8Array>, objPixels: 
 
 /**
  * Converts a single chunk with objects from PNG to JSON and writes it
- * @param chunk filesystem data about main PNG file
- * @param chunk_objects filesystem data about objects PNG file
+ * @param chunkTodo file names of main PNG file and additional files
  * @param log 
  */
-async function convertChunk(chunk: Dirent, chunk_objects?: Dirent, log = false): Promise<void> {
-  if (chunk.isFile() === false || (chunk_objects!== undefined && chunk_objects.isFile() === false)) {
-    throw new Error(`All layers of ${chunk} must be .png files`)
+async function convertChunk(chunkTodo: DungeonPartTodo, oldTileset:OldTilesetSorted, log = false): Promise<boolean> {
+  if (chunkTodo.extension === "json") {
+    if (log) {
+      console.log(`${chunkTodo.mainPartName} does not need conversion, skipping...`)
+    }
+    return true;
   }
-  else {
-    if (dungeonsFS.getExtension(chunk.name) === "png") {
-      if (chunk.name.includes("objects")||chunk.name.includes("wires")) {
-        throw new Error(`${chunk} must be a main .png for the chunk`); //do not convert objects layers as separate files
-      }
+  console.log(`${chunkTodo.mainPartName} is due for conversion`);
 
-      const newChunkPath = `${dungeonsFS.ioDirPath}/${dungeonsFS.getFilename(chunk.name)}.json`;
-      console.log(
-        `Detected ${chunk.name}, writing ${dungeonsFS.getFilename(chunk.name)}.json...`
-      );
+  const fullMatchMap = await tilesetMatcher.matchAllTilelayers(oldTileset); //for debug
 
-      const getPixelsPromise = promisify(getPixels); //getPixels originally doesn't support promises
+  const pixelsArray: NdArray<Uint8Array> = await dungeonsFS.getPixelsFromPngFile(chunkTodo.mainPartName);
+  if (log) {
+    console.log("  -obtained image shape: ", pixelsArray.shape); //shape = width, height, channels
+  }
+  //pixelsArray.data is a Uint8Array of (shape.width * shape.height * #channels) elements 
 
-      const ioDirContents = await dungeonsFS.readDir();
-      if(ioDirContents === undefined) {
-        throw new Error(`Can't read i/o dir`);
-      }
-      const oldTileset = await dungeonsFS.extractOldTileset(ioDirContents, false);
-      const sortedOldTileset = await tilesetMatcher.getSortedTileset(oldTileset);
-      const fullMatchMap = await tilesetMatcher.matchAllTilelayers(sortedOldTileset); //fo4r debug
-
-      const pixelsArray:NdArray<Uint8Array> = await getPixelsPromise(
-          `${dungeonsFS.ioDirPath}/${chunk.name}`
-        , "image/png"); //arg2 is MIMEtype, only for Buffers (we can skip it here);
-      if (log) {
-        console.log("  -obtained image shape: ", pixelsArray.shape); //shape = width, height, channels
-      }
-      //pixelsArray.data is a Uint8Array of (shape.width * shape.height * #channels) elements 
-
-      const pixelsObjArray:NdArray<Uint8Array>|undefined = (chunk_objects === undefined)? undefined :
-      await getPixelsPromise(`${dungeonsFS.ioDirPath}/${chunk_objects.name}`, "image/png");
-
-      if (log === true && pixelsObjArray!== undefined) {
-        console.log("  -Found objects PNG, image shape: ", pixelsObjArray.shape);
-      } 
-      
-      const convertedChunk: SbDungeonChunk = await generateDungeonChunk(pixelsArray, pixelsObjArray, sortedOldTileset, log); //Assembling chunk
-
-      const success = await dungeonsFS.writeConvertedMapJson(
-        newChunkPath,
-        convertedChunk
-      );
-      if (success) {
-        console.log(`SUCCESS! ${dungeonsFS.getFilename(chunk.name)}.json saved.`);
-      }
+  let pixelsOptArrays: NdArray<Uint8Array>[]|undefined = undefined;
+  if (chunkTodo.optPartNames !== undefined) {
+    pixelsOptArrays = new Array<NdArray<Uint8Array>>(chunkTodo.optPartNames.length);
+    for (let i = 0; i < chunkTodo.optPartNames.length; i++) {
+      pixelsOptArrays[i] = await dungeonsFS.getPixelsFromPngFile(chunkTodo.optPartNames[i])
     }
   }
+  
+  const convertedChunk: SbDungeonChunk = await generateDungeonChunk(pixelsArray, pixelsOptArrays, oldTileset, log); //Assembling chunk
+
+  const newChunkPath = `${dungeonsFS.ioDirPath}/${chunkTodo.targetName}`;
+  const success = await dungeonsFS.writeConvertedMapJson(
+    newChunkPath,
+    convertedChunk
+  );
+  if (success) {
+    console.log(`${chunkTodo.targetName} saved >:3`);
+  }
+  return success;
 }
 
 async function writeConvertedMap_test(log = false) {

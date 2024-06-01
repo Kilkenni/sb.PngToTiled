@@ -50,7 +50,7 @@ interface DungeonJson extends Record<string, any> {
 interface DungeonPartTodo {
   extension: "png"|"json",
   mainPartName: string,
-  addPartNames: string[]|undefined,
+  optPartNames: string[]|undefined,
   targetName: string,
   finished: boolean,
 }
@@ -85,6 +85,10 @@ async function readDir():Promise<Dirent[]> {
   return ioFiles;
 }
 
+/**
+ * @param name PNG file, full name without path. Will be searched in I/O folder
+ * @returns pixels from a PNG file
+ */
 async function getPixelsFromPngFile(name: string):Promise<NdArray<Uint8Array>> {
   if (getExtension(name) !== "png") {
     throw new Error(`${name} is not a PNG file`);
@@ -188,7 +192,7 @@ function parseChunkConnections(/*ioFiles: Dirent[],*/ dungeonFile: DungeonJson):
       extension: part.def[0].toLowerCase() === "tmx"? "json" : "png",
       mainPartName: typeof part.def[1]==="string"? part.def[1]: part.def[1][0],
       targetName: typeof part.def[1]==="string"? part.def[1] : getFilename(part.def[1][0])+".json",
-      addPartNames: typeof part.def[1]==="string"? undefined : part.def[1].filter((_, partIndex) => {
+      optPartNames: typeof part.def[1]==="string"? undefined : part.def[1].filter((_, partIndex) => {
         partIndex !== 0;
       }),
       finished: part.def[0].toLowerCase() === "tmx"? true : false,
@@ -245,17 +249,17 @@ function verifyChunkConnections(ioFiles: Dirent[], dungeonFile:DungeonJson, stri
         continue;
       }
     }
-    if (todo.addPartNames !== undefined) {
-      for (const chunkPart of todo.addPartNames) {
+    if (todo.optPartNames !== undefined) {
+      for (const chunkPart of todo.optPartNames) {
         if (ioFiles.find((fileEntry) => chunkPart === fileEntry.name) === undefined) {
           if (strict) {
             throw new Error(`${dungeonFile.name} lists ${todo.mainPartName} but its dependency ${chunkPart} cannot be resolved in I/O folder.`);
           }
           else {
             console.log(`${dungeonFile.name}.dungeon lists ${todo.mainPartName} but its dependency ${chunkPart} cannot be resolved in I/O folder. Conversion will be incomplete!`);
-            dungeonTodos[todoIndex].addPartNames = todo.addPartNames.filter((chunk) => chunk !== chunkPart); //ignore part
-            if (dungeonTodos[todoIndex].addPartNames?.length === 0) {
-              dungeonTodos[todoIndex].addPartNames = undefined; //if no parts remain, wipe array
+            dungeonTodos[todoIndex].optPartNames = todo.optPartNames.filter((chunk) => chunk !== chunkPart); //ignore part
+            if (dungeonTodos[todoIndex].optPartNames?.length === 0) {
+              dungeonTodos[todoIndex].optPartNames = undefined; //if no parts remain, wipe array
             }
             continue;
           }
@@ -328,7 +332,7 @@ async function getDungeonTodos(strict = false, log = false): Promise<{ dungeonFi
   };
 }
 
-async function writeConvertedMapJson(newPath:string, DungeonChunk: SbDungeonChunk) {
+async function writeConvertedMapJson(newPath:string, DungeonChunk: SbDungeonChunk):Promise<boolean> {
   // const ioDir = await readDir();
   try {
     const accessed = await nodeFS.access(
@@ -338,7 +342,7 @@ async function writeConvertedMapJson(newPath:string, DungeonChunk: SbDungeonChun
     console.error(
       `Output file <${newPath}> already exists. Rewriting prohibited. Remove it before running again.`
     );
-    return undefined;
+    return false;
   } catch (error) {
     //this error appears if no converted file is found, i.e. if we can safely write
     await nodeFS.writeFile(
@@ -403,6 +407,7 @@ export {
   readDir,
   getDungeon,
   extractOldTileset,
+  getPixelsFromPngFile,
   //parseChunkConnections,
   verifyChunkConnections,
   writeConvertedDungeons,
@@ -416,4 +421,5 @@ export {
 export type {
   DungeonJson,
   DungeonPart,
+  DungeonPartTodo,
 };
