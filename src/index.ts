@@ -50,7 +50,7 @@ async function convertDungeon() {
               if (dungeons.parts!== undefined) {
                 const partPairs = [];
                 console.log("  Processing: <parts>");
-                (dungeons as dungeonsFS.DungeonFile).parts?.forEach((part) => {
+                (dungeons as dungeonsFS.DungeonJson).parts?.forEach((part) => {
                   try {
                     // console.log(part);
                     if (part.def[0] === "tmx")

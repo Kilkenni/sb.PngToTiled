@@ -5,7 +5,7 @@ import getPixels from "get-pixels";
 import { Dirent } from "fs";
 
 import * as dungeonsFS from "./dungeonsFS";
-import {DungeonFile } from "./dungeonsFS";
+// import {DungeonFile } from "./dungeonsFS";
 import * as tilesetMatcher from "./tilesetMatch";
 import {Tile, ObjectTile, ObjectTileMatchType, TilesetObjectJson, TilesetMiscJson, OldTilesetSorted } from "./tilesetMatch";
 import { SbDungeonChunk } from "./dungeonChunkAssembler";

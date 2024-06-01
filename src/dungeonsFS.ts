@@ -1,5 +1,8 @@
 import {Dirent, promises as nodeFS} from "fs";
 import nodePath from "path";
+import { promisify } from "util";
+import { NdArray } from "ndarray";
+import getPixels from "get-pixels";
 
 import { Tile, resolveTilesets, TilesetJson } from "./tilesetMatch";
 import { SbDungeonChunk } from "./dungeonChunkAssembler";
@@ -28,7 +31,7 @@ interface DungeonPart {
   chance?: number, //cannot be negative
 };
 
-interface DungeonFile extends Record<string, any> {
+interface DungeonJson extends Record<string, any> {
   metadata: {
     name: string,
     species: string,
@@ -58,7 +61,7 @@ interface DungeonPartTodo {
  * @returns extension without the (.)
  */
 function getExtension(fileName:string) {
-  return fileName.substring(fileName.lastIndexOf(".") + 1);
+  return fileName.toLowerCase().substring(fileName.lastIndexOf(".") + 1);
 }
 
 /**
@@ -67,16 +70,33 @@ function getExtension(fileName:string) {
  * @returns name without extension
  */
 function getFilename(fileName:string) {
-return fileName.substring(0, fileName.lastIndexOf("."));
+return fileName.toLowerCase().substring(0, fileName.lastIndexOf("."));
 }
 
+/**
+ * 
+ * @returns contents of I/O folder, only .png and .dungeon files
+ */
 async function readDir():Promise<Dirent[]> {
   const ioDir = await nodeFS.readdir(ioDirPath, { withFileTypes: true });
-
-  return ioDir;
+  const ioFiles = ioDir.filter((fileEntry) => {
+    return (fileEntry.isFile() && (getExtension(fileEntry.name) === "dungeon" || getExtension(fileEntry.name) == "png"));
+  });
+  return ioFiles;
 }
 
-async function getDungeons(ioFiles: Dirent[], log = false):Promise<DungeonFile> {
+async function getPixelsFromPngFile(name: string):Promise<NdArray<Uint8Array>> {
+  if (getExtension(name) !== "png") {
+    throw new Error(`${name} is not a PNG file`);
+  }
+  const path = ioDirPath + "/" + name;
+  const getPixelsPromise = promisify(getPixels); //getPixels originally doesn't support promises
+  const pixels: NdArray<Uint8Array> = await getPixelsPromise(path, "image/png");
+  //arg2 is MIMEtype, only for Buffers (we can skip it here)
+  return pixels;
+}
+
+async function getDungeons(ioFiles: Dirent[], log = false):Promise<DungeonJson> {
   // console.table(ioDir);
   let dungeonPath:string = "";
 
@@ -99,7 +119,7 @@ async function getDungeons(ioFiles: Dirent[], log = false):Promise<DungeonFile> 
   const dungeonsRaw = await nodeFS.readFile(dungeonPath, {
     encoding: "utf-8",
   });
-  const dungeons:DungeonFile = JSON.parse(
+  const dungeons:DungeonJson = JSON.parse(
     dungeonsRaw.replace(
       /\\"|"(?:\\"|[^"])*"|(\/\/.*|\/\*[\s\S]*?\*\/)/g,
       (m, g) => (g ? "" : m)
@@ -111,9 +131,47 @@ async function getDungeons(ioFiles: Dirent[], log = false):Promise<DungeonFile> 
   return dungeons;
 }
 
+/**
+ * Returns .dungeon file parsed as JSON, trims comments
+ * @param file Dirent containing .dungeon file info
+ * @param log 
+ * @returns 
+ */
+async function getDungeon(ioFiles:Dirent[], log = false): Promise<DungeonJson> {
+  let dungeonsAmount: number = 0;
+  let dungeonEntry: Dirent|undefined = undefined;
+  for (const fileEntry of ioFiles) {
+    if (getExtension(fileEntry.name) === "dungeon") {
+      dungeonsAmount = dungeonsAmount + 1;
+      dungeonEntry = fileEntry;
+    }
+  }
+  if (dungeonsAmount !== 1 || dungeonEntry === undefined) {
+    throw new Error(`Input folder must contain exactly one .dungeon file but found ${dungeonsAmount}`);
+  };
+  const dungeonPath:string =  ioDirPath + "/" + dungeonEntry.name;
 
-async function extractOldTileset(ioFiles: Dirent[], log = false):Promise<Tile[]> {
-  const dungeons = await getDungeons(ioFiles);
+  const dungeonsRaw = await nodeFS.readFile(dungeonPath, {
+    encoding: "utf-8",
+  });
+  const dungeons:DungeonJson = JSON.parse(
+    dungeonsRaw.replace(
+      /\\"|"(?:\\"|[^"])*"|(\/\/.*|\/\*[\s\S]*?\*\/)/g,
+      (m, g) => (g ? "" : m)
+    )
+  ); //magic RegEx string to remove comments from JSON
+  return dungeons;
+}
+
+
+async function extractOldTileset(ioFiles: Dirent[], log = false): Promise<Tile[]> {
+  const dungeonEntry = ioFiles.find((fileEntry) => {
+    return (fileEntry.isFile() && getExtension(fileEntry.name) === "dungeon");
+  })
+  if (dungeonEntry === undefined) {
+    throw new Error(`Cannot find .dungeon file`);
+  }
+  const dungeons = await getDungeon(ioFiles);
  
   const tileMap = dungeons.tiles;
   if(tileMap === undefined) {
@@ -127,7 +185,7 @@ async function extractOldTileset(ioFiles: Dirent[], log = false):Promise<Tile[]>
   return tileMap;
 }
 
-async function parseChunkConnections(ioFiles: Dirent[], dungeonFile: DungeonFile):Promise<DungeonPartTodo[]> {
+function parseChunkConnections(/*ioFiles: Dirent[],*/ dungeonFile: DungeonJson):DungeonPartTodo[] {
   const dungeonTodo:DungeonPartTodo[] = dungeonFile.parts.map((part) => {
     const todo:DungeonPartTodo = {
       extension: part.def[0].toLowerCase() === "tmx"? "json" : "png",
@@ -145,21 +203,77 @@ async function parseChunkConnections(ioFiles: Dirent[], dungeonFile: DungeonFile
     return dungeonTodo;
 }
 
-async function verifyChunkConnections() {
-  const ioDir = await readDir();
-  if (ioDir === undefined) {
-    throw new Error(`Can't get access to ${ioDirPath}`);
+function verifyChunkConnections(ioFiles: Dirent[], dungeonFile:DungeonJson, strict = false, log = false):DungeonPartTodo[] {
+  // const ioDir = await readDir();
+  // if (ioDir === undefined) {
+  //   throw new Error(`Can't get access to ${ioDirPath}`);
+  // }
+
+  // const ioFiles:Dirent[] = ioDir.filter((fileEntry) => {
+  //   return (fileEntry.isFile() && (getExtension(fileEntry.name) === ".dungeon" || getExtension(fileEntry.name) == ".png"));
+  // });
+
+  // let dungeonsAmount: number = 0;
+  // let dungeonEntry: Dirent|undefined = undefined;
+  // for (const fileEntry of ioFiles) {
+  //   if (getExtension(fileEntry.name) === ".dungeon") {
+  //     dungeonsAmount = dungeonsAmount + 1;
+  //     dungeonEntry = fileEntry;
+  //   }
+  // }
+  // if (dungeonsAmount !== 1 || dungeonEntry === undefined) {
+  //   throw new Error(`Input folder must contain exactly one .dungeon file but found ${dungeonsAmount}`);
+  // };
+  // const dungeonFile: DungeonFile = await getDungeon(dungeonEntry);
+
+  //validate dungeon file
+  const dungeonTodos: DungeonPartTodo[] = parseChunkConnections(dungeonFile);
+  if (dungeonTodos.some((todo) => { return todo.extension === "png"; }) === false) {
+    throw new Error(`${dungeonFile.name}.dungeon does not contain any "image" parts. Nothing to convert. Wrong .dungeon file?`)
+  }
+  if (dungeonFile.tiles === undefined) {
+    throw new Error(`${dungeonFile.name}.dungeon is missing tileset for "image" parts. Broken .dungeon file?`);
   }
 
-
-  //TODO
+  //resolve chunks
+  for (const todo of dungeonTodos.filter((todo) => todo.extension === "png")) {
+    const todoIndex = dungeonTodos.findIndex((curTodo) => curTodo.mainPartName === todo.mainPartName);
+    if (ioFiles.find((fileEntry) => todo.mainPartName === fileEntry.name) === undefined) {
+      if (strict) {
+        throw new Error(`${dungeonFile.name}.dungeon lists ${todo.mainPartName} but it cannot be resolved in I/O folder.`);
+      }
+      else {
+        console.log(`${dungeonFile.name}.dungeon lists ${todo.mainPartName} but it cannot be resolved in I/O folder. It will be skipped`);
+        dungeonTodos[todoIndex].finished === true;
+        continue;
+      }
+    }
+    if (todo.addPartNames !== undefined) {
+      for (const chunkPart of todo.addPartNames) {
+        if (ioFiles.find((fileEntry) => chunkPart === fileEntry.name) === undefined) {
+          if (strict) {
+            throw new Error(`${dungeonFile.name} lists ${todo.mainPartName} but its dependency ${chunkPart} cannot be resolved in I/O folder.`);
+          }
+          else {
+            console.log(`${dungeonFile.name}.dungeon lists ${todo.mainPartName} but its dependency ${chunkPart} cannot be resolved in I/O folder. Conversion will be incomplete!`);
+            dungeonTodos[todoIndex].addPartNames = todo.addPartNames.filter((chunk) => chunk !== chunkPart); //ignore part
+            if (dungeonTodos[todoIndex].addPartNames?.length === 0) {
+              dungeonTodos[todoIndex].addPartNames = undefined; //if no parts remain, wipe array
+            }
+            continue;
+          }
+        }
+      }
+    }
+  }
+  return dungeonTodos;
 }
 
 // async function cacheTilesets(tilesetPaths: string[]) {
   //TODO
 // }
 
-async function writeConvertedDungeons(JsonData: Object): Promise<true|undefined> {
+async function writeConvertedDungeons(dungeonJson: DungeonJson): Promise<true|undefined> {
   const ioDir = await readDir();
   let newDungeonPath;
   if (ioDir) {
@@ -190,7 +304,7 @@ async function writeConvertedDungeons(JsonData: Object): Promise<true|undefined>
             // console.log(error.message);
             await nodeFS.writeFile(
               newDungeonPath,
-              JSON.stringify(JsonData, null, 2),
+              JSON.stringify(dungeonJson, null, 2),
               "utf-8"
             );
             // console.log(`Writing ${file.name}.new done.`);
@@ -204,6 +318,17 @@ async function writeConvertedDungeons(JsonData: Object): Promise<true|undefined>
     }
   }
   return undefined;
+}
+
+async function getDungeonTodos(strict = false, log = false): Promise<{ dungeonFile: DungeonJson; todos: DungeonPartTodo[]; }> {
+  const filesTodo:Dirent[] = await readDir();
+  const dungeonFile: DungeonJson = await getDungeon(filesTodo);
+  const todos: DungeonPartTodo[] = verifyChunkConnections(filesTodo, dungeonFile, strict, log);
+  
+  return {
+    dungeonFile,
+    todos,
+  };
 }
 
 async function writeConvertedMapJson(newPath:string, DungeonChunk: SbDungeonChunk) {
@@ -292,6 +417,6 @@ export {
 };
   
 export type {
-  DungeonFile,
+  DungeonJson,
   DungeonPart,
 };
