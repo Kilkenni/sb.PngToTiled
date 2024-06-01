@@ -370,26 +370,22 @@ function getTilesetPath(tilesetName: string):string {
  * @param tilesetName 
  * @returns 
  */
-async function getTileset(tilesetName: string, path?: string):Promise<TilesetJson|undefined> {
+async function getTileset(tilesetName: string, path?: string):Promise<TilesetJson> {
   const tilesetPath = path!==undefined ? path:`${resolveTilesets()}/${tilesetName}.json`;
-  try {
-    if (!tilesetPath || typeof tilesetPath != "string") {
-      return undefined; //basic path validation check
-    }
-    const tilesetRaw = await nodeFS.readFile(tilesetPath, {
-      encoding: "utf-8",
-    });
-    const tileset: TilesetJson = JSON.parse(
-      tilesetRaw.replace(
-        /\\"|"(?:\\"|[^"])*"|(\/\/.*|\/\*[\s\S]*?\*\/)/g,
-        (m, g) => (g ? "" : m)
-      )
-    ); //magic RegEx string to remove comments from JSON
-    return tileset;
-  } catch (error) {
-    console.error(error);
-    return undefined;
+
+  if (!tilesetPath || typeof tilesetPath != "string") {
+    throw new Error(`Cannot resolve tileset ${tilesetName}`); //basic path validation check
   }
+  const tilesetRaw = await nodeFS.readFile(tilesetPath, {
+    encoding: "utf-8",
+  });
+  const tileset: TilesetJson = JSON.parse(
+    tilesetRaw.replace(
+      /\\"|"(?:\\"|[^"])*"|(\/\/.*|\/\*[\s\S]*?\*\/)/g,
+      (m, g) => (g ? "" : m)
+    )
+  ); //magic RegEx string to remove comments from JSON
+  return tileset;
 }
 
 async function getTilesetNameFromPath(path: string):Promise<string> {
@@ -397,7 +393,7 @@ async function getTilesetNameFromPath(path: string):Promise<string> {
   if (tileset === undefined) { //no tileset found
     throw new Error(`Cannot resolve tileset ${path}`);
   }
-  return tileset.name
+  return tileset.name;
 }
 
 export {

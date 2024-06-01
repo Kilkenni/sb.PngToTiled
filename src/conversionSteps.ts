@@ -5,7 +5,7 @@ import getPixels from "get-pixels";
 import { Dirent } from "fs";
 
 import * as dungeonsFS from "./dungeonsFS";
-import { DungeonPartTodo } from "./dungeonsFS";
+import { DungeonPartTodo, DungeonJson } from "./dungeonsFS";
 import * as tilesetMatcher from "./tilesetMatch";
 import {Tile, ObjectTile, ObjectTileMatchType, TilesetObjectJson, TilesetMiscJson, OldTilesetSorted } from "./tilesetMatch";
 import { SbDungeonChunk } from "./dungeonChunkAssembler";
@@ -74,134 +74,71 @@ async function generateDungeonChunk(tilePixels: NdArray<Uint8Array>, objPixels: 
     )}`; //replace everything up to and with "input-output" with .
   }
 
-  const convertedChunk = new SbDungeonChunk(
-    newTilesetShapes
-  );
+  const convertedChunk = new SbDungeonChunk(newTilesetShapes);
   
-  convertedChunk.setSize(tilePixels.shape[0], tilePixels.shape[1]);
-  const RgbaArray:tilesetMatcher.RgbaValueType[] = tilesetMatcher.slicePixelsToArray(
-    tilePixels.data,
-    tilePixels.shape[0], tilePixels.shape[1], tilePixels.shape[2]
-  );
+  const [chunkWidth, chunkHeight, chunkChannels] = tilePixels.shape;
+  convertedChunk.setSize(chunkWidth, chunkHeight);
+  const RgbaArray:tilesetMatcher.RgbaValueType[] = tilesetMatcher.slicePixelsToArray(tilePixels.data, chunkWidth, chunkHeight, chunkChannels);
 
   const fullMatchMap = await tilesetMatcher.matchAllTilelayers(oldTileset);
-  const convertedBackLayer = tilesetMatcher.convertPngToGid(
-    RgbaArray,
-    fullMatchMap.back
-  );
-  const convertedFrontLayer = tilesetMatcher.convertPngToGid(
-    RgbaArray,
-    fullMatchMap.front
-  );
-  convertedChunk.addBothTilelayers(
-    convertedFrontLayer,
-    convertedBackLayer,
-    tilePixels.shape[0],
-    tilePixels.shape[1]
-  );
+  const convertedBackLayer = tilesetMatcher.convertPngToGid(RgbaArray, fullMatchMap.back);
+  const convertedFrontLayer = tilesetMatcher.convertPngToGid(RgbaArray, fullMatchMap.front);
+  convertedChunk.addBothTilelayers(convertedFrontLayer, convertedBackLayer, chunkWidth, chunkHeight);
 
-  const miscTileset = await dungeonsFS.getTileset(
-    tilesetMatcher.TILESETMAT_NAME.misc
-  );
+  const miscTileset = await dungeonsFS.getTileset(tilesetMatcher.TILESETMAT_NAME.misc) as tilesetMatcher.TilesetMiscJson;
   if (miscTileset === undefined) {
     throw new Error(`Cannot resolve tileset: ${tilesetMatcher.TILESETMAT_NAME.misc}`);
   }
   const anchorsMap = tilesetMatcher.matchAnchors(
     oldTileset.anchors as tilesetMatcher.AnchorTile[],
-    miscTileset as tilesetMatcher.TilesetMiscJson,
+    miscTileset,
     convertedChunk.getFirstGid(tilesetMatcher.TILESETMAT_NAME.misc)
   );
   for (let rgbaN = 0; rgbaN < RgbaArray.length; rgbaN++) {
     for (const match of anchorsMap) {
       if (match!== undefined && tilesetMatcher.isRgbaEqual(RgbaArray[rgbaN], match.tileRgba)) {
         const gid = match.tileGid;
-        const { x: anchorX, y: anchorY } =
-          convertedChunk.getCoordsFromFlatRgbaArray(
-            rgbaN,
-            tilePixels.shape[0]
-          );
+        const { x: anchorX, y: anchorY } = convertedChunk.getCoordsFromFlatRgbaArray(rgbaN, chunkWidth);
         convertedChunk.addAnchorToObjectLayer(gid, anchorX, anchorY);
       }
     }
   }
 
-  //MERGE additional tilelayers from OBJECTS
-
-  if (objPixels !== undefined) {
-    //if we found name-objects.png file
-    // convertedChunk.setSize(pixelsObjArray.shape[0], pixelsObjArray.shape[1]);
-    const RgbaArray = tilesetMatcher.slicePixelsToArray(
-      objPixels[0].data,
-      tilePixels.shape[0],
-      tilePixels.shape[1],
-      tilePixels.shape[2]
-    );
-    //we use the same MatchMap since it's still the same dungeon - tilesets didn't change
-    const convertedBackLayer = tilesetMatcher.convertPngToGid(
-      RgbaArray,
-      fullMatchMap.back
-    );
-    const convertedFrontLayer = tilesetMatcher.convertPngToGid(
-      RgbaArray,
-      fullMatchMap.front
-    );
-    if (log) {
-      console.log(`  - merging tilelayers from objects.png...`);
-    }
-    convertedChunk.mergeTilelayers(
-      convertedFrontLayer,
-      convertedBackLayer
-    );
-  }
-
   //match object RGB to ID locally, calc required tilesets
   const objectsMap = await matchAllObjects(oldTileset.objects as tilesetMatcher.ObjectTile[]);
   //Add required tilesets to chunk
-  if (log) {
-    console.log(`  - injecting object tilesets...`);
-  }
-  await convertedChunk.addObjectTilesetShapes(objectsMap.tilesets);
-  // await convertedChunk.parseAddObjects();
-  //convert objectsMap from using Ids to using Gids
-  const objectsGidMap = convertedChunk.convertIdMapToGid(objectsMap);
+  await convertedChunk.addObjectTilesetShapes(objectsMap.tilesets, true); //for debug. parseAddObjects does that
+  const objectsGidMap = convertedChunk.convertIdMapToGid(objectsMap); //for debug. parseAddObjects does that
+
   if (objPixels !== undefined) {
-    const objRgbaArray = tilesetMatcher.slicePixelsToArray(
-      objPixels[0].data,
-      tilePixels.shape[0],
-      tilePixels.shape[1],
-      tilePixels.shape[2]
-    );
-    //map PNG to objects using objectsGidMap
-    if (log) {
-      console.log(`  - adding objects...`);
-    }
-    await convertedChunk.parseAddObjects(
-      oldTileset.objects as tilesetMatcher.ObjectTile[],
-      objRgbaArray,
-      objectsMap
-    );
-
-    //NPCs
     const npcMap = tilesetMatcher.matchNPCS(oldTileset.npcs as tilesetMatcher.NpcTile[]);
-    if (log) {
-      console.log(`  - adding NPCs...`);
-    }
-    convertedChunk.parseAddNpcs(objRgbaArray, npcMap);
-    //ground tile mods
-    const modMap = tilesetMatcher.matchMods(oldTileset.foreground); //add mods to chunk
-    if (log) {
-      console.log(`  - adding modded terrain regions...`);
-    }
-    convertedChunk.parseMods(RgbaArray, modMap);
-    convertedChunk.parseMods(objRgbaArray, modMap);
+    const modMap = tilesetMatcher.matchMods(oldTileset.foreground);
+    convertedChunk.parseMods(RgbaArray, modMap, log); //add mods from main file, if any
+    const stagehandMap = tilesetMatcher.matchStagehands(oldTileset.stagehands as tilesetMatcher.StagehandTile[]);
 
-    const stagehandMap = tilesetMatcher.matchStagehands(
-      oldTileset.stagehands as tilesetMatcher.StagehandTile[]
-    );
-    if (log) {
-      console.log(`  - adding stagehands...`);
+    for (const objLayer of objPixels) {
+      //MERGE additional tilelayers from objects layer
+      const objRgbaArray = tilesetMatcher.slicePixelsToArray(objLayer.data, chunkWidth, chunkHeight, chunkChannels);
+      //we use the same MatchMap since it's still the same dungeon - tilesets didn't change
+      const convertedBackLayer = tilesetMatcher.convertPngToGid(objRgbaArray, fullMatchMap.back);
+      const convertedFrontLayer = tilesetMatcher.convertPngToGid(objRgbaArray,fullMatchMap.front);
+      convertedChunk.mergeTilelayers(convertedFrontLayer, convertedBackLayer, log);
+
+      //map PNG to objects using objectsGidMap
+      await convertedChunk.parseAddObjects(
+        oldTileset.objects as tilesetMatcher.ObjectTile[],
+        objRgbaArray,
+        objectsMap,
+        true
+      );
+
+      //add NPCs
+      convertedChunk.parseAddNpcs(objRgbaArray, npcMap, log);
+      //add mods
+      convertedChunk.parseMods(objRgbaArray, modMap, log);
+      //add stagehands
+      convertedChunk.parseStagehands(objRgbaArray, stagehandMap, log);
     }
-    convertedChunk.parseStagehands(objRgbaArray, stagehandMap);
   }
   return convertedChunk;
 }
@@ -249,6 +186,21 @@ async function convertChunk(chunkTodo: DungeonPartTodo, oldTileset:OldTilesetSor
   return success;
 }
 
+async function convertAllChunks(log = false):Promise<void> {
+  const ioFiles:Dirent[] = await dungeonsFS.readDir();
+  const dungeonFile:DungeonJson = await dungeonsFS.getDungeon(ioFiles, log);
+  const chunkTodos:DungeonPartTodo[] = dungeonsFS.verifyChunkConnections(ioFiles, dungeonFile, true, log);
+  const oldTileset = await dungeonsFS.extractOldTileset(ioFiles, log);
+  const sortedOldTileset = tilesetMatcher.getSortedTileset(oldTileset);
+
+  for(const todo of chunkTodos) {
+    //TODO
+  }
+
+  chunkTodos[0].finished = await convertChunk(chunkTodos[0], sortedOldTileset, log);
+  //TODO check finished status
+}
+
 async function writeConvertedMap_test(log = false) {
   const newTilesetShapes = await tilesetMatcher.calcNewTilesetShapes();
   //convert absolute paths to relative
@@ -283,7 +235,7 @@ async function writeConvertedMap_test(log = false) {
           if (oldTileset === undefined) {
             return -1;
           }
-          const sortedOldTileset = await tilesetMatcher.getSortedTileset(
+          const sortedOldTileset = tilesetMatcher.getSortedTileset(
             oldTileset
           );
           const fullMatchMap = await tilesetMatcher.matchAllTilelayers(
@@ -449,10 +401,8 @@ async function writeConvertedMap_test(log = false) {
             if (log) {
               console.log(`  - adding stagehands...`);
             }
-            convertedChunk.parseStagehands(objRgbaArray, stagehandMap);
-          }
-          
-         
+            convertedChunk.parseStagehands(objRgbaArray, stagehandMap, log);
+          }      
 
           const success = await dungeonsFS.writeConvertedMapJson(
             newPath,

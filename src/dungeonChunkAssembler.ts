@@ -372,7 +372,10 @@ class SbDungeonChunk{
     return baseLayerData;
   }
 
-  mergeTilelayers(frontLayerData: number[], backLayerData: number[]):SbDungeonChunk {
+  mergeTilelayers(frontLayerData: number[], backLayerData: number[], log = false):SbDungeonChunk {
+    if (log) {
+      console.log(`  - merging tilelayers from objects.png`);
+    }
     const frontIndex = this.#getLayerIndexByName("front");
     const backIndex = this.#getLayerIndexByName("back");
 
@@ -515,7 +518,10 @@ class SbDungeonChunk{
    * @param tilesets - array of names for tilesets to add
    * @returns 
    */
-  async addObjectTilesetShapes(tilesets: string[]): Promise<SbDungeonChunk> {
+  async addObjectTilesetShapes(tilesets: string[], log = false): Promise<SbDungeonChunk> {
+    if (log) {
+      console.log(`  - injecting object tilesets`);
+    }
     //Gather all the tilesets already present in the DungeonChunk
     const shapeNames: string[] = [];
     for (let shapeIndex = 0; shapeIndex < this.#tilesets.length; shapeIndex++) {
@@ -581,7 +587,11 @@ class SbDungeonChunk{
     return { x, y };
   }
 
-  async parseAddObjects(oldObjects:ObjectTile[], rgbaArray: RgbaValueType[], objMatchMap: FullObjectMap): Promise<SbDungeonChunk> {
+  async parseAddObjects(oldObjects:ObjectTile[], rgbaArray: RgbaValueType[], objMatchMap: FullObjectMap, log = false): Promise<SbDungeonChunk> {
+    if (log) {
+      console.log(`  - adding objects...`);
+    }
+
     //Add shapes for object tilesets in SbDungeonChunk
     await this.addObjectTilesetShapes(objMatchMap.tilesets);
     const objGidMap = this.convertIdMapToGid(objMatchMap);
@@ -660,10 +670,14 @@ class SbDungeonChunk{
     return layerId;
   }
 
-  parseAddNpcs(rgbaArray: RgbaValueType[], npcMap: NpcMatchType[]): SbDungeonChunk {
+  parseAddNpcs(rgbaArray: RgbaValueType[], npcMap: NpcMatchType[], log = false): SbDungeonChunk {
     //quick check to ensure size of rgbaArray
     if (rgbaArray.length !== this.#height * this.#width) {
       throw new Error(`Unable to parse image with ${rgbaArray.length} pixels to a chunk of height ${this.#height} and width ${this.#width}: size mismatch!`)
+    }
+
+    if (log) {
+      console.log(`  - adding NPCs`);
     }
   
     for (let rgbaN = 0; rgbaN < rgbaArray.length; rgbaN++) {
@@ -736,9 +750,13 @@ class SbDungeonChunk{
     }
   }
 
-  parseMods(rgbaArray: RgbaValueType[], modMap: ModMatchType[]): SbDungeonChunk {
+  parseMods(rgbaArray: RgbaValueType[], modMap: ModMatchType[], log = false): SbDungeonChunk {
     if (rgbaArray.length !== this.#height * this.#width) {
       throw new Error(`Unable to parse image with ${rgbaArray.length} pixels to a chunk of height ${this.#height} and width ${this.#width}: size mismatch!`)
+    }
+
+    if (log) {
+      console.log(`  - adding modded terrain regions`);
     }
 
     for (let rgbaN = 0; rgbaN < rgbaArray.length; rgbaN++) {
@@ -788,9 +806,13 @@ class SbDungeonChunk{
     return this;
   }
 
-  parseStagehands(rgbaArray: RgbaValueType[], stagehandMap: StagehandMatchType[]): SbDungeonChunk {
+  parseStagehands(rgbaArray: RgbaValueType[], stagehandMap: StagehandMatchType[], log = false): SbDungeonChunk {
     if (rgbaArray.length !== this.#height * this.#width) {
       throw new Error(`Unable to parse image with ${rgbaArray.length} pixels to a chunk of height ${this.#height} and width ${this.#width}: size mismatch!`)
+    }
+
+    if (log) {
+      console.log(`  - adding stagehands`);
     }
 
     for (let rgbaN = 0; rgbaN < rgbaArray.length; rgbaN++) {
