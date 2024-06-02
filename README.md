@@ -1,8 +1,8 @@
 # sb.PngToTiled
 
-A small (lol) ~~JS~~ pile of Typescript to convert old Starbound dungeon assets in PNG layers into new format (multilayered Tiled JSONs), which is used in post-release versions.
+A small (kek) ~~JS~~ pile of Typescript to convert old Starbound dungeon assets in PNG layers into new format (multilayered Tiled JSONs), which is used in post-release versions.
 
-Now with Bulk Conversion.
+Now with Bulk conversion!
 
 Current state:
 
@@ -45,12 +45,12 @@ To use under Linux:
   Converter script was written under Node 20. Current TS settings require at least Node 16, so there's that. Hopefully, any modern version will do.
 - Clone this repo locally
 - `npm install` in terminal inside repo directory to install dependencies
-- TODO: `npx tsx src/index.js --help`
-- Converter has (partially) migrated onto TS to ensure type checks. ~~Remember to `npm run build` before you run anything with node~~ No need to transpile into JS any more, uses TSX out of the box.
-- Place files in /input-output/ . You will need exactly one .dungeon file and at least one .png file. If an _objects.png exists, place it there as well. Objects will be parsed and merged into the parent dungeon chunk.
+- `npx tsx src/index.js --help` or simply `npm start` to get a list of available commands.
+- Converter has migrated onto TS to ensure type checks. ~~Remember to `npm run build` before you run anything with node~~ No need to transpile into JS any more, uses TSX out of the box.
+- Place files in /input-output/ . You will need exactly one .dungeon file and at least one .png file for typical "bulk" routine. If an _objects.png exists, place it there as well. Objects will be parsed and merged into the parent dungeon chunk automatically.
 - Place tilesets/packed in /input-output/. This is a set of .json files describing Starbound tilesets for Tiled. PNG files will be remapped relative to these tilesets.
 - Place tiled/packed in /input-output/. This is a set of .png files containing tiles for Tiled. Required to correctly calculate size of object sprites. Can be found in unpacked game assets.
-- `npx tsx src/index.js --action COMMAND` to start converting (list of available commands can be found at the end of index.js)
+- `npx tsx src/index.js COMMAND` to start sorcery (list of available commands also can be found at the end of index.js)
 
 - TODO: If you try to use converted dungeons in the game, remember to change their internal tileset paths relative to their actual location in Starbound assets!
 
@@ -62,9 +62,11 @@ To use under Linux:
 
 - Consequently, output file is currently NOT compressed. You can re-save it from Tiled after enabling compression. Automating this step is already in my backlog.
 
+- Some corners have been cut, so it currently can't parse Very Big dungeons (like the mission ones) due to some exotic tiles used there. It's on my todo list.
+
 ## Terms of use
 
-An Very Fancy Caption to say that the code is available to use freely. License to be specified later. You are strongly encouraged to share conversion results with the Starbound modding community.
+A Very Fancy Caption to say that the code is available to use freely. License to be specified later. You are strongly encouraged to share conversion results with the Starbound modding community.
 
 Parts of this code were written during air raids, missile strikes and blackouts. If you are in any way or form related to Russian invasion of Ukraine of 2014-ongoing, I ask you to donate any amount to a reliable charity of your choice that helps Ukrainians survive. Personally, I can recommend [Come Back Alive](https://savelife.in.ua/en/donate-en/).
 

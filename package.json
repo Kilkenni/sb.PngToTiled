@@ -6,9 +6,9 @@
   "main": "index.js",
   "scripts": {
     "build": "tsc --project tsconfig.json",
-    "start": "tsx src/index.js --help",
-    "start:dev": "nodemon tsx src/index.js --help",
-    "start:test": "nodemon tsx src/index.js --action writeconverted_test",
+    "start": "tsx src/index.ts --help",
+    "start:dev": "nodemon tsx src/index.ts --help",
+    "start:test": "nodemon tsx src/index.ts --action writeconverted_test",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Kilkenni",
