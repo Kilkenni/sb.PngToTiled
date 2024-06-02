@@ -10,7 +10,7 @@
     "noEmit": true,
     // "allowImportingTsExtensions": true,
     "allowJs": true,
-    "rootDir": "./src",
+    "rootDir": "./",
     "resolveJsonModule": true,
     "outDir": "./dist",
     "isolatedModules": true,
@@ -21,6 +21,6 @@
     "noImplicitReturns": true,
     "allowSyntheticDefaultImports": true
   },
-  "include": ["./src/**/*.js", "./src/**/*.ts"],
-  "exclude": ["node-modules", "dist", "**/*.spec.ts", "old"]
+  "include": ["./src/**/*.js", "./src/**/*.ts", "src/index.ts"],
+  "exclude": ["node-modules", "dist", "**/*.spec.ts", "old", "input-output"]
 }

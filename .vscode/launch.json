@@ -10,7 +10,7 @@
       "name": "Launch ConvertPNG test",
       "skipFiles": ["<node_internals>/**"],
       //"command": "${workspaceFolder}/index.js -- action writeconverted_test",
-      "command": "npx tsx src/index.js --action writeconverted_test",
+      "command": "npx tsx src/index.js bulk false true true",
       "outFiles": ["${workspaceFolder}/**/*.js"]
     }
   ]

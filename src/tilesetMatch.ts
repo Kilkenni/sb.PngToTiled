@@ -375,6 +375,7 @@ interface AnchorTile extends Tile {
 }
 
 type ObjectBrush = ["clear"] |
+["liquid", string] |
 ["object",
   string,
   {
@@ -950,7 +951,7 @@ function matchObjects(oldObjectsArray: ObjectTile[], tileset: TilesetObjectJson,
       const { brush:brushArray, comment, value }: ObjectTile = oldObjectsArray[objectIndex];
       for (const brush of brushArray) {
         const [brushType, objectName, stats] = brush;
-        if (brushType === "clear") {
+        if (brushType === "clear" || brushType == "liquid") {
           continue; //skip empty brush
         }
         else {
