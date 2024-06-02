@@ -19,7 +19,8 @@ Current state:
 6. Tilelayer modifications
 7. TODO: Wiring
 
-Has several bottlenecks which require post-conversion manual QA:
+<details>
+<summary>Has several bottlenecks which require post-conversion manual QA:</summary>
 
 - Anchors occasionally have empty blocks behind them in tilelayer, as original level designers sometimes included them in tilelayer, not in objects (thus tilelayer has no info for these blocks).
 
@@ -36,6 +37,8 @@ Solution: Manually adjust size of stagehands after conversion to include require
 - Biome trees and biome items (always?) tend to have a width of 2 blocks (16 pixels), but are often placed at adjacent blocks in old dungeon chunks. This will obviously lead to some of them being always unable to spawn exactly as painter in the chunk.
 
 Solution: Manually remove some of BTs/BIs after conversion to eliminate spawn overlaps. Needs manual experimenting on models to figure out optimal strategy. You're welcome to share your findings :)
+
+</details>
 
 ## Usage
 
