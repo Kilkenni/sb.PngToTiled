@@ -17,6 +17,12 @@ import {version as script_version} from "../package.json";
 
 yargs(hideBin(process.argv))
   .command({
+    command: "*",
+    handler: (argv) => {
+      yargs(hideBin(process.argv)).showHelp();
+    },
+  })
+  .command({
     command: "bulk-convert [strict] [skipIncomplete] [log]",
     aliases: ["bulk"],
     describe: "Mass convert .png dungeon chunks in I/O dir to .json. Requires one .dungeon file and at least one .png.",
@@ -48,14 +54,6 @@ yargs(hideBin(process.argv))
       await dungeonsFS.readDir(true);
     },
   })
-
-  .command({
-    command: ["sendNudes", "nude", "nudefloran", "nudeFloran"],
-    describe: false,
-    handler: (argv) => {
-      console.log(floran);
-    },
-  })
   
   .command({
     command: "extractTileset",
@@ -78,6 +76,14 @@ yargs(hideBin(process.argv))
   })
 
   .command({
+    command: ["sendNudes", "nude", "nudefloran", "nudeFloran"],
+    describe: false,
+    handler: (argv) => {
+      console.log(floran);
+    },
+  })
+
+  .command({
     command: "zlib_test",
     aliases: ["zlib"],
     describe: "Debug function. Tries to use zlib on in-built tilelayer.",
@@ -86,12 +92,4 @@ yargs(hideBin(process.argv))
 
   .help().alias("-h", "--help")
   .version(script_version).alias("-v", "--version")
-  .parse()
-
-  /*
-const args = yargs(process.argv.slice(2)).argv;
-Promise.resolve(args).then((args) => {
-  // console.log(args);
-  invokeAction(args);
-}) 
-*/
+  .parse();
