@@ -118,7 +118,7 @@ async function generateDungeonChunk(tilePixels: NdArray<Uint8Array>, objPixels: 
 
       convertedChunk.parseAnchors(objRgbaArray, anchorsMap, log); //let's try to find some anchors here as well
       //map PNG to objects using objectsGidMap
-      await convertedChunk.parseAddObjects(
+      await convertedChunk.parseObjects(
         oldTileset.objects as tilesetMatcher.ObjectTile[],
         objRgbaArray,
         objectsMap,
@@ -171,7 +171,7 @@ async function convertChunk(chunkTodo: DungeonPartTodo, oldTileset:OldTilesetSor
     convertedChunk
   );
   if (success) {
-    console.log(`>${chunkTodo.targetName} saved >:3`);
+    console.log(` ${chunkTodo.targetName} saved >:3`);
   }
   return success;
 }

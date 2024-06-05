@@ -343,6 +343,8 @@ class SbDungeonChunk{
       throw new Error(`Cannot merge Tilelayers: size mismatch!`)
     }
 
+    let threwWarning = false;
+
     const miscFirstGid = this.getFirstGid(TILESETMAT_NAME.misc);
     if(!miscFirstGid) {
       throw new Error(`Cannot find ${TILESETMAT_NAME.misc} tileset in chunk tileset shapes`);
@@ -368,7 +370,20 @@ class SbDungeonChunk{
           const coords = this.getCoordsFromFlatRgbaArray(pixelN, this.#width);
           const GidOld = baseLayerData[pixelN];
           const GidNew = mergeLayerData[pixelN];
-          throw new Error(`Merging layers both have non-empty values at pixel ${pixelN}, coords X ${coords?.x}, Y ${coords?.y}`)
+          if(GidOld === GidNew ) {
+            if(threwWarning === false) {
+              console.warn(`  WARNING: Merging layers both have equal non-empty values at pixel ${pixelN}, coords X ${coords?.x}, Y ${coords?.y}
+              While technically not an error, object PNGs must not contain tiles that overwrite front tilelayer tiles.
+              Original tiles from front tilelayer will be saved, similar tiles from objects PNG will be ignored.
+              This is a one-per-file warning.`);
+              threwWarning = true;
+              continue; //skip to next pixel
+            }
+            else {
+              continue;
+            }
+          }
+          throw new Error(`Merging layers both have *different* non-empty values at pixel ${pixelN}, coords X ${coords?.x}, Y ${coords?.y}`)
         }
       }
     }
@@ -446,11 +461,33 @@ class SbDungeonChunk{
     return this.#nextlayerid - 1;
   }
 
+  /**
+   * Searches layer by name.
+   * @param layerName
+   * @returns index or false if no matching layer found
+   */
   isLayerExist(layerName:typeof OBJECTLAYERS[number]):number|false {
     for(const layer of this.#layers) {
       if(layer.name === layerName) {
         return layer.id;
       }
+    }
+    return false;
+  }
+
+  /**
+   * Compares objects by Gid, coords and properties
+   * @param object1 
+   * @param object2 
+   * @returns 
+   */
+  #isObjectExist(object1:SbObjectgroupItem, object2: SbObjectgroupItem):boolean {
+    const equalCoords = object1.x === object2.x && object1.y === object2.y;
+    const equalGids = (object1 as SbObject).gid === (object2 as SbObject).gid;
+    const equalProps = JSON.stringify((object1 as SbObject).properties) === JSON.stringify((object2 as SbObject).properties);
+
+    if(equalCoords && equalGids && equalProps) {
+      return true;
     }
     return false;
   }
@@ -462,8 +499,8 @@ class SbDungeonChunk{
    * @param pngY 
    * @returns 
    */
-  addAnchorToObjectLayer(anchorGid: number, pngX: number, pngY: number): SbDungeonChunk {
-    const layerId: number = this.#initObjectLayer("anchors etc") - 1; //layers in Sb start from 1
+  addAnchorToLayer(anchorGid: number, pngX: number, pngY: number): SbDungeonChunk {
+    const layerIndex: number = this.#initObjectLayer("anchors etc") - 1; //layer Ids in Sb start from 1
     const newAnchor:SbAnchor = {
       gid: anchorGid,
       id: this.getNextObjectId(),
@@ -477,7 +514,13 @@ class SbDungeonChunk{
       x: pngX * 8,
       y: pngY * 8 + 8, //shift coordinates because Sb uses bottom-left corner as zero while normal programs use top-left, shift on Y by height of the tile
     };
-    (this.#layers[layerId] as SbAnchorLayer).objects.push(newAnchor);
+    //check to avoid adding doubles
+    for(const anchor of (this.#layers[layerIndex] as SbObjectgroupLayer).objects) {
+      if(this.#isObjectExist(anchor, newAnchor)) {
+        return this;
+      }
+    }
+    (this.#layers[layerIndex] as SbAnchorLayer).objects.push(newAnchor);
     this.#nextobjectid = this.#nextobjectid +1;
     return this;
   }
@@ -492,7 +535,7 @@ class SbDungeonChunk{
         if (match!== undefined && isRgbaEqual(rgbaArray[rgbaN], match.tileRgba)) {
           const gid = match.tileGid;
           const { x: anchorX, y: anchorY } = this.getCoordsFromFlatRgbaArray(rgbaN, this.#width);
-          this.addAnchorToObjectLayer(gid, anchorX, anchorY);
+          this.addAnchorToLayer(gid, anchorX, anchorY);
         }
       }
     }
@@ -514,8 +557,8 @@ class SbDungeonChunk{
    * @param properties Object with parameters like loot tables etc
    * @returns 
    */
-  addObjectToObjectLayer(objectGid: number, height: number, width: number, x: number, y: number, properties: {parameters:any}|{} = {}): number {
-    const layerId = this.#initObjectLayer("objects");
+  addObjectToLayer(objectGid: number, height: number, width: number, x: number, y: number, properties: {parameters:any}|{} = {}): number {
+    const layerIndex = this.#initObjectLayer("objects") - 1; //layer Ids in Sb start from 1
 
     const newObject: SbObject = {
       ...TEMPLATE.SBOBJECT as SbObjectgroupItem,
@@ -527,11 +570,17 @@ class SbDungeonChunk{
       x: x,
       y: y,
     };
+    //check to avoid adding doubles
+    for(const obj of (this.#layers[layerIndex] as SbObjectgroupLayer).objects) {
+      if(this.#isObjectExist(obj, newObject)) {
+        return layerIndex+1;
+      }
+    }
     
-    const objLayer: SbObjectLayer = this.#layers.find((layer) => { return layer.id === layerId }) as SbObjectLayer;
+    const objLayer: SbObjectLayer = this.#layers[layerIndex] as SbObjectLayer;
     objLayer.objects.push(newObject);
     this.#nextobjectid = this.#nextobjectid +1;
-    return layerId;
+    return layerIndex;
   }
 
   /**
@@ -608,7 +657,7 @@ class SbDungeonChunk{
     return { x, y };
   }
 
-  async parseAddObjects(oldObjects:ObjectTile[], rgbaArray: RgbaValueType[], objMatchMap: FullObjectMap, log = false): Promise<SbDungeonChunk> {
+  async parseObjects(oldObjects:ObjectTile[], rgbaArray: RgbaValueType[], objMatchMap: FullObjectMap, log = false): Promise<SbDungeonChunk> {
     if (log) {
       console.log(`  - adding objects`);
     }
@@ -655,7 +704,7 @@ class SbDungeonChunk{
           //Add object
           //Y + 1 because of difference in coords in Sb and Tiled (coords of pixel are shifted by 1)
           //also remove shift by Y due to reversed axis
-          this.addObjectToObjectLayer(
+          this.addObjectToLayer(
             match.tileGid, 
             height, 
             width, 
