@@ -851,7 +851,7 @@ const MISCJSON_MAP = [
     return matchMap;
 }
 
-function matchAnchors(oldAnchorsArray: AnchorTile[], miscTilesetJSON: TilesetMiscJson, firstGid: number): (LayerTileMatch|undefined)[] {
+function matchAnchors(oldAnchorsArray: AnchorTile[], miscTilesetJSON: TilesetMiscJson, firstGid: number): LayerTileMatch[] {
   
   function ruleGetName(rule: typeof ANCHOR_RULES[number]): string {
     let ruleName: string = rule;
@@ -934,7 +934,10 @@ function matchAnchors(oldAnchorsArray: AnchorTile[], miscTilesetJSON: TilesetMis
     
     return; //skip tile if no matches
   });
-  return matchMap;
+  //return using typeguard to avoid TS complaining too much
+  return matchMap.filter((match):match is LayerTileMatch => {
+    return match !== undefined;
+  });
 }
 
 function matchObjects(oldObjectsArray: ObjectTile[], tileset: TilesetObjectJson, partialMatchMap: (ObjectTileMatch|undefined)[]): (ObjectTileMatch|undefined)[] {

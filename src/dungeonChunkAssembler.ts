@@ -365,14 +365,17 @@ class SbDungeonChunk{
       }
       else {
         if(mergeLayerData[pixelN] !== magicPinkBrushGid && mergeLayerData[pixelN] !== 0) {
-          throw new Error(`Merging layers both have non-empty values at pixel ${pixelN}`)
+          const coords = this.getCoordsFromFlatRgbaArray(pixelN, this.#width);
+          const GidOld = baseLayerData[pixelN];
+          const GidNew = mergeLayerData[pixelN];
+          throw new Error(`Merging layers both have non-empty values at pixel ${pixelN}, coords X ${coords?.x}, Y ${coords?.y}`)
         }
       }
     }
     return baseLayerData;
   }
 
-  mergeTilelayers(frontLayerData: number[], backLayerData: number[], log = false):SbDungeonChunk {
+  mergeTilelayers(frontLayerData: number[], /*backLayerData: number[],*/ log = false):SbDungeonChunk {
     if (log) {
       console.log(`  - merging tilelayers from objects.png`);
     }
@@ -388,7 +391,7 @@ class SbDungeonChunk{
     }
     
     this.#mergeLayerData((this.#layers[frontIndex] as SbTilelayer).data as Array<number>, frontLayerData);
-    this.#mergeLayerData((this.#layers[backIndex] as SbTilelayer).data as Array<number>, backLayerData);
+    //this.#mergeLayerData((this.#layers[backIndex] as SbTilelayer).data as Array<number>, backLayerData);
     return this;
   }
 
@@ -476,6 +479,24 @@ class SbDungeonChunk{
     };
     (this.#layers[layerId] as SbAnchorLayer).objects.push(newAnchor);
     this.#nextobjectid = this.#nextobjectid +1;
+    return this;
+  }
+
+  parseAnchors(rgbaArray: RgbaValueType[], anchorsMatchMap: LayerTileMatchType[], log = false):SbDungeonChunk {
+    if (log) {
+      console.log(`  - adding anchors`);
+    }
+
+    for (let rgbaN = 0; rgbaN < rgbaArray.length; rgbaN++) {
+      for (const match of anchorsMatchMap) {
+        if (match!== undefined && isRgbaEqual(rgbaArray[rgbaN], match.tileRgba)) {
+          const gid = match.tileGid;
+          const { x: anchorX, y: anchorY } = this.getCoordsFromFlatRgbaArray(rgbaN, this.#width);
+          this.addAnchorToObjectLayer(gid, anchorX, anchorY);
+        }
+      }
+    }
+    
     return this;
   }
 

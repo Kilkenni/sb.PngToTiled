@@ -87,20 +87,12 @@ async function generateDungeonChunk(tilePixels: NdArray<Uint8Array>, objPixels: 
   if (miscTileset === undefined) {
     throw new Error(`Cannot resolve tileset: ${tilesetMatcher.TILESETMAT_NAME.misc}`);
   }
-  const anchorsMap = tilesetMatcher.matchAnchors(
+  const anchorsMap:tilesetMatcher.LayerTileMatchType[] = tilesetMatcher.matchAnchors(
     oldTileset.anchors as tilesetMatcher.AnchorTile[],
     miscTileset,
     convertedChunk.getFirstGid(tilesetMatcher.TILESETMAT_NAME.misc)
   );
-  for (let rgbaN = 0; rgbaN < RgbaArray.length; rgbaN++) {
-    for (const match of anchorsMap) {
-      if (match!== undefined && tilesetMatcher.isRgbaEqual(RgbaArray[rgbaN], match.tileRgba)) {
-        const gid = match.tileGid;
-        const { x: anchorX, y: anchorY } = convertedChunk.getCoordsFromFlatRgbaArray(rgbaN, chunkWidth);
-        convertedChunk.addAnchorToObjectLayer(gid, anchorX, anchorY);
-      }
-    }
-  }
+  convertedChunk.parseAnchors(RgbaArray, anchorsMap, log);
 
   //match object RGB to ID locally, calc required tilesets
   const objectsMap = await matchAllObjects(oldTileset.objects as tilesetMatcher.ObjectTile[]);
@@ -114,14 +106,17 @@ async function generateDungeonChunk(tilePixels: NdArray<Uint8Array>, objPixels: 
     convertedChunk.parseMods(RgbaArray, modMap, log); //add mods from main file, if any
     const stagehandMap = tilesetMatcher.matchStagehands(oldTileset.stagehands as tilesetMatcher.StagehandTile[]);
 
+    //parse each file and merge with the first one
     for (const objLayer of objPixels) {
       //MERGE additional tilelayers from objects layer
       const objRgbaArray = tilesetMatcher.slicePixelsToArray(objLayer.data, chunkWidth, chunkHeight, chunkChannels);
       //we use the same MatchMap since it's still the same dungeon - tilesets didn't change
-      const convertedBackLayer = tilesetMatcher.convertPngToGid(objRgbaArray, fullMatchMap.back);
+      //Disable converting and merging tiles from objects into background - we assume that objPNG contains NO background tiles
+      //const convertedBackLayer = tilesetMatcher.convertPngToGid(objRgbaArray, fullMatchMap.back);
       const convertedFrontLayer = tilesetMatcher.convertPngToGid(objRgbaArray,fullMatchMap.front);
-      convertedChunk.mergeTilelayers(convertedFrontLayer, convertedBackLayer, log);
+      convertedChunk.mergeTilelayers(convertedFrontLayer, /*convertedBackLayer, */log);
 
+      convertedChunk.parseAnchors(objRgbaArray, anchorsMap, log); //let's try to find some anchors here as well
       //map PNG to objects using objectsGidMap
       await convertedChunk.parseAddObjects(
         oldTileset.objects as tilesetMatcher.ObjectTile[],
