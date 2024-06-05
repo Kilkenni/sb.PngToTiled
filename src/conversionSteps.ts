@@ -171,7 +171,7 @@ async function convertChunk(chunkTodo: DungeonPartTodo, oldTileset:OldTilesetSor
     convertedChunk
   );
   if (success) {
-    console.log(`${chunkTodo.targetName} saved >:3`);
+    console.log(`>${chunkTodo.targetName} saved >:3`);
   }
   return success;
 }
