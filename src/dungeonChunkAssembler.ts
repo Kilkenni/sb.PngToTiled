@@ -745,6 +745,7 @@ class SbDungeonChunk{
       }
     }
     //dump objectsWithOrientations here
+    console.log(` Saving object variations into .VERIFY file`);
     writeObjectVariationsDump(this.#targetName, objectsWithOrientations);
     
     return this;
