@@ -26,6 +26,11 @@ Current state:
 
 Solution: Manually check background layer at anchor locations, paint similar to neighbouring tiles if necessary.
 
+- Objects with even tilewidth have their horizontal placement calculated only approximately. One tile for objects is selected as "anchor tile" against which other coords are calculated. While "uneven" objects do not change their position when flipped (they are flipped regarding to their "center tile"), even objects may shift one tile, or, in case of objects have anchors in corners, by width-1 number of tiles. Heuristics to calculate their position accurately seems too complex to implement.
+
+Solution: Manually shift to required locations referring to key_with_grid PNG file (anchor tiles are painted light red). I'll try to come up with a proper solution, but so far I don't see one.
+
+
 - Objects that have separate sprites for different placements (as opposed to simply flipping single sprite horizontally) use tile with default orientation after conversion. Meaning they can possibly lack mount points, hang in the air or overlap solid blocks, leading to log errors when spawning in-game.
 
 Solution: Manually check such objects and replace with appropriate `_orientationN` versions from the same tileset. Most common cases include light sources (example: glitch torches), diagonal supports (example: wooden, foundry etc), signs (example: glitch village signs).
