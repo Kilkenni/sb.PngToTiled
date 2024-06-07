@@ -7,7 +7,7 @@
 
 // import * as dungeonsFS from "./dungeonsFS.js";
 // import * as tilesetMatcher from "./tilesetMatch.js";
-import { getFilename, getTileset, getTilesetPath, getTilesetNameFromPath } from "./dungeonsFS";
+import { getFilename, getTileset, getTilesetPath, getTilesetNameFromPath, writeObjectVariationsDump } from "./dungeonsFS";
 import { matchObjects, matchObjectsBiome, getObjectFromTileset, getTileSizeFromTileset, isRgbaEqual, ObjectTileMatchType } from "./tilesetMatch";
 import { TilesetJson, ObjectTile, ObjectFullMatchType, LayerTileMatchType, TilesetMiscJson, ObjectJson, RgbaValueType, ObjectBrushType, NpcMatchType, ModMatchType, StagehandMatchType } from "./tilesetMatch";
 import { FullObjectMap } from "./conversionSteps";
@@ -209,6 +209,7 @@ interface SbModsLayer extends SbObjectgroupLayer {
 class SbDungeonChunk{
   readonly backgroundcolor?:string = "#000000";
   // #compressionlevel:number = -1;
+  #targetName: string; //debug, do not export to result file!
   #height:number = 10;
   readonly infinite:boolean = false;
   #layers:Layer[] = [];
@@ -224,8 +225,9 @@ class SbDungeonChunk{
   readonly version:number|string = 1;
   #width:number = 10;
   
-  constructor(tilesetShapes:TilesetShape[]) {
+  constructor(tilesetShapes:TilesetShape[], targetName: string) {
     this.#tilesets = tilesetShapes;
+    this.#targetName = targetName;
   }
 
   /**
@@ -651,14 +653,17 @@ class SbDungeonChunk{
     const variations = tileIdVariations.filter((option)=> option.tileset === tileset);
     if(variations.length > 1) {
       const a = 0;
-      //select variation here
+      //TODO heuristics to select variation here
     }
+    //Apply flip here if present
+    const assumedGid = variations.length>1? tileIdMatch.tileId + firstGid : GidFlags.apply( tileIdMatch.tileId + firstGid, false, tileIdMatch.flipHorizontal || false, false); //if there are variations available, do not apply flip to Gid
+
     const gidMatch: ObjectFullMatchType = {
       tileName,
       tileRgba,
       tileId,
-      //Apply flip here if present
-      tileGid: GidFlags.apply( tileIdMatch.tileId + firstGid, false, tileIdMatch.flipHorizontal || false, false),
+      tileIdVariations: variations.map((variation) => variation.id + firstGid),
+      tileGid: assumedGid,
       tileset: tileIdMatch.tileset,
     };
     return gidMatch;
@@ -688,10 +693,12 @@ class SbDungeonChunk{
     if (rgbaArray.length !== this.#height * this.#width) {
       throw new Error(`Unable to add objects from image with ${rgbaArray.length} pixels to a chunk of height ${this.#height} and width ${this.#width}: size mismatch!`)
     }
+
+    const objectsWithOrientations: ObjectFullMatchType[] = [];
   
     for (let rgbaN = 0; rgbaN < rgbaArray.length; rgbaN++) {
       for (const match of objMatchMap.matchMap) {
-        const gidMatch = this.convertObjectIdToGid(match);
+        const gidMatch: ObjectFullMatchType|undefined = this.convertObjectIdToGid(match);
         if (gidMatch !== undefined) {
           if (isRgbaEqual(gidMatch.tileRgba, rgbaArray[rgbaN]) === false) {
             continue; //skip until we find the right match
@@ -731,9 +738,14 @@ class SbDungeonChunk{
             (objX*this.tilewidth + spriteShiftX), 
             ((objY + 1)*this.tileheight - spriteShiftY), 
             params);
+            if(gidMatch.tileIdVariations.length>1) {
+              objectsWithOrientations.push(gidMatch);
+            }
         }
       }
     }
+    //dump objectsWithOrientations here
+    writeObjectVariationsDump(this.#targetName, objectsWithOrientations);
     
     return this;
   }
@@ -924,6 +936,7 @@ class SbDungeonChunk{
   }
 
   //Add back private fields explicitly! Serialize via JSON.stringify to store as file.
+  //ignore #targetName
   toJSON() {
     return {
       ...this,

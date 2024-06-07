@@ -459,6 +459,7 @@ type ObjectFullMatch = {
   tileName: string,
   tileRgba: RgbaValue,
   tileId: number,
+  tileIdVariations: number[],
   tileGid: number,
   tileset: string
 }

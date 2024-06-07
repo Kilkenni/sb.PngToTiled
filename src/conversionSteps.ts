@@ -69,7 +69,7 @@ async function matchAllObjects(arrayOfObjects: ObjectTile[]): Promise<FullObject
  * @param oldTileset old dungeon tileset, sorted by categories. Common for all dungeon chunks in a set.
  * @returns 
  */
-async function generateDungeonChunk(tilePixels: NdArray<Uint8Array>, objPixels: NdArray<Uint8Array>[]|undefined, oldTileset: tilesetMatcher.OldTilesetSorted, log = false):Promise<SbDungeonChunk> {
+async function generateDungeonChunk(tilePixels: NdArray<Uint8Array>, objPixels: NdArray<Uint8Array>[]|undefined, oldTileset: tilesetMatcher.OldTilesetSorted, targetName:string, log = false):Promise<SbDungeonChunk> {
   const newTilesetShapes = await tilesetMatcher.calcNewTilesetShapes();
   //convert absolute paths to relative
   for (const tilesetShape of newTilesetShapes) {
@@ -78,7 +78,7 @@ async function generateDungeonChunk(tilePixels: NdArray<Uint8Array>, objPixels: 
     )}`; //replace everything up to and with "input-output" with .
   }
 
-  const convertedChunk = new SbDungeonChunk(newTilesetShapes);
+  const convertedChunk = new SbDungeonChunk(newTilesetShapes, targetName);
   
   const [chunkWidth, chunkHeight, chunkChannels] = tilePixels.shape;
   convertedChunk.setSize(chunkWidth, chunkHeight);
@@ -169,7 +169,7 @@ async function convertChunk(chunkTodo: DungeonPartTodo, oldTileset:OldTilesetSor
     }
   }
   
-  const convertedChunk: SbDungeonChunk = await generateDungeonChunk(pixelsArray, pixelsOptArrays, oldTileset, log); //Assembling chunk
+  const convertedChunk: SbDungeonChunk = await generateDungeonChunk(pixelsArray, pixelsOptArrays, oldTileset, chunkTodo.targetName, log); //Assembling chunk
 
   const newChunkPath = `${dungeonsFS.ioDirPath}/${chunkTodo.targetName}`;
   const success = await dungeonsFS.writeConvertedMapJson(
