@@ -8,7 +8,7 @@
 // import * as dungeonsFS from "./dungeonsFS.js";
 // import * as tilesetMatcher from "./tilesetMatch.js";
 import { getFilename, getTileset, getTilesetPath, getTilesetNameFromPath } from "./dungeonsFS";
-import { matchObjects, matchObjectsBiome, getObjectFromTileset, getTileSizeFromTileset, isRgbaEqual } from "./tilesetMatch";
+import { matchObjects, matchObjectsBiome, getObjectFromTileset, getTileSizeFromTileset, isRgbaEqual, ObjectTileMatchType } from "./tilesetMatch";
 import { TilesetJson, ObjectTile, ObjectFullMatchType, LayerTileMatchType, TilesetMiscJson, ObjectJson, RgbaValueType, ObjectBrushType, NpcMatchType, ModMatchType, StagehandMatchType } from "./tilesetMatch";
 import { FullObjectMap } from "./conversionSteps";
 import { TILESETMAT_NAME, TILESETOBJ_NAME, resolveTilesets} from "./tilesetMatch";
@@ -595,7 +595,7 @@ class SbDungeonChunk{
     //Gather all the tilesets already present in the DungeonChunk
     const shapeNames: string[] = [];
     for (let shapeIndex = 0; shapeIndex < this.#tilesets.length; shapeIndex++) {
-     shapeNames.push(this.getTilesetNameFromShape(shapeIndex) as string);
+      shapeNames.push(this.getTilesetNameFromShape(shapeIndex) as string);
     }
     //Check if we need to add tilesets, one by one
     for (const tilesetName of tilesets) {
@@ -615,6 +615,7 @@ class SbDungeonChunk{
     return this;
   }
 
+  /*
   convertIdMapToGid(objMatchMap: FullObjectMap):(ObjectFullMatchType|undefined)[] {
     const idMap = objMatchMap.matchMap;
 
@@ -622,15 +623,9 @@ class SbDungeonChunk{
       if (idMatch === undefined) {
         return undefined;
       }
-      //try {
-        this.getFirstGid(idMatch.tileset);
-      /*}
-      catch (error) {
-        const typedError = error as Error;
-        if (typedError.message.includes("not present in shapes, can't retrieve firstGid")) {
-          //we are trying to map something absent from shapes - it is an error we've already found. Use await for async ops!
-        }
-      }*/
+
+      this.getFirstGid(idMatch.tileset);
+
       const { tileName, tileRgba, tileId, tileset } = idMatch;
       const gidMatch: ObjectFullMatchType = {
         tileName,
@@ -643,6 +638,30 @@ class SbDungeonChunk{
       return gidMatch;
     });
     return GidMap;
+  }
+  */
+
+  convertObjectIdToGid(tileIdMatch: ObjectTileMatchType|undefined):ObjectFullMatchType|undefined {
+    if(tileIdMatch === undefined) {
+      return undefined;
+    }
+
+    const firstGid = this.getFirstGid(tileIdMatch.tileset);
+    const { tileName, tileRgba, tileId, tileIdVariations, tileset } = tileIdMatch;
+    const variations = tileIdVariations.filter((option)=> option.tileset === tileset);
+    if(variations.length > 1) {
+      const a = 0;
+      //select variation here
+    }
+    const gidMatch: ObjectFullMatchType = {
+      tileName,
+      tileRgba,
+      tileId,
+      //Apply flip here if present
+      tileGid: GidFlags.apply( tileIdMatch.tileId + firstGid, false, tileIdMatch.flipHorizontal || false, false),
+      tileset: tileIdMatch.tileset,
+    };
+    return gidMatch;
   }
 
   /**
@@ -664,24 +683,25 @@ class SbDungeonChunk{
 
     //Add shapes for object tilesets in SbDungeonChunk
     await this.addObjectTilesetShapes(objMatchMap.tilesets);
-    const objGidMap = this.convertIdMapToGid(objMatchMap);
+    //const objGidMap = this.convertIdMapToGid(objMatchMap);
     //quick check to ensure size of rgbaArray
     if (rgbaArray.length !== this.#height * this.#width) {
       throw new Error(`Unable to add objects from image with ${rgbaArray.length} pixels to a chunk of height ${this.#height} and width ${this.#width}: size mismatch!`)
     }
   
     for (let rgbaN = 0; rgbaN < rgbaArray.length; rgbaN++) {
-      for (const match of objGidMap) {
-        if (match !== undefined) {
-          if (isRgbaEqual(match.tileRgba, rgbaArray[rgbaN]) === false) {
+      for (const match of objMatchMap.matchMap) {
+        const gidMatch = this.convertObjectIdToGid(match);
+        if (gidMatch !== undefined) {
+          if (isRgbaEqual(gidMatch.tileRgba, rgbaArray[rgbaN]) === false) {
             continue; //skip until we find the right match
           }
-          const objectData: ObjectJson = await getObjectFromTileset(match);
+          const objectData: ObjectJson = await getObjectFromTileset(gidMatch);
           const oldObjectData = oldObjects.find((objData) => {
-            return isRgbaEqual(match.tileRgba, objData.value);
+            return isRgbaEqual(gidMatch.tileRgba, objData.value);
           });
           
-          const tileSize = await getTileSizeFromTileset(match);
+          const tileSize = await getTileSizeFromTileset(gidMatch);
           //TODO calc height, width
           //exchange width with height b/c of difference in XY coords in Sb and Tiled
           const height = tileSize.tilewidth;
@@ -705,7 +725,7 @@ class SbDungeonChunk{
           //Y + 1 because of difference in coords in Sb and Tiled (coords of pixel are shifted by 1)
           //also remove shift by Y due to reversed axis
           this.addObjectToLayer(
-            match.tileGid, 
+            gidMatch.tileGid, 
             height, 
             width, 
             (objX*this.tilewidth + spriteShiftX), 

@@ -450,6 +450,7 @@ type ObjectTileMatch = {
   tileName: string,
   tileRgba: RgbaValue,
   tileId: number, //Not Gid! Needs conversion to Gid!
+  tileIdVariations: {id: number, tileset: string}[],
   tileset: string,
   flipHorizontal?: boolean,
 }
@@ -946,37 +947,85 @@ function matchObjects(oldObjectsArray: ObjectTile[], tileset: TilesetObjectJson,
   }
   const matchMap = [...partialMatchMap];
   for (let objectIndex = 0; objectIndex < oldObjectsArray.length; objectIndex++) {
-    if (JSON.stringify(oldObjectsArray[objectIndex].value) === JSON.stringify(matchMap[objectIndex]?.tileRgba)) {
-      //we already have a match for this element, skip it
-      continue;
-    }
-    else { 
-      const { brush:brushArray, comment, value }: ObjectTile = oldObjectsArray[objectIndex];
-      for (const brush of brushArray) {
-        const [brushType, objectName, stats] = brush;
-        if (brushType === "clear" || brushType == "liquid") {
-          continue; //skip empty brush
+    
+    const { brush:brushArray, comment, value }: ObjectTile = oldObjectsArray[objectIndex];
+    for (const brush of brushArray) {
+      const [brushType, objectName, stats] = brush;
+      if(brush.flat().includes("biometree") || brush.flat().includes("biomeitems")) {
+        continue; //skip biom items, we match them separately
+      }
+      if (brushType === "clear" || brushType == "liquid") {
+        continue; //skip empty brush
+      }
+      else {
+        if (brushType !== "object") {
+          throw new Error(`Found non-object item at ${objectIndex} in Object Array: ${JSON.stringify(oldObjectsArray[objectIndex])}`);
         }
         else {
-          if (brushType !== "object") {
-            throw new Error(`Found non-object item at ${objectIndex} in Object Array: ${oldObjectsArray[objectIndex]}`);
-          }
-          else {
-            for (const objIndex in tileset.tileproperties) {
-              const obj = tileset.tileproperties[objIndex];
-              if (obj.object === objectName) { 
+          for (const objIndex in tileset.tileproperties) {
+            const obj = tileset.tileproperties[objIndex];
+            if (obj.object === objectName) {
+              const tileMatch = matchMap[objectIndex] as ObjectTileMatch;
+              if (JSON.stringify(oldObjectsArray[objectIndex].value) === JSON.stringify(matchMap[objectIndex]?.tileRgba)) {
+                //we already have a match for this element           
+                let variation = -1;
                 if (obj["//name"].includes("orientation") || obj["//description"].includes("orientation") || obj["//shortdescription"].includes("orientation")) {
-                  continue; //Experimental - try to pick first match ignoring additional variations
+                  variation = parseInt(objIndex); //if it is variation from the same/other tileset
                 }
-                //Check if we need horizontal flip
-                let flip:boolean = false;
-                if (stats && stats.direction) {
-                  flip = obj.tilesetDirection !== stats.direction;
-                };
+                else if(tileMatch.tileset.includes(tileset.name) === false) {
+                  variation = parseInt(objIndex); //if it is a basic match from other set (object may be included into several tilesets)
+                }
+                
+                tileMatch.tileIdVariations = [...tileMatch.tileIdVariations, {id: variation, tileset: tileset.name}];
 
-                const objMatch: ObjectTileMatch = { tileName: comment ? comment : objectName, tileRgba: value, tileId: parseInt(objIndex), tileset: tileset.name, flipHorizontal: flip || undefined };
-                matchMap[objectIndex] = objMatch;
+                //experimental: selecting tileset with max number of variations
+                const matchesNumber: {variants: number, tileset:string}[] = [];
+                if(tileMatch !== undefined) {
+                  const uniqueVars = tileMatch.tileIdVariations.filter((value, index, array) => array.indexOf(value) === index);
+                  for(const tsInfo of uniqueVars) {
+                    const variantsInTileset = tileMatch.tileIdVariations.filter((variant) => {
+                      return variant.tileset === tsInfo.tileset;
+                    });
+                    matchesNumber.push({
+                      variants: variantsInTileset.length,
+                      tileset: tsInfo.tileset,
+                    });
+                  }
+                }
+                
+                const sortedMatchesNumber = matchesNumber.length > 0? matchesNumber.sort((a, b) => b.variants - a.variants) : [{variants: 1, tileset: tileset.name}];
+                tileMatch.tileset = sortedMatchesNumber[0].tileset;
+
+                continue; //Experimental - record alt variation ids and skip, since we already have a match
               }
+              //Check if we need horizontal flip
+              let flip:boolean = false;
+              if (stats && stats.direction) {
+                flip = obj.tilesetDirection !== stats.direction;
+              };
+
+              // let newTilesets:string[] = [];
+              // if(matchMap[objectIndex] !== undefined) {
+              //   const onlyUnique = (matchMap[objectIndex] as ObjectTileMatch).tileIdVariations.filter((value, index, array) => {
+              //     return array.indexOf(value) === index;
+              //   });
+              //   for(const tsInfo of onlyUnique) {
+              //     newTilesets.push(tsInfo.tileset);
+              //   }
+              // }
+              // if(newTilesets.includes(tileset.name) === false) {
+              //   newTilesets.push(tileset.name);
+              // }
+
+              const objMatch: ObjectTileMatch = {
+                tileName: comment ? comment : objectName,
+                tileRgba: value,
+                tileId: parseInt(objIndex),
+                tileIdVariations: [{id: parseInt(objIndex), tileset: tileset.name}],
+                tileset: tileset.name,
+                flipHorizontal: flip || undefined 
+              };
+              matchMap[objectIndex] = objMatch;
             }
           }
         }
@@ -1003,10 +1052,10 @@ function matchObjectsBiome(oldObjectsArray: ObjectTile[], miscTilesetJSON: Tiles
       */
       const { brush, comment, value } = oldObjectsArray[objectIndex];
       if (brush.flat().includes("biomeitems")) {
-        newMatchMap[objectIndex] = { tileName: comment ? comment : "Biome Flora", tileRgba: value, tileId: 6, tileset: miscTilesetJSON.name };
+        newMatchMap[objectIndex] = { tileName: comment ? comment : "Biome Flora", tileRgba: value, tileId: 6, tileIdVariations: [], tileset: miscTilesetJSON.name };
       }
       else if (brush.flat().includes("biometree")) {
-        newMatchMap[objectIndex] = {tileName: comment?comment:"Biome Tree", tileRgba: value, tileId: 7, tileset: miscTilesetJSON.name};
+        newMatchMap[objectIndex] = {tileName: comment?comment:"Biome Tree", tileRgba: value, tileId: 7, tileIdVariations: [], tileset: miscTilesetJSON.name};
       }
       else {
         continue;
