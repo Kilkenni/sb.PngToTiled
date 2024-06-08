@@ -18,8 +18,7 @@
       "request": "launch",
       "name": "Launch tileset Gayification",
       "skipFiles": ["<node_internals>/**"],
-      //"command": "${workspaceFolder}/index.js -- action writeconverted_test",
-      "command": "npx tsx src/tilesetOrientationInjection.ts",
+      "command": "npx tsx src/tilesetOrient.ts",
       "outFiles": ["${workspaceFolder}/**/*.js"]
     }
   ]
