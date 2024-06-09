@@ -6,7 +6,7 @@
   "configurations": [
     {
       "type": "node-terminal",
-      "request": "launch",
+      "request": "launch",  
       "name": "Launch ConvertPNG test",
       "skipFiles": ["<node_internals>/**"],
       //"command": "${workspaceFolder}/index.js -- action writeconverted_test",
