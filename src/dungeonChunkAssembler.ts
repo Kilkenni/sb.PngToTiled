@@ -359,15 +359,15 @@ class SbDungeonChunk{
         }
         else {
           //debug
-          const p1 = baseLayerData[pixelN];
-          const p2 = mergeLayerData[pixelN];
           const coords = this.getCoordsFromFlatRgbaArray(pixelN, this.#width);
 
           const GidOld = baseLayerData[pixelN];
+          const GidNew = mergeLayerData[pixelN];    
           const oldRules: string[]|undefined = matchMap.find((match) => match.tileGid === GidOld)?.rules;
 
-          if(oldRules !== undefined && oldRules.flat().includes("allowOverdrawing")) {
+          if(GidOld === 0 || (oldRules !== undefined && oldRules.flat().includes("allowOverdrawing"))) {
             baseLayerData[pixelN] = mergeLayerData[pixelN]; //merge
+            continue;
           }       
         }
       }
@@ -397,6 +397,7 @@ class SbDungeonChunk{
             //GidOld !== GidNew
             if(oldRules !== undefined && oldRules.flat().includes("allowOverdrawing")) {
               baseLayerData[pixelN] = mergeLayerData[pixelN]; //merge
+              continue;
             }
             else {
               throw new Error(`Merging layers both have *different* non-empty values at pixel ${pixelN}, coords X ${coords?.x}, Y ${coords?.y}, and allowOverdrawing is false`);
