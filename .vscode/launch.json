@@ -11,7 +11,9 @@
       "skipFiles": ["<node_internals>/**"],
       //"command": "${workspaceFolder}/index.js -- action writeconverted_test",
       "command": "npx tsx src/index.js bulk false true true",
-      "outFiles": ["${workspaceFolder}/**/*.js"]
+      "localRoot": "${workspaceRoot}",
+      "outFiles": ["${workspaceFolder}/**/*.js"],
+      "sourceMaps": true,
     }
   ]
 }

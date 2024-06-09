@@ -356,7 +356,7 @@ interface Tile {
   value: RgbaValue, // [R, G, B, A]
   comment?: string,
   brush?: Brush[],
-  rules?: ["allowOverdrawing"] | any[],
+  rules?: (["allowOverdrawing"] | any)[],
   connector?: boolean,
 };
 
@@ -366,7 +366,7 @@ const ANCHOR_RULES = [
   "worldGenMustContainAirForeground",
 ] as const;
 
-type AnchorRule = "allowOverdrawing" | typeof ANCHOR_RULES[number];
+type AnchorRule = ["allowOverdrawing"] | [typeof ANCHOR_RULES[number]];
 
 interface AnchorTile extends Tile {
   brush?: AnchorBrush[],
@@ -428,6 +428,7 @@ type LayerTileMatch = {
   tileName: string,
   tileRgba: RgbaValue,
   tileGid: number,
+  rules?: string[];
 };
 
 type ModMatch = LayerTileMatch & {
@@ -561,6 +562,28 @@ async function calcNewTilesetShapes(log: boolean = false): Promise<TilesetShape[
   return tilesetsArray;
 }
 
+function ruleGetName(rule: typeof ANCHOR_RULES[number]): string {
+  let ruleName: string = rule;
+  //try to trim layer from the name
+  if (rule.includes("Background")) {
+    ruleName = rule.substring(0, rule.indexOf("Background"));
+  }
+  else if (rule.includes("Foreground")) {
+    ruleName = rule.substring(0, rule.indexOf("Foreground"));
+  }
+  return ruleName;
+}
+
+function ruleIsBackLayer(rule: typeof ANCHOR_RULES[number]): "back"|void {
+  if (rule.includes("Background")) {
+    return "back";
+  }
+  else if (rule.includes("Foreground")) {
+    return undefined;
+  }
+  return undefined;
+}
+
 function getSortedTileset(arrayOfOldTiles: Tile[], log: boolean = false): OldTilesetSorted {
   const oldSorted :OldTilesetSorted = {
     foreground: [] ,
@@ -585,13 +608,23 @@ function getSortedTileset(arrayOfOldTiles: Tile[], log: boolean = false): OldTil
       const ruleMatch = tile.rules.flat(3).filter((ruleString) => {
         return ANCHOR_RULES.includes(ruleString);
       });
-      if(ruleMatch.length === 1) {
+      if(ruleMatch.length > 0 /*=== 1*/) {
         oldSorted.anchors.push(tile);
-        continue;
+        //continue; - anchor may also contain surface tile data
       }
     }
     
     if (tile.brush === undefined) {
+      if(tile.rules !== undefined) {
+        if((tile.rules as AnchorRule[]).flat().includes(ANCHOR_RULES[2])) {
+          oldSorted.specialforeground.push(tile); //detected foreground rule
+          continue;
+        }
+        if((tile.rules as AnchorRule[]).flat().includes(ANCHOR_RULES[0]) || (tile.rules as AnchorRule[]).flat().includes(ANCHOR_RULES[1])) {
+          oldSorted.specialbackground.push(tile); //detected background rule
+          continue;
+        }
+      }
       oldSorted.special.push(tile); //if there is no brush at all, probably a Special tile
       continue;
     } else {
@@ -609,6 +642,16 @@ function getSortedTileset(arrayOfOldTiles: Tile[], log: boolean = false): OldTil
         switch (brush[0]) {
           case "clear":
             if(tile.brush.length === 1) {
+              if(tile.rules !== undefined) {
+                if((tile.rules as AnchorRule[]).flat().includes(ANCHOR_RULES[2])) {
+                  oldSorted.specialforeground.push(tile); //detected foreground rule
+                  break;
+                }
+                if((tile.rules as AnchorRule[]).flat().includes(ANCHOR_RULES[0]) || (tile.rules as AnchorRule[]).flat().includes(ANCHOR_RULES[1])) {
+                  oldSorted.specialbackground.push(tile); //detected background rule
+                  break;
+                }
+              }
               oldSorted.special.push(tile); //brush contains 1 "clear" element > special tile
             }
             break; //otherwise skip
@@ -620,7 +663,7 @@ function getSortedTileset(arrayOfOldTiles: Tile[], log: boolean = false): OldTil
             oldSorted.anchors.push(tile);
             break;
           case "surface":
-            if (tile.comment?.toLowerCase().includes("biome tile brush")) {
+            if (tile.comment?.toLowerCase().includes("biome tile brush") /*|| tile.comment === undefined*/) {
               oldSorted.specialbackground.push(tile); //for biome tile brush duplicate to background, as it is often setup incorrectly in old tileset
             }
             oldSorted.specialforeground.push(tile);
@@ -683,7 +726,7 @@ function matchTilelayer(oldTilesCategoryArray: Tile[], newTilesetJSON: TilesetJs
   if (firstgid < 1) {
     throw new Error(`FirstGid is ${firstgid} but it can't be negative!`)
   }
-  const matchMap = oldTilesCategoryArray.map((tile : Tile): undefined|LayerTileMatch => {
+  const matchMap = oldTilesCategoryArray.map((tile : Tile, index: number): undefined|LayerTileMatch => {
     const { value, comment, brush, rules }: Tile = tile;
     
     //TODO Typeguard
@@ -728,7 +771,7 @@ function matchTilelayer(oldTilesCategoryArray: Tile[], newTilesetJSON: TilesetJs
               material = (tileDesc as TileSolidJson)["material"];  
             }
             if (material === brushMaterial) {
-              return { tileName: brushMaterial, tileRgba: value, tileGid: (parseInt(materialIndex) + firstgid )};
+              return { tileName: brushMaterial, tileRgba: value, rules: rules, tileGid: (parseInt(materialIndex) + firstgid )};
             }
           }
         }
@@ -744,7 +787,7 @@ function matchTilelayer(oldTilesCategoryArray: Tile[], newTilesetJSON: TilesetJs
       //if we have special tile, but search for front layer - write 0. Precaution!
       if(layerName === "front" && (comment?.toLowerCase().includes("magic pink") || 
       brush?.length === 1 && brush.flat(1)[0] === "clear")) {
-        return{tileName: "special", tileRgba: value, tileGid: 0};
+        return{tileName: "special", tileRgba: value, tileGid: 0, rules};
       }
 
       /*
@@ -754,17 +797,17 @@ function matchTilelayer(oldTilesCategoryArray: Tile[], newTilesetJSON: TilesetJs
       11 = brush:["clear"], comment:"Empty hole overwritable" */
       //Magic Pink Brush #1
       if(comment?.toLowerCase().includes("magic pink")) {
-        return { tileName: "magic pink", tileRgba: value, tileGid: GidFlags.apply(1 + firstgid, false, true, false) };
+        return { tileName: "magic pink", tileRgba: value, tileGid: GidFlags.apply(1 + firstgid, false, true, false), rules };
         //Gid for Magic Pink Brush in original files is flipped horizontally, let's mimic that
       }
       if(brush && brush.length === 1 && brush.flat(1)[0] === "clear") {
         if (comment?.toLowerCase().includes("empty hole")) {
-          return { tileName: "empty", tileRgba: value, tileGid: 0 }; //EMPTY TILE
+          return { tileName: "empty", tileRgba: value, tileGid: 0, rules}; //EMPTY TILE
         }
         /*
         //Empty hole overwritable #11
         if(comment.toLowerCase().includes("empty hole") && rules &&
-        rules.flat(2).includes("allowOverwriting")) {
+        rules.flat(2).includes("allowOverdrawing")) {
           return {tileName: "empty hole overwritable", tileRgba: value, tileGid: 11 + firstgid}
         }
         //Empty hole #0
@@ -789,18 +832,19 @@ function matchTilelayer(oldTilesCategoryArray: Tile[], newTilesetJSON: TilesetJs
               10 = brush:["surface",{variant: 2}]
               10 = brush:["surface",{variant: 2}], rules: [["allowOverdrawing"]]
             */
+
             if(options && options.variant) {
               switch(options.variant) {
                 case 0:
-                  return {tileName: "surface #0", tileRgba: value, tileGid: 8 + firstgid};    
+                  return {tileName: "surface #0", tileRgba: value, tileGid: 8 + firstgid, rules};    
                 case 1: 
-                  return {tileName: "surface #1", tileRgba: value, tileGid: 9 + firstgid};
+                  return {tileName: "surface #1", tileRgba: value, tileGid: 9 + firstgid, rules};
                 case 2:
-                  return {tileName: "surface #2", tileRgba: value, tileGid: 10 + firstgid};
+                  return {tileName: "surface #2", tileRgba: value, tileGid: 10 + firstgid, rules};
               }
             }
             else {
-              return {tileName: "surface", tileRgba: value, tileGid: 8 + firstgid};
+              return {tileName: "surface", tileRgba: value, tileGid: 8 + firstgid, rules};
             }
           }
           else if(brushType === "surfacebackground") {
@@ -817,64 +861,77 @@ function matchTilelayer(oldTilesCategoryArray: Tile[], newTilesetJSON: TilesetJs
             if(options && options.variant) {
               switch(options.variant) {
                 case 0:
-                  return {tileName: "surfacebackground #0", tileRgba: value, tileGid: 8 + firstgid};    
+                  return {tileName: "surfacebackground #0", tileRgba: value, tileGid: 8 + firstgid, rules};    
                 case 1: 
-                  return {tileName: "surfacebackground #1", tileRgba: value, tileGid: 9 + firstgid};
+                  return {tileName: "surfacebackground #1", tileRgba: value, tileGid: 9 + firstgid, rules};
                 case 2:
-                  return {tileName: "surfacebackground #2", tileRgba: value, tileGid: 10 + firstgid};
+                  return {tileName: "surfacebackground #2", tileRgba: value, tileGid: 10 + firstgid, rules};
               }
             }
             else {
-              return {tileName: "surfacebackground", tileRgba: value, tileGid: 8 + firstgid};
+              return {tileName: "surfacebackground", tileRgba: value, tileGid: 8 + firstgid, rules};
             }
           }
         }
       } 
+
+      if(layerName === "back" && rules !== undefined) {
+        const flatRules = rules.flat()
+        if(flatRules.includes(ANCHOR_RULES[0])) {
+          //solid background
+          return {
+            tileName: "surfacebackground",
+            tileRgba: value,
+            tileGid: 8 + firstgid,
+            rules: flatRules.includes("allowOverdrawing")? ["allowOverdrawing"] : undefined,
+          };
+        }
+        else if(flatRules.includes(ANCHOR_RULES[1])) {
+          //air background
+          if(flatRules.includes("allowOverdrawing")) {
+            return {tileName: "Air (overwritable)", tileRgba: value, tileGid: 11 + firstgid, rules: ["allowOverdrawing"]};
+          }
+          else {
+            return {tileName: "Air", tileRgba: value, tileGid: 0 + firstgid};
+          }
+        }
+      }
+      if(layerName === "front" && rules !== undefined) {
+        const flatRules = rules.flat()
+        if(flatRules.includes(ANCHOR_RULES[2])) {
+          //solid background
+          return {
+            tileName: "Air",
+            tileRgba: value, 
+            tileGid: 0 + firstgid,
+            rules: flatRules.includes("allowOverdrawing")? ["allowOverdrawing"] : undefined,
+          };
+        }
+      }
+    /*
+    const MISCJSON_MAP = [
+      "Magic Pink Brush",                  //1 - back
+      "Default Surface Tile 0",            //8 - front/back
+      "Default Surface Tile 1",            //9 - front/back
+      "Default Surface Tile 2",            //10 - front/back
+
+      "Air",                               //0 - front/back
+      "Air (overwritable)",                //11
+      "Invisible wall (boundary)",             //2 - front (only for quests)
+      "Invisible wall (climbable)",            //18 - front (only for quests)
+      "Underwater invisible wall (boundary)",  //19 - front (only for quests)
+      "Zero G",                                //20 --> front, but can be ignored? 
+      "Zero G (protected)",                    //21 --> front, but can be ignored? 
+    ]; //index = tile #
+    */
     }
-/*
-const MISCJSON_MAP = [
-  "Magic Pink Brush",                  //1 - back
-  "Default Surface Tile 0",            //8 - front/back
-  "Default Surface Tile 1",            //9 - front/back
-  "Default Surface Tile 2",            //10 - front/back
-
-  "Air",                               //0 - is it ever used?
-  "Air (overwritable)",                //11 -is it ever used?
-  "Invisible wall (boundary)",             //2 - front (only for quests)
-  "Invisible wall (climbable)",            //18 - front (only for quests)
-  "Underwater invisible wall (boundary)",  //19 - front (only for quests)
-  "Zero G",                                //20 --> front, but can be ignored? 
-  "Zero G (protected)",                    //21 --> front, but can be ignored? 
-]; //index = tile #
- */
-
+    
     return; //if no matches are found - next tile
   });
     return matchMap;
 }
 
 function matchAnchors(oldAnchorsArray: AnchorTile[], miscTilesetJSON: TilesetMiscJson, firstGid: number): LayerTileMatch[] {
-  
-  function ruleGetName(rule: typeof ANCHOR_RULES[number]): string {
-    let ruleName: string = rule;
-    //try to trim layer from the name
-    if (rule.includes("Background")) {
-      ruleName = rule.substring(0, rule.indexOf("Background"));
-    }
-    else if (rule.includes("Foreground")) {
-      ruleName = rule.substring(0, rule.indexOf("Foreground"));
-    }
-    return ruleName;
-  }
-  function ruleIsBackLayer(rule: typeof ANCHOR_RULES[number]): "back"|void {
-    if (rule.includes("Background")) {
-      return "back";
-    }
-    else if (rule.includes("Foreground")) {
-      return undefined;
-    }
-    return undefined;
-  }
 
   if (firstGid < 1) {
     throw new Error (`firstGid is ${firstGid} but must be positive!`);
@@ -955,7 +1012,7 @@ function matchObjects(oldObjectsArray: ObjectTile[], tileset: TilesetObjectJson,
       if(brush.flat().includes("biometree") || brush.flat().includes("biomeitems")) {
         continue; //skip biom items, we match them separately
       }
-      if (brushType === "clear" || brushType == "liquid") {
+      if (brushType === "clear" || brushType == "liquid" || brushType !== "object") {
         continue; //skip empty brush
       }
       else {
@@ -1228,8 +1285,9 @@ async function matchAllTilelayers(oldTileset:OldTilesetSorted, log:boolean = fal
       throw new Error(`Tileset ${tileset} not found in tileset shapes; cannot retrieve firstgid`);
     }
 
+    const fullback =  oldTileset.background.concat(oldTileset.specialbackground).concat(oldTileset.special);
     const partialBack = matchTilelayer(
-      oldTileset.background.concat(oldTileset.specialbackground).concat(oldTileset.special),
+      fullback,
       tilesetJson as TilesetJson,
       "back",
       firstgid
@@ -1239,8 +1297,8 @@ async function matchAllTilelayers(oldTileset:OldTilesetSorted, log:boolean = fal
       fullMatchMap.back = mergeLayerMatchMaps(fullMatchMap.back, partialBack);
     }
     
-
-    const partialFront = matchTilelayer(oldTileset.foreground.concat(oldTileset.specialforeground).concat(oldTileset.special), tilesetJson as TilesetJson, "front", firstgid);
+    const fullfront = oldTileset.foreground.concat(oldTileset.specialforeground).concat(oldTileset.special);
+    const partialFront = matchTilelayer(fullfront, tilesetJson as TilesetJson, "front", firstgid);
     if(partialFront) {
     fullMatchMap.front = mergeLayerMatchMaps(fullMatchMap.front, partialFront);
     }
@@ -1327,6 +1385,7 @@ export type {
 
   RgbaValue as RgbaValueType,
   LayerTileMatch as LayerTileMatchType,
+  FullTileMatch as FullTileMatchType,
   ObjectBrush as ObjectBrushType,
   ObjectTileMatch as ObjectTileMatchType,
   ObjectFullMatch as ObjectFullMatchType,
