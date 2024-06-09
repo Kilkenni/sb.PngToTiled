@@ -100,6 +100,10 @@ async function generateDungeonChunk(tilePixels: NdArray<Uint8Array>, objPixels: 
   await convertedChunk.addObjectTilesetShapes(objectsMap.tilesets, log); //for debug. parseAddObjects does that
   const objectsGidMap = convertedChunk.convertIdMapToGid(objectsMap); //for debug. parseAddObjects does that
 
+  if(objPixels === undefined || objPixels.length === 0) {
+    objPixels = [tilePixels];
+  }
+
   if (objPixels !== undefined) {
     const npcMap = tilesetMatcher.matchNPCS(oldTileset.npcs as tilesetMatcher.NpcTile[]);
     const modMap = tilesetMatcher.matchMods(oldTileset.foreground);
@@ -108,15 +112,19 @@ async function generateDungeonChunk(tilePixels: NdArray<Uint8Array>, objPixels: 
 
     //parse each file and merge with the first one
     for (const objLayer of objPixels) {
-      //MERGE additional tilelayers from objects layer
       const objRgbaArray = tilesetMatcher.slicePixelsToArray(objLayer.data, chunkWidth, chunkHeight, chunkChannels);
-      //we use the same MatchMap since it's still the same dungeon - tilesets didn't change
-      //Disable converting and merging tiles from objects into background - we assume that objPNG contains NO background tiles
-      //const convertedBackLayer = tilesetMatcher.convertPngToGid(objRgbaArray, fullMatchMap.back);
-      const convertedFrontLayer = tilesetMatcher.convertPngToGid(objRgbaArray,fullMatchMap.front);
-      convertedChunk.mergeTilelayers(convertedFrontLayer, /*convertedBackLayer, */log);
+      if(objLayer !== tilePixels) {
+        //MERGE additional tilelayers from objects layer - skip for main layer since it's already done
+        
+        //we use the same MatchMap since it's still the same dungeon - tilesets didn't change
+        //Disable converting and merging tiles from objects into background - we assume that objPNG contains NO background tiles
+        //const convertedBackLayer = tilesetMatcher.convertPngToGid(objRgbaArray, fullMatchMap.back);
+        const convertedFrontLayer = tilesetMatcher.convertPngToGid(objRgbaArray,fullMatchMap.front);
+        convertedChunk.mergeTilelayers(convertedFrontLayer, convertedBackLayer, fullMatchMap, log);
 
-      convertedChunk.parseAnchors(objRgbaArray, anchorsMap, log); //let's try to find some anchors here as well
+        convertedChunk.parseAnchors(objRgbaArray, anchorsMap, log); //let's try to find some anchors here as well
+      }
+      
       //map PNG to objects using objectsGidMap
       await convertedChunk.parseObjects(
         oldTileset.objects as tilesetMatcher.ObjectTile[],

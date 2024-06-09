@@ -9,7 +9,7 @@
 // import * as tilesetMatcher from "./tilesetMatch.js";
 import { getFilename, getTileset, getTilesetPath, getTilesetNameFromPath } from "./dungeonsFS";
 import { matchObjects, matchObjectsBiome, getObjectFromTileset, getTileSizeFromTileset, isRgbaEqual } from "./tilesetMatch";
-import { TilesetJson, ObjectTile, ObjectFullMatchType, LayerTileMatchType, TilesetMiscJson, ObjectJson, RgbaValueType, ObjectBrushType, NpcMatchType, ModMatchType, StagehandMatchType } from "./tilesetMatch";
+import { TilesetJson, ObjectTile, ObjectFullMatchType, LayerTileMatchType, FullTileMatchType, TilesetMiscJson, ObjectJson, RgbaValueType, ObjectBrushType, NpcMatchType, ModMatchType, StagehandMatchType } from "./tilesetMatch";
 import { FullObjectMap } from "./conversionSteps";
 import { TILESETMAT_NAME, TILESETOBJ_NAME, resolveTilesets} from "./tilesetMatch";
 // import * as dungeonsFS from "./dungeonsFS";
@@ -338,7 +338,7 @@ class SbDungeonChunk{
     return;
   }
 
-  #mergeLayerData(baseLayerData: number[], mergeLayerData: number[]):number[] {
+  #mergeLayerData(baseLayerData: number[], mergeLayerData: number[], matchMap: LayerTileMatchType[]):number[] {
     if(baseLayerData.length !== mergeLayerData.length) {
       throw new Error(`Cannot merge Tilelayers: size mismatch!`)
     }
@@ -362,18 +362,28 @@ class SbDungeonChunk{
           const p1 = baseLayerData[pixelN];
           const p2 = mergeLayerData[pixelN];
           const coords = this.getCoordsFromFlatRgbaArray(pixelN, this.#width);
-          baseLayerData[pixelN] = mergeLayerData[pixelN]; //merge
+
+          const GidOld = baseLayerData[pixelN];
+          const oldRules: string[]|undefined = matchMap.find((match) => match.tileGid === GidOld)?.rules;
+
+          if(oldRules !== undefined && oldRules.flat().includes("allowOverdrawing")) {
+            baseLayerData[pixelN] = mergeLayerData[pixelN]; //merge
+          }       
         }
       }
       else {
+        //baselayer tile is neither MPP or 0
         if(mergeLayerData[pixelN] !== magicPinkBrushGid && mergeLayerData[pixelN] !== 0) {
           const coords = this.getCoordsFromFlatRgbaArray(pixelN, this.#width);
           const GidOld = baseLayerData[pixelN];
+          const oldRules: string[]|undefined = matchMap.find((match) => match.tileGid === GidOld)?.rules;
           const GidNew = mergeLayerData[pixelN];
           if(GidOld === GidNew ) {
+            continue;
+            
             if(threwWarning === false) {
               console.warn(`  WARNING: Merging layers both have equal non-empty values at pixel ${pixelN}, coords X ${coords?.x}, Y ${coords?.y}
-              While technically not an error, object PNGs must not contain tiles that overwrite front tilelayer tiles.
+              While technically not an error, object PNGs usually do not contain tiles that overwrite front tilelayer tiles.
               Original tiles from front tilelayer will be saved, similar tiles from objects PNG will be ignored.
               This is a one-per-file warning.`);
               threwWarning = true;
@@ -383,14 +393,24 @@ class SbDungeonChunk{
               continue;
             }
           }
-          throw new Error(`Merging layers both have *different* non-empty values at pixel ${pixelN}, coords X ${coords?.x}, Y ${coords?.y}`)
+          else {
+            //GidOld !== GidNew
+            if(oldRules !== undefined && oldRules.flat().includes("allowOverdrawing")) {
+              baseLayerData[pixelN] = mergeLayerData[pixelN]; //merge
+            }
+            else {
+              throw new Error(`Merging layers both have *different* non-empty values at pixel ${pixelN}, coords X ${coords?.x}, Y ${coords?.y}, and allowOverdrawing is false`);
+            }
+          }
+
+         
         }
       }
     }
     return baseLayerData;
   }
 
-  mergeTilelayers(frontLayerData: number[], /*backLayerData: number[],*/ log = false):SbDungeonChunk {
+  mergeTilelayers(frontLayerData: number[], backLayerData: number[], matchMap: FullTileMatchType, log = false):SbDungeonChunk {
     if (log) {
       console.log(`  - merging tilelayers from objects.png`);
     }
@@ -405,8 +425,8 @@ class SbDungeonChunk{
       throw new Error(`Cannot merge into encoded tilelayer ${frontIndex}!`);
     }
     
-    this.#mergeLayerData((this.#layers[frontIndex] as SbTilelayer).data as Array<number>, frontLayerData);
-    //this.#mergeLayerData((this.#layers[backIndex] as SbTilelayer).data as Array<number>, backLayerData);
+    this.#mergeLayerData((this.#layers[frontIndex] as SbTilelayer).data as Array<number>, frontLayerData, matchMap.front);
+    this.#mergeLayerData((this.#layers[backIndex] as SbTilelayer).data as Array<number>, backLayerData, matchMap.back);
     return this;
   }
 
