@@ -293,9 +293,20 @@ async function getDungeonTodos(strict = false, log = false): Promise<{ dungeonFi
 }
 
 async function writeObjectVariationsDump(newChunkName: string, objectsWithOrients: ObjectFullMatchType[]):Promise<void> {
+  //wipe unnecessary fields
+
+  const filteredObjects = objectsWithOrients.map((match) => {
+    return {
+      tileName: match.tileName,
+      tileGid: match.tileGid,
+      tileGidAlternatives: match.tileIdVariations,
+      tileset: match.tileset,
+    };
+  });
+
   await nodeFS.writeFile(
     `${ioDirPath}/${newChunkName}.VERIFY`,
-    JSON.stringify(objectsWithOrients, null, 2),
+    JSON.stringify(filteredObjects, null, 2),
     "utf-8"
     );
     return;
