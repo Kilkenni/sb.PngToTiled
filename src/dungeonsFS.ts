@@ -4,7 +4,7 @@ import { promisify } from "util";
 import { NdArray } from "ndarray";
 import getPixels from "get-pixels";
 
-import { Tile, resolveTilesets, TilesetJson } from "./tilesetMatch";
+import { Tile, resolveTilesets, TilesetJson, ObjectFullMatchType } from "./tilesetMatch";
 import { SbDungeonChunk } from "./dungeonChunkAssembler";
 // import { TILESETJSON_NAME } from "./tilesetMatch.js";
 
@@ -292,6 +292,27 @@ async function getDungeonTodos(strict = false, log = false): Promise<{ dungeonFi
   };
 }
 
+async function writeObjectVariationsDump(newChunkName: string, objectsWithOrients: ObjectFullMatchType[]):Promise<void> {
+  //wipe unnecessary fields
+
+  const filteredObjects = objectsWithOrients.map((match) => {
+    return {
+      tileName: match.tileName,
+      tileGid: match.tileGid,
+      tileGidAlternatives: match.tileIdVariations,
+      tileset: match.tileset,
+    };
+  });
+
+  await nodeFS.writeFile(
+    `${ioDirPath}/${newChunkName}.VERIFY`,
+    JSON.stringify(filteredObjects, null, 2),
+    "utf-8"
+    );
+    return;
+}
+
+
 async function writeConvertedMapJson(newPath:string, DungeonChunk: SbDungeonChunk):Promise<boolean> {
   // const ioDir = await readDir();
   try {
@@ -367,6 +388,7 @@ export {
   //parseChunkConnections,
   verifyChunkConnections,
   writeConvertedDungeons,
+  writeObjectVariationsDump,
   writeConvertedMapJson,
   writeTileMap,
   getTilesetPath,

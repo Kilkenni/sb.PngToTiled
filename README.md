@@ -45,6 +45,8 @@ Solution: Manually remove some of BTs/BIs after conversion to eliminate spawn ov
 
 </details>
 
+Please refer to GitHub Issues for up-to-date list of all known issues.
+
 ## Usage
 
 To use under Linux:
